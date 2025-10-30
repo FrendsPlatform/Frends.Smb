@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  samba:
+    image: dperson/samba
+    container_name: smb-test-server
+    ports:
+      - "445:445"
+    environment:
+      - USER=testuser;testpass
+      - SHARE=testshare;/share;yes;no;no;testuser
+      - WORKGROUP=WORKGROUP
+    volumes:
+      - ./test-files:/share
+    command: >
+      -u "testuser;testpass"
+      -s "testshare;/share;yes;no;no;testuser"
+      -w "WORKGROUP"

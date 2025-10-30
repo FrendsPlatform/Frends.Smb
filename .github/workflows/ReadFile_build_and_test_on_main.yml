@@ -1,0 +1,19 @@
+name: ReadFile_build_main
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Frends.Smb.ReadFile/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: FrendsPlatform/FrendsTasks/.github/workflows/linux_build_main.yml@main
+    with:
+      workdir: Frends.Smb.ReadFile
+      prebuild_command: cd Frends.Smb.ReadFile.Tests && docker-compose up -d
+      dotnet_version: 8.0.x
+    secrets:
+      badge_service_api_key: ${{ secrets.BADGE_SERVICE_API_KEY }}
