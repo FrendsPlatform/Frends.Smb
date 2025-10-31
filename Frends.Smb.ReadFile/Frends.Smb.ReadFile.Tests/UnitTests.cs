@@ -1,11 +1,15 @@
-using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Frends.Smb.ReadFile.Definitions;
 using NUnit.Framework;
 
 namespace Frends.Smb.ReadFile.Tests;
+
+// The SMB tests require Linux or WSL with Docker installed.
+// These tests will not work on Windows natively because SMB uses port 445, which is reserved by the OS.
+// `cd Frends.Smb.ReadFile.Tests`
+// `docker-compose up -d`
+// `dotnet test`
 
 [TestFixture]
 public class UnitTests

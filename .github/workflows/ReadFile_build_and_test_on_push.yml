@@ -15,6 +15,7 @@ jobs:
       workdir: Frends.Smb.ReadFile
       prebuild_command: cd Frends.Smb.ReadFile.Tests && docker-compose up -d
       dotnet_version: 8.0.x
+      strict_analyzers: true
     secrets:
       badge_service_api_key: ${{ secrets.BADGE_SERVICE_API_KEY }}
       test_feed_api_key: ${{ secrets.TASKS_TEST_FEED_API_KEY }}

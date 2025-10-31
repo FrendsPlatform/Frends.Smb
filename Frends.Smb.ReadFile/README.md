@@ -1,6 +1,6 @@
 # Frends.Smb.ReadFile
 
-Description of what the Task will do.
+Reads a file from directory.
 
 [![ReadFile_build](https://github.com/FrendsPlatform/Frends.Smb/actions/workflows/ReadFile_build_and_test_on_main.yml/badge.svg)](https://github.com/FrendsPlatform/Frends.Smb/actions/workflows/ReadFile_build_and_test_on_main.yml)
 ![Coverage](https://app-github-custom-badges.azurewebsites.net/Badge?key=FrendsPlatform/Frends.Smb/Frends.Smb.ReadFile|main)
@@ -22,8 +22,11 @@ You can install the Task via Frends UI Task View.
 
 ### Run tests
 
-Run the tests
+The SMB tests require Linux or WSL with Docker installed.
+These tests will not work on Windows natively because SMB uses port 445, which is reserved by the OS.
 
+`cd Frends.Smb.ReadFile.Tests`
+`docker-compose up -d`
 `dotnet test`
 
 ### Create a NuGet package
