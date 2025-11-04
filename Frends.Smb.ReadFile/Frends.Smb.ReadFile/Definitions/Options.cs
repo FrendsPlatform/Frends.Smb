@@ -12,7 +12,7 @@ public class Options
     /// Whether to attempt decoding the file content to text.
     /// If false, TextContent will be null for all files.
     /// </summary>
-    /// <example>fasle</example>
+    /// <example>false</example>
     [DefaultValue(false)]
     public bool UseEncoding { get; set; } = false;
 
