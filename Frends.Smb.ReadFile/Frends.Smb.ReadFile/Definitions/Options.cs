@@ -20,16 +20,15 @@ public class Options
     /// Encoding for the file content.
     /// By selecting 'Other' you can use any encoding.
     /// </summary>
-    /// <example>FileEncoding.Utf8</example>
+    /// <example>FileEncoding.Default</example>
     [UIHint(nameof(UseEncoding), "", true)]
-    [DefaultValue(FileEncoding.Utf8)]
+    [DefaultValue(FileEncoding.Default)]
     public FileEncoding FileEncoding { get; set; }
 
     /// <summary>
     /// Enable BOM (Byte Order Mark) for UTF-8 encoding.
     /// </summary>
     /// <example>false</example>
-    [UIHint(nameof(UseEncoding), "", true)]
     [UIHint(nameof(FileEncoding), "", FileEncoding.Utf8)]
     [DefaultValue(false)]
     public bool EnableBom { get; set; }
@@ -39,7 +38,6 @@ public class Options
     /// A partial list of possible encodings: https://en.wikipedia.org/wiki/Windows_code_page#List
     /// </summary>
     /// <example>ISO-8859-2</example>
-    [UIHint(nameof(UseEncoding), "", true)]
     [DisplayFormat(DataFormatString = "Text")]
     [UIHint(nameof(FileEncoding), "", FileEncoding.Other)]
     public string EncodingInString { get; set; }
