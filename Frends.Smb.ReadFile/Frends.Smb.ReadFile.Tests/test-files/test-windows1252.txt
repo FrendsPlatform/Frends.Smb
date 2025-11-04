@@ -1,0 +1,1 @@
+Test content with special chars: : é, ç, ß, £, €
