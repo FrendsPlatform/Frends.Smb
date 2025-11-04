@@ -161,12 +161,23 @@ public static class Smb
                     byte[] contentBytes = memoryStream.ToArray();
 
                     string decodedText = null;
-                    try
+                    if (options.UseEncoding)
                     {
-                        decodedText = encoding.GetString(contentBytes);
-                    }
-                    catch
-                    {
+                        try
+                        {
+                            var strictEncoding = Encoding.GetEncoding(
+                                encoding.WebName,
+                                EncoderFallback.ExceptionFallback,
+                                DecoderFallback.ExceptionFallback);
+
+                            decodedText = strictEncoding.GetString(contentBytes);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new Exception(
+                                "Failed to decode file content with the specified encoding. " +
+                                "If this file is binary, please set UseEncoding to false.", ex);
+                        }
                     }
 
                     double sizeInMb = fileSize / (1024.0 * 1024.0);

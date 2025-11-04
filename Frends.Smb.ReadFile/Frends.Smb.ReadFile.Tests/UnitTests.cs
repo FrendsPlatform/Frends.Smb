@@ -94,6 +94,8 @@ public class UnitTests
             Path = @"test-utf8.txt",
         };
 
+        options.UseEncoding = true;
+
         var result = await Smb.ReadFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
@@ -104,6 +106,7 @@ public class UnitTests
     [Test]
     public async Task ReadFile_DifferentEncodings_Success()
     {
+        options.UseEncoding = true;
         options.FileEncoding = FileEncoding.Windows1252;
 
         input = new Input { Path = @"test-windows1252.txt" };
@@ -232,5 +235,39 @@ public class UnitTests
             await Smb.ReadFile(input, connection, options, CancellationToken.None));
 
         Assert.That(ex, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task ReadFile_BinaryFile_WithEncodingNone_Succeeds()
+    {
+        var binaryData = new byte[] { 0x42, 0x43, 0x44, 0x45 };
+        var binaryPath = Path.Combine(testFilesPath, "binaryfile.bin");
+        File.WriteAllBytes(binaryPath, binaryData);
+
+        input = new Input { Path = "binaryfile.bin" };
+        options.UseEncoding = false;
+
+        var result = await Smb.ReadFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Content, Is.Not.Null);
+        Assert.That(result.TextContent, Is.Null);
+    }
+
+    [Test]
+    public void ReadFile_BinaryFile_WithUtf8Encoding_ThrowsDecodingException()
+    {
+        var binaryData = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 };
+        var binaryPath = Path.Combine(testFilesPath, "image.jpg");
+        File.WriteAllBytes(binaryPath, binaryData);
+
+        input = new Input { Path = "image.jpg" };
+        options.UseEncoding = true;
+        options.ThrowErrorOnFailure = true;
+
+        var ex = Assert.ThrowsAsync<Exception>(async () =>
+            await Smb.ReadFile(input, connection, options, CancellationToken.None));
+
+        Assert.That(ex.Message, Does.Contain("Failed to decode file content"));
     }
 }

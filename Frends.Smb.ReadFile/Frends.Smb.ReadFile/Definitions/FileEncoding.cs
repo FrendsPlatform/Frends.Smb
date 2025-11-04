@@ -14,3 +14,5 @@ public enum FileEncoding
     Windows1252,
     Other,
 }
+#pragma warning restore SA1602
+#pragma warning restore CS1591
