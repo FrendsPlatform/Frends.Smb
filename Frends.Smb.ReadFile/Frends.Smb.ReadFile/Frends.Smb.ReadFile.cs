@@ -51,11 +51,13 @@ public static class Smb
         cancellationToken.ThrowIfCancellationRequested();
 
         if (string.IsNullOrWhiteSpace(connection.Server))
-            throw new ArgumentException("Server cannot be empty.", nameof(connection.Server));
+            throw new ArgumentException("Server cannot be empty.", nameof(connection));
+
         if (string.IsNullOrWhiteSpace(connection.Share))
-            throw new ArgumentException("Share cannot be empty.", nameof(connection.Share));
+            throw new ArgumentException("Share cannot be empty.", nameof(connection));
+
         if (string.IsNullOrWhiteSpace(input.Path))
-            throw new ArgumentException("Path cannot be empty.", nameof(input.Path));
+            throw new ArgumentException("Path cannot be empty.", nameof(input));
 
         if (input.Path.StartsWith(@"\\"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
