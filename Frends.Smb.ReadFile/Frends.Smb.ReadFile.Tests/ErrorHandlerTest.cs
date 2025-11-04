@@ -13,7 +13,7 @@ public class ErrorHandlerTest
     [Test]
     public void Should_Throw_Error_When_ThrowErrorOnFailure_Is_True()
     {
-        var ex = Assert.ThrowsAsync<System.NullReferenceException>(async () =>
+        var ex = Assert.ThrowsAsync<System.ArgumentException>(async () =>
                 await Smb.ReadFile(DefaultInput(), DefaultConnection(), DefaultOptions(), CancellationToken.None));
 
         Assert.That(ex, Is.Not.Null);
@@ -41,7 +41,7 @@ public class ErrorHandlerTest
 
     private static Input DefaultInput() => new()
     {
-        Path = $"\\\\{"wrongServerName"}\\{"wrongShareName"}\\nonexistent-file.txt",
+        Path = @"\nonexistent-file.txt",
     };
 
     private static Connection DefaultConnection() => new();

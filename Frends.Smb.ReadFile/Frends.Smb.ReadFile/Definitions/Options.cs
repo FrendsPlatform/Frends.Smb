@@ -13,14 +13,14 @@ public class Options
     /// By selecting 'Other' you can use any encoding.
     /// </summary>
     /// <example>FileEncoding.UTF8</example>
-    [DefaultValue(FileEncoding.UTF8)]
+    [DefaultValue(FileEncoding.Utf8)]
     public FileEncoding FileEncoding { get; set; }
 
     /// <summary>
     /// Enable BOM (Byte Order Mark) for UTF-8 encoding.
     /// </summary>
     /// <example>false</example>
-    [UIHint(nameof(FileEncoding), "", FileEncoding.UTF8)]
+    [UIHint(nameof(FileEncoding), "", FileEncoding.Utf8)]
     [DefaultValue(false)]
     public bool EnableBom { get; set; }
 

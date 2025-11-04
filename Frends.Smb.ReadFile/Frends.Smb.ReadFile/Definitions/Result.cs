@@ -17,16 +17,16 @@ public class Result
     /// File content.
     /// </summary>
     /// <example>This is a test file.</example>
-    public string Content { get; set; }
+    public byte[] Content { get; set; }
 
     /// <summary>
-    /// Full path to the file.
+    /// The full path of the file that was read.
     /// </summary>
     /// <example>c:\temp\foo.txt</example>
     public string Path { get; set; }
 
     /// <summary>
-    /// Size of the written file in mega bytes.
+    /// Size of the read file in megabytes.
     /// </summary>
     /// <example>32</example>
     public double SizeInMegaBytes { get; set; }

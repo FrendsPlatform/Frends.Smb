@@ -34,8 +34,7 @@ public static class Smb
     {
         try
         {
-            return await ExecuteReadAsync(input, connection, options, cancellationToken)
-                .ConfigureAwait(false);
+            return await ExecuteReadAsync(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -51,19 +50,15 @@ public static class Smb
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (string.IsNullOrWhiteSpace(connection.Server))
+            throw new ArgumentException("Server cannot be empty.", nameof(connection.Server));
+        if (string.IsNullOrWhiteSpace(connection.Share))
+            throw new ArgumentException("Share cannot be empty.", nameof(connection.Share));
         if (string.IsNullOrWhiteSpace(input.Path))
-            throw new ArgumentException("Path cannot be empty.");
+            throw new ArgumentException("Path cannot be empty.", nameof(input.Path));
 
-        if (!input.Path.StartsWith("\\\\"))
-            throw new ArgumentException("Path must be a UNC path (e.g., \\\\server\\share\\file.txt).");
-
-        var pathParts = input.Path.TrimStart('\\').Split(['\\'], StringSplitOptions.RemoveEmptyEntries);
-        if (pathParts.Length < 3)
-            throw new ArgumentException("Invalid UNC path format. Expected: \\\\server\\share\\path\\to\\file");
-
-        string serverName = pathParts[0];
-        string shareName = pathParts[1];
-        string filePath = string.Join("\\", pathParts.Skip(2));
+        if (input.Path.StartsWith(@"\\"))
+            throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
         Encoding encoding = GetEncoding(options.FileEncoding, options.EnableBom, options.EncodingInString);
 
@@ -73,9 +68,9 @@ public static class Smb
 
         try
         {
-            bool connected = client.Connect(serverName, SMBTransportType.DirectTCPTransport);
+            bool connected = client.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
             if (!connected)
-                throw new Exception($"Failed to connect to SMB server: {serverName}");
+                throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -83,9 +78,9 @@ public static class Smb
             if (loginStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"SMB login failed: {loginStatus}");
 
-            ISMBFileStore fileStore = client.TreeConnect(shareName, out NTStatus treeStatus);
+            ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
             if (treeStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to connect to share '{shareName}': {treeStatus}");
+                throw new Exception($"Failed to connect to share '{connection.Share}': {treeStatus}");
 
             try
             {
@@ -94,7 +89,7 @@ public static class Smb
                 NTStatus openStatus = fileStore.CreateFile(
                     out object fileHandle,
                     out FileStatus fileStatus,
-                    filePath,
+                    input.Path,
                     AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
                     SMBLibrary.FileAttributes.Normal,
                     ShareAccess.Read,
@@ -103,7 +98,7 @@ public static class Smb
                     null);
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"Failed to open file '{filePath}': {openStatus}");
+                    throw new Exception($"Failed to open file '{input.Path}': {openStatus}, file status: {fileStatus}");
 
                 try
                 {
@@ -161,15 +156,15 @@ public static class Smb
                             break;
                     }
 
-                    string content = encoding.GetString(memoryStream.ToArray());
-                    double sizeInMB = fileSize / (1024.0 * 1024.0);
+                    byte[] content = memoryStream.ToArray();
+                    double sizeInMb = fileSize / (1024.0 * 1024.0);
 
                     return new Result
                     {
                         Success = true,
                         Content = content,
                         Path = input.Path,
-                        SizeInMegaBytes = sizeInMB,
+                        SizeInMegaBytes = sizeInMb,
                         CreationTime = creationTime,
                         LastWriteTime = lastWriteTime,
                         Error = null,
@@ -205,11 +200,11 @@ public static class Smb
         {
             case FileEncoding.Other:
                 return Encoding.GetEncoding(encodingInString);
-            case FileEncoding.ASCII:
+            case FileEncoding.Ascii:
                 return Encoding.ASCII;
             case FileEncoding.Default:
                 return Encoding.Default;
-            case FileEncoding.UTF8:
+            case FileEncoding.Utf8:
                 return enableBom ? new UTF8Encoding(true) : new UTF8Encoding(false);
             case FileEncoding.Windows1252:
                 EncodingProvider provider = CodePagesEncodingProvider.Instance;
@@ -218,7 +213,7 @@ public static class Smb
             case FileEncoding.Unicode:
                 return Encoding.Unicode;
             default:
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(fileEncoding), fileEncoding, "Unsupported file encoding value.");
         }
     }
 }

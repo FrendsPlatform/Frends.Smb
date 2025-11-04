@@ -9,6 +9,20 @@ namespace Frends.Smb.ReadFile.Definitions;
 public class Connection
 {
     /// <summary>
+    /// SMB server address or hostname.
+    /// </summary>
+    /// <example>127.0.0.1</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    public string Server { get; set; }
+
+    /// <summary>
+    /// SMB share name to connect to.
+    /// </summary>
+    /// <example>testshare</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    public string Share { get; set; }
+
+    /// <summary>
     /// Username for SMB authentication.
     /// This needs to be of format domain\username
     /// </summary>
