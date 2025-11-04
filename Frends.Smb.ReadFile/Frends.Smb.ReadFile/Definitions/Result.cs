@@ -14,10 +14,18 @@ public class Result
     public bool Success { get; set; }
 
     /// <summary>
-    /// File content.
+    /// File content as a byte array.
+    /// This property contains the raw bytes of the file, suitable for both text and binary files.
     /// </summary>
-    /// <example>This is a test file.</example>
+    /// <example>byte[] { 72, 101, 108, 108, 111 }</example>
     public byte[] Content { get; set; }
+
+    /// <summary>
+    /// File content as a decoded text string (if applicable).
+    /// This is populated only if the file can be successfully decoded using the specified encoding.
+    /// </summary>
+    /// <example>Hello World</example>
+    public string TextContent { get; set; }
 
     /// <summary>
     /// The full path of the file that was read.

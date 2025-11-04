@@ -25,7 +25,7 @@ public static class Smb
     /// <param name="connection">Connection parameters.</param>
     /// <param name="options">Additional parameters.</param>
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
-    /// <returns>object { bool Success, string Content, string Path, double SizeInMegaBytes, DateTime CreationTime, DateTime LastWriteTime, object Error { string Message, Exception AdditionalInfo } }</returns>
+    /// <returns>object { bool Success, byte[] Content, string TextContent, string Path, double SizeInMegaBytes, DateTime CreationTime, DateTime LastWriteTime, object Error { string Message, Exception AdditionalInfo } }</returns>
     public static async Task<Result> ReadFile(
     [PropertyTab] Input input,
     [PropertyTab] Connection connection,
@@ -158,13 +158,24 @@ public static class Smb
                             break;
                     }
 
-                    byte[] content = memoryStream.ToArray();
+                    byte[] contentBytes = memoryStream.ToArray();
+
+                    string decodedText = null;
+                    try
+                    {
+                        decodedText = encoding.GetString(contentBytes);
+                    }
+                    catch
+                    {
+                    }
+
                     double sizeInMb = fileSize / (1024.0 * 1024.0);
 
                     return new Result
                     {
                         Success = true,
-                        Content = content,
+                        Content = contentBytes,
+                        TextContent = decodedText,
                         Path = input.Path,
                         SizeInMegaBytes = sizeInMb,
                         CreationTime = creationTime,

@@ -97,8 +97,7 @@ public class UnitTests
         var result = await Smb.ReadFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
-        var contentString = Encoding.UTF8.GetString(result.Content);
-        Assert.That(contentString, Does.Contain("Hello World"));
+        Assert.That(result.TextContent, Does.Contain("Hello World"));
         Assert.That(result.Error, Is.Null);
     }
 
@@ -112,8 +111,7 @@ public class UnitTests
         var result = await Smb.ReadFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
-        var contentString = Encoding.UTF8.GetString(result.Content);
-        Assert.That(contentString, Does.Contain("special chars"));
+        Assert.That(result.TextContent, Does.Contain("special chars"));
     }
 
     [Test]

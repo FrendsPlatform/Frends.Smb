@@ -12,7 +12,7 @@ public class Options
     /// Encoding for the file content.
     /// By selecting 'Other' you can use any encoding.
     /// </summary>
-    /// <example>FileEncoding.UTF8</example>
+    /// <example>FileEncoding.Utf8</example>
     [DefaultValue(FileEncoding.Utf8)]
     public FileEncoding FileEncoding { get; set; }
 
@@ -36,7 +36,7 @@ public class Options
     /// <summary>
     /// Whether to throw an error on failure.
     /// </summary>
-    /// <example>false</example>
+    /// <example>true</example>
     [DefaultValue(true)]
     public bool ThrowErrorOnFailure { get; set; } = true;
 
