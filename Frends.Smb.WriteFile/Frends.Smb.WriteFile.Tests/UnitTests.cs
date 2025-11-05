@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DotNet.Testcontainers.Builders;
@@ -23,8 +22,8 @@ public class UnitTests
     private static readonly string DestinationFilePath = Path.Combine(DestinationDirPath, TestFile);
 
     private static readonly byte[] SimpleContent = "Hello world"u8.ToArray();
-    private static readonly byte[] LargeContent = Encoding.UTF8.GetBytes(new string('x', 1024 * 1024));
 
+    // private static readonly byte[] LargeContent = Encoding.UTF8.GetBytes(new string('x', 1024 * 1024));
     private Input input;
     private Connection connection;
     private Options options;
@@ -45,7 +44,7 @@ public class UnitTests
                 "-u",
                 "user;pass",
                 "-s",
-                "test-share;/share;yes;no;no;user",
+                "test-share;/share;no;no;no;user",
                 "-w",
                 "WORKGROUP")
             .Build();
@@ -98,7 +97,7 @@ public class UnitTests
     {
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Error.Message, Is.Null);
+        Assert.That(result.Error?.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var bytes = File.ReadAllBytes(DestinationFilePath);
         Assert.That(bytes, Is.EquivalentTo(SimpleContent));
