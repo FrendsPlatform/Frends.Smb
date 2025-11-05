@@ -66,7 +66,8 @@ public static class Smb
             var localMemoryStream = new MemoryStream(input.Content);
             long writeOffset = 0;
             var disposition = options.Overwrite ? CreateDisposition.FILE_OVERWRITE_IF : CreateDisposition.FILE_CREATE;
-            EnsureDirectoriesExist(fileStore, input.DestinationPath);
+
+            // EnsureDirectoriesExist(fileStore, input.DestinationPath);
             status = fileStore.CreateFile(
                 out var fileHandle,
                 out var fileStatus,

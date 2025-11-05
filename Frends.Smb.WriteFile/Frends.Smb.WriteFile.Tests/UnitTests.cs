@@ -96,8 +96,6 @@ public class UnitTests
     [Test]
     public void WriteSimpleFile()
     {
-        options.ThrowErrorOnFailure = true;
-
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Error.Message, Is.Null);
