@@ -4,22 +4,21 @@ using System.ComponentModel.DataAnnotations;
 namespace Frends.Smb.WriteFile.Definitions;
 
 /// <summary>
-/// Essential parameters.
+/// Essential input parameters.
 /// </summary>
 public class Input
 {
     /// <summary>
-    /// The input string to be repeated and output.
+    /// Content of the file to be written.
     /// </summary>
-    /// <example>foobar</example>
+    /// <example>C:\\test.txt</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("Lorem ipsum dolor sit amet.")]
-    public string Content { get; set; }
+    public byte[] Content { get; set; }
 
     /// <summary>
-    /// Number of times to repeat the input string.
+    /// Full path to the destination file we want to write to.
     /// </summary>
-    /// <example>2</example>
-    [DefaultValue(3)]
-    public int Repeat { get; set; }
+    /// <example>folder\file.txt</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    public string DestinationPath { get; set; }
 }

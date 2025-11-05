@@ -9,12 +9,11 @@ namespace Frends.Smb.WriteFile.Definitions;
 public class Options
 {
     /// <summary>
-    /// Delimiter to use between the repeated strings.
+    /// Whether to overwrite the file if it already exists.
     /// </summary>
-    /// <example>,</example>
-    [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue(" ")]
-    public string Delimiter { get; set; }
+    /// <example>false</example>
+    [DefaultValue(false)]
+    public bool Overwrite { get; set; }
 
     /// <summary>
     /// Whether to throw an error on failure.

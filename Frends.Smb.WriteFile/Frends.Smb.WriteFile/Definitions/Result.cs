@@ -1,4 +1,6 @@
-﻿namespace Frends.Smb.WriteFile.Definitions;
+﻿using System;
+
+namespace Frends.Smb.WriteFile.Definitions;
 
 /// <summary>
 /// Result of the task.
@@ -12,10 +14,16 @@ public class Result
     public bool Success { get; set; }
 
     /// <summary>
-    /// Input string repeated the specified number of times.
+    /// Full path to the written file.
     /// </summary>
-    /// <example>foobar,foobar</example>
-    public string Output { get; set; }
+    /// <example>\\server\share\dir\file.txt</example>
+    public string Path { get; set; }
+
+    /// <summary>
+    /// Size of the written file in megabytes.
+    /// </summary>
+    /// <example>32</example>
+    public double SizeInMegaBytes { get; set; }
 
     /// <summary>
     /// Error that occurred during task execution.

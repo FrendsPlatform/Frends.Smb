@@ -3,18 +3,37 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Frends.Smb.WriteFile.Definitions;
 
-// TODO: Remove this class if the task does not make connections
-
 /// <summary>
 /// Connection parameters.
 /// </summary>
 public class Connection
 {
     /// <summary>
-    /// Connection string to the target service (e.g., database, API endpoint).
+    /// SMB server address or hostname.
     /// </summary>
-    /// <example>Host=127.0.0.1;Port=5432</example>
+    /// <example>127.0.0.1</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("")]
-    public string ConnectionString { get; set; } = string.Empty;
+    public string Server { get; set; }
+
+    /// <summary>
+    /// SMB share name to connect to.
+    /// </summary>
+    /// <example>testShare</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    public string Share { get; set; }
+
+    /// <summary>
+    /// Username for SMB authentication.
+    /// This needs to be of format domain\username
+    /// </summary>
+    /// <example>WORKGROUP\Administrator</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    public string Username { get; set; }
+
+    /// <summary>
+    /// Password for the SMB credentials.
+    /// </summary>
+    /// <example>Password123</example>
+    [PasswordPropertyText]
+    public string Password { get; set; }
 }

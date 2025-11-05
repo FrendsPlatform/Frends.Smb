@@ -17,6 +17,5 @@ public class Error
     /// Additional information about the error.
     /// </summary>
     /// <example>object { Exception AdditionalInfo }</example>
-    // TODO: Add task specific additional information. Strong typing is recommended when reasonable.
     public Exception AdditionalInfo { get; set; }
 }
