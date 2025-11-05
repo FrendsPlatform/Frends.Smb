@@ -52,6 +52,11 @@ public class UnitTests
 
         await sambaContainer.StartAsync();
         await Task.Delay(TimeSpan.FromSeconds(5));
+
+        var result = await sambaContainer.ExecAsync([
+            "sh", "-c", "touch /share/debug.txt && echo 'ok'"
+        ]);
+        Console.WriteLine(result.Stdout + result.Stderr);
     }
 
     [OneTimeTearDown]
