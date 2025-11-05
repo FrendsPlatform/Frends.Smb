@@ -16,7 +16,7 @@ public class UnitTests
     private const string ServerName = "127.0.0.1";
     private const string ShareName = "test-share";
     private const string Password = "pass";
-    private const string UserName = @"WORKGROUP\user";
+    private const string User = @"WORKGROUP\user";
 
     private const string TestFile = "test-utf8.txt";
     private static readonly string DestinationDirPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "dst");
@@ -68,10 +68,7 @@ public class UnitTests
     [SetUp]
     public void Setup()
     {
-        connection = new Connection
-        {
-            Server = ServerName, Share = ShareName, Username = UserName, Password = Password,
-        };
+        connection = new Connection { Server = ServerName, Share = ShareName, Username = User, Password = Password };
 
         options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty, Overwrite = false };
 

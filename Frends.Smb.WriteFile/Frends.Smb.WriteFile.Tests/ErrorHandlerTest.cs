@@ -42,8 +42,6 @@ public class ErrorHandlerTest
 
     private static Connection DefaultConnection() => new();
 
-    private static Options DefaultOptions() => new()
-    {
-        ThrowErrorOnFailure = true, ErrorMessageOnFailure = string.Empty,
-    };
+    private static Options DefaultOptions() =>
+        new() { ThrowErrorOnFailure = true, ErrorMessageOnFailure = string.Empty, };
 }
