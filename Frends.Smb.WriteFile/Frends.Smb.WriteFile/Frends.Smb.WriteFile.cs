@@ -67,14 +67,14 @@ public static class Smb
             long writeOffset = 0;
             var disposition = options.Overwrite ? CreateDisposition.FILE_OVERWRITE_IF : CreateDisposition.FILE_CREATE;
 
-            // EnsureDirectoriesExist(fileStore, input.DestinationPath);
+            EnsureDirectoriesExist(fileStore, input.DestinationPath);
             status = fileStore.CreateFile(
                 out var fileHandle,
                 out var fileStatus,
                 input.DestinationPath,
                 SYNCHRONIZE | GENERIC_WRITE,
                 FileAttributes.Normal,
-                ShareAccess.Write,
+                ShareAccess.Read | ShareAccess.Write,
                 disposition,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);

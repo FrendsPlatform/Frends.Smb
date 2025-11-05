@@ -41,6 +41,7 @@ public class UnitTests
             .WithBindMount(DestinationDirPath, "/share")
             .WithPortBinding(445, 445)
             .WithCommand(
+                "-n",
                 "-u",
                 "user;pass",
                 "-s",
