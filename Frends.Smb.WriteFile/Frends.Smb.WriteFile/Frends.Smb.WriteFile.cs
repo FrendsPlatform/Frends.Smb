@@ -51,13 +51,14 @@ public static class Smb
             var isConnected = client.Connect(IPAddress.Parse(connection.Server), SMBTransportType.DirectTCPTransport);
             if (!isConnected) throw new Exception("Failed to connect to SMB server");
             NTStatus status = client.Login(domain, username, connection.Password);
-            if (status != NTStatus.STATUS_SUCCESS) throw new Exception("SMB login failed");
+            if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"SMB login failed: {status}");
             fileStore = client.TreeConnect(connection.Share, out status);
-            if (status != NTStatus.STATUS_SUCCESS) throw new Exception("Failed to connect to share");
+            if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
 
             var localMemoryStream = new MemoryStream(input.Content);
             long writeOffset = 0;
             var disposition = options.Overwrite ? CreateDisposition.FILE_OVERWRITE_IF : CreateDisposition.FILE_CREATE;
+            EnsureDirectoriesExist(fileStore, input.DestinationPath);
             status = fileStore.CreateFile(
                 out var fileHandle,
                 out var fileStatus,
@@ -70,7 +71,10 @@ public static class Smb
                 null);
 
             if (status != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed while creating a file: {fileStatus}");
+            {
+                throw new Exception(
+                    $"Failed while creating a file\nClient status: {status}\n Created file status: {fileStatus}");
+            }
 
             while (localMemoryStream.Position < localMemoryStream.Length)
             {
@@ -126,5 +130,40 @@ public static class Smb
         return domainAndUserName.Length != 2
             ? throw new ArgumentException($@"UserName field must be of format domain\username was: {username}")
             : new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
+    }
+
+    private static void EnsureDirectoriesExist(ISMBFileStore fileStore, string smbFullPath)
+    {
+        ArgumentNullException.ThrowIfNull(fileStore);
+        if (string.IsNullOrWhiteSpace(smbFullPath)) return;
+
+        var directory = Path.GetDirectoryName(smbFullPath)?.Replace("\\", "/");
+        if (string.IsNullOrEmpty(directory)) return;
+
+        var parts = directory.Split(["/"], StringSplitOptions.RemoveEmptyEntries);
+
+        string current = string.Empty;
+
+        foreach (var part in parts)
+        {
+            current = string.IsNullOrEmpty(current) ? part : $"{current}/{part}";
+
+            var status = fileStore.CreateFile(
+                out _,
+                out _,
+                current,
+                SYNCHRONIZE | GENERIC_WRITE,
+                FileAttributes.Directory,
+                ShareAccess.Write,
+                CreateDisposition.FILE_OPEN_IF,
+                CreateOptions.FILE_DIRECTORY_FILE,
+                null);
+            if (status != NTStatus.STATUS_SUCCESS &&
+                status != NTStatus.STATUS_OBJECT_NAME_COLLISION &&
+                status != NTStatus.STATUS_OBJECT_NAME_EXISTS)
+            {
+                throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
+            }
+        }
     }
 }

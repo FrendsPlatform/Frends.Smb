@@ -81,7 +81,15 @@ public class UnitTests
         var children = Directory.GetFileSystemEntries(DestinationDirPath);
         foreach (var child in children)
         {
-            File.Delete(child);
+            FileAttributes attr = File.GetAttributes(child);
+            if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+            {
+                Directory.Delete(child, true);
+            }
+            else
+            {
+                File.Delete(child);
+            }
         }
     }
 
@@ -127,7 +135,7 @@ public class UnitTests
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error, Is.Not.Null);
-        Assert.That(result.Error.Message, Does.Contain("FILE_EXISTS"));
+        Assert.That(result.Error.Message, Does.Contain("STATUS_OBJECT_NAME_COLLISION"));
     }
 
     [Test]
@@ -150,7 +158,7 @@ public class UnitTests
     }
 
     [Test]
-    public void ReadFile_InvalidCredentials_LoginFailed()
+    public void WriteFile_InvalidCredentials_Fails()
     {
         connection.Username = @"WORKGROUP\wrongUser";
         connection.Password = "wrongPass";
@@ -162,10 +170,9 @@ public class UnitTests
     }
 
     [Test]
-    public void ReadFile_EmptyPath_ThrowsArgumentException()
+    public void WriteFile_EmptyPath_Fails()
     {
         input = new Input { DestinationPath = string.Empty };
-        options.ThrowErrorOnFailure = true;
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
@@ -174,10 +181,9 @@ public class UnitTests
     }
 
     [Test]
-    public void ReadFile_EmptyServer_ThrowsArgumentException()
+    public void WriteFile_EmptyServer_Fails()
     {
         connection.Server = string.Empty;
-        options.ThrowErrorOnFailure = true;
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
@@ -186,7 +192,7 @@ public class UnitTests
     }
 
     [Test]
-    public void ReadFile_EmptyShare_ThrowsArgumentException()
+    public void WriteFile_EmptyShare_Fails()
     {
         connection.Share = string.Empty;
 
@@ -197,7 +203,7 @@ public class UnitTests
     }
 
     [Test]
-    public void ReadFile_PathStartsWithUnc_ThrowsArgumentException()
+    public void WriteFile_PathStartsWithUnc_Fails()
     {
         input = new Input { DestinationPath = @"\\server\share\file.txt" };
 
@@ -208,7 +214,7 @@ public class UnitTests
     }
 
     [Test]
-    public void ReadFile_InvalidUsernameFormat_ThrowsArgumentException()
+    public void WriteFile_InvalidUsernameFormat_Fails()
     {
         connection.Username = "user";
 
