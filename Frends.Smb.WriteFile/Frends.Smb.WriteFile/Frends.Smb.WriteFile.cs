@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using Frends.Smb.WriteFile.Definitions;
@@ -48,7 +49,14 @@ public static class Smb
 
             var (domain, username) = GetDomainAndUsername(connection.Username);
 
-            var isConnected = client.Connect(IPAddress.Parse(connection.Server), SMBTransportType.DirectTCPTransport);
+            if (!IPAddress.TryParse(connection.Server, out var serverAddress))
+            {
+                var hostEntry = Dns.GetHostEntry(connection.Server);
+                serverAddress = hostEntry.AddressList.FirstOrDefault()
+                                ?? throw new Exception($"Could not resolve hostname: {connection.Server}");
+            }
+
+            var isConnected = client.Connect(serverAddress, SMBTransportType.DirectTCPTransport);
             if (!isConnected) throw new Exception("Failed to connect to SMB server");
             NTStatus status = client.Login(domain, username, connection.Password);
             if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"SMB login failed: {status}");
@@ -98,7 +106,7 @@ public static class Smb
             {
                 Success = true,
                 Path = $@"\\{connection.Server}\{connection.Share}\{input.DestinationPath.Replace('/', '\\')}",
-                SizeInMegaBytes = (int)Math.Ceiling(writeOffset / 1024.0 / 1024.0),
+                SizeInMegaBytes = Math.Ceiling(writeOffset / 1024.0 / 1024.0),
             };
         }
         catch (Exception e) when (e is not OperationCanceledException)

@@ -11,7 +11,7 @@
         <PackageTags>Frends</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <Description>Description of the Task</Description>
+        <Description>Frends task for writing files to SMB shares using SMB2 protocol.</Description>
         <PackageProjectUrl>https://frends.com/</PackageProjectUrl>
         <RepositoryUrl>https://github.com/FrendsPlatform/Frends.Smb/tree/main/Frends.Smb.WriteFile</RepositoryUrl>
     </PropertyGroup>

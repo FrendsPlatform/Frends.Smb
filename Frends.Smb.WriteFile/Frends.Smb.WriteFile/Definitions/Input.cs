@@ -11,7 +11,7 @@ public class Input
     /// <summary>
     /// Content of the file to be written.
     /// </summary>
-    /// <example>C:\\test.txt</example>
+    /// <example>[1,2,3]</example>
     [DisplayFormat(DataFormatString = "Text")]
     public byte[] Content { get; set; }
 

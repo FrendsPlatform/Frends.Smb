@@ -98,6 +98,7 @@ public class UnitTests
     {
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
+        Assert.That(result.Error.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var bytes = File.ReadAllBytes(DestinationFilePath);
         Assert.That(bytes, Is.EquivalentTo(SimpleContent));
@@ -109,6 +110,7 @@ public class UnitTests
         input.Content = LargeContent;
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
+        Assert.That(result.Error.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var bytes = File.ReadAllBytes(DestinationFilePath);
         Assert.That(bytes, Is.EquivalentTo(LargeContent));
@@ -121,6 +123,7 @@ public class UnitTests
         options.Overwrite = true;
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
+        Assert.That(result.Error.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var res = File.ReadAllBytes(DestinationFilePath);
         Assert.That(res, Is.EquivalentTo(SimpleContent));
@@ -142,7 +145,10 @@ public class UnitTests
     public void WriteFileInSubdirectory()
     {
         input.DestinationPath = Path.Combine("subDir", TestFile);
+
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Error.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var dstFile = Path.Combine(DestinationDirPath, "subDir", TestFile);
         var bytes = File.ReadAllBytes(dstFile);
@@ -154,6 +160,7 @@ public class UnitTests
     {
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
+        Assert.That(result.Error.Message, Is.Null);
         Assert.That(result.SizeInMegaBytes, Is.EqualTo(1));
     }
 
@@ -178,6 +185,15 @@ public class UnitTests
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error.Message, Does.Contain("Path cannot be empty"));
+    }
+
+    [Test]
+    public void WriteFile_Accepts_ServerName_AsHostname()
+    {
+        connection.Server = "localhost";
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+        Assert.That(result.Error.Message, Is.Null);
+        Assert.That(result.Success, Is.True);
     }
 
     [Test]
