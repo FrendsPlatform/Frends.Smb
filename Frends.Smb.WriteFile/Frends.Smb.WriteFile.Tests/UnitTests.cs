@@ -119,15 +119,15 @@ public class UnitTests
     }
 
     [Test]
-    public void OverwriteFile()
+    public async Task OverwriteFile()
     {
-        File.WriteAllText(DestinationFilePath, "test");
+        await sambaContainer.ExecAsync(["touch", $"/share/{TestFile}"]);
         options.Overwrite = true;
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Error?.Message, Is.Null);
         Assert.That(result.Success, Is.True);
-        var res = File.ReadAllBytes(DestinationFilePath);
+        var res = await File.ReadAllBytesAsync(DestinationFilePath);
         Assert.That(res, Is.EquivalentTo(SimpleContent));
     }
 
