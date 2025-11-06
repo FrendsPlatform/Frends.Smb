@@ -70,7 +70,17 @@ public class DeleteFilesTests
     public async Task GlobalTeardown()
     {
         if (sambaContainer != null)
+        {
+            try
+            {
+                await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
+            }
+            catch
+            {
+            }
+
             await sambaContainer.DisposeAsync();
+        }
     }
 
     [SetUp]
@@ -94,20 +104,24 @@ public class DeleteFilesTests
     [TearDown]
     public void Cleanup()
     {
-        foreach (var file in Directory.GetFiles(testFilesPath, "*", SearchOption.AllDirectories))
+        try
         {
-            try
+            foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
             {
-                File.SetAttributes(file, FileAttributes.Normal);
-                File.Delete(file);
-            }
-            catch
-            {
+                if (file.Contains(".deleted") || file.Contains(".recycle"))
+                    continue;
+                try
+                {
+                    File.Delete(file);
+                }
+                catch
+                {
+                }
             }
         }
-
-        if (!File.Exists(Path.Combine(testFilesPath, "rootfile.txt")))
-            File.WriteAllText(Path.Combine(testFilesPath, "rootfile.txt"), "root");
+        catch
+        {
+        }
     }
 
     [Test]
