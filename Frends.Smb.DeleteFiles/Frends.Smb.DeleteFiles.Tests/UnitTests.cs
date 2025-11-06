@@ -263,7 +263,9 @@ public class DeleteFilesTests
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);
 
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath) !);
+#pragma warning disable SA1009
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+#pragma warning restore SA1009
         await File.WriteAllTextAsync(fullPath, content);
         await sambaContainer.ExecAsync(["sh", "-c", $"chmod 0777 '/share/{relativePath}'"]);
     }
