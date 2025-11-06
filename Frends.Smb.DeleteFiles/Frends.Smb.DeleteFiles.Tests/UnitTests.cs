@@ -55,7 +55,7 @@ public class DeleteFilesTests
                 "-u",
                 "testuser;testpass",
                 "-s",
-                "testshare;/share;yes;no;no;testuser",
+                "testshare;/share;yes;yes;yes;testuser",
                 "-w",
                 "WORKGROUP")
             .Build();

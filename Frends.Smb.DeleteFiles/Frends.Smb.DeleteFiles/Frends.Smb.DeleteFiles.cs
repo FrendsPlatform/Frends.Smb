@@ -126,8 +126,6 @@ public static class Smb
 
                             var fileNameOnly = Path.GetFileName(normalizedForOS);
 
-                            Console.WriteLine($"DEBUG: Normalized='{normalizedFilePath}', FileName='{fileNameOnly}'");
-
                             deletedFiles.Add(new FileItem
                             {
                                 Name = fileNameOnly,
@@ -143,12 +141,6 @@ public static class Smb
                     {
                         fileStore.CloseFile(fileHandle);
                     }
-                }
-
-                Console.WriteLine("Deleted files:");
-                foreach (var f in deletedFiles)
-                {
-                    Console.WriteLine($"  Name: '{f.Name}', Path: '{f.Path}'");
                 }
 
                 return new Result
@@ -226,7 +218,6 @@ public static class Smb
             return EnumerateFiles(fileStore, basePath, regex, cancellationToken);
         }, cancellationToken);
 
-        Console.WriteLine("Enumerated files: " + string.Join(", ", matchedFiles));
         return matchedFiles;
     }
 
