@@ -122,6 +122,7 @@ public class UnitTests
     public async Task OverwriteFile()
     {
         await sambaContainer.ExecAsync(["touch", $"/share/{TestFile}"]);
+        await sambaContainer.ExecAsync(["chmod", "777", $"/share/{TestFile}"]);
         options.Overwrite = true;
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
