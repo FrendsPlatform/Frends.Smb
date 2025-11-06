@@ -43,6 +43,7 @@ public class DeleteFilesTests
         Directory.CreateDirectory(Path.Combine(testFilesPath, "dirtest", "nested"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "deep"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "deep", "inner"));
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "regex-test"));
         File.WriteAllText(Path.Combine(testFilesPath, "rootfile.txt"), "root");
 
         sambaContainer = new ContainerBuilder()
