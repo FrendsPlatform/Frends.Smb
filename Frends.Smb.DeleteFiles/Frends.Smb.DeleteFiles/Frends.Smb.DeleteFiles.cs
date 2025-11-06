@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -102,7 +103,7 @@ public static class Smb
                         filePath,
                         AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
                         SMBLibrary.FileAttributes.Normal,
-                        ShareAccess.None,
+                        ShareAccess.Delete,
                         CreateDisposition.FILE_OPEN,
                         CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                         null);
@@ -252,32 +253,45 @@ public static class Smb
 
         try
         {
-            NTStatus status = fileStore.QueryDirectory(
-                out List<QueryDirectoryFileInformation> entries,
-                dirHandle,
-                "*",
-                FileInformationClass.FileDirectoryInformation);
+            NTStatus status;
+            List<QueryDirectoryFileInformation> entries;
 
-            if (status != NTStatus.STATUS_SUCCESS && status != NTStatus.STATUS_NO_MORE_FILES)
-                throw new Exception($"QueryDirectory failed for '{directoryPath}': {status}");
-
-            foreach (var entry in entries.OfType<FileDirectoryInformation>())
+            do
             {
                 token.ThrowIfCancellationRequested();
 
-                string fileName = entry.FileName;
-                if (fileName == "." || fileName == "..")
+                status = fileStore.QueryDirectory(
+                    out entries,
+                    dirHandle,
+                    "*",
+                    FileInformationClass.FileDirectoryInformation);
+
+                if (status != NTStatus.STATUS_SUCCESS && status != NTStatus.STATUS_NO_MORE_FILES)
+                    throw new Exception($"QueryDirectory failed for '{directoryPath}': {status}");
+
+                if (entries == null || entries.Count == 0)
                     continue;
 
-                bool isDir = (entry.FileAttributes & SMBLibrary.FileAttributes.Directory) != 0;
-                if (!isDir && regex.IsMatch(fileName))
+                foreach (var entry in entries.OfType<FileDirectoryInformation>())
                 {
-                    string fullPath = string.IsNullOrEmpty(directoryPath)
-                        ? fileName
-                        : $"{directoryPath}\\{fileName}";
-                    files.Add(fullPath);
+                    token.ThrowIfCancellationRequested();
+
+                    string fileName = entry.FileName;
+                    if (fileName == "." || fileName == "..")
+                        continue;
+
+                    bool isDir = (entry.FileAttributes & SMBLibrary.FileAttributes.Directory) != 0;
+                    if (!isDir && regex.IsMatch(fileName))
+                    {
+                        string fullPath = string.IsNullOrEmpty(directoryPath)
+                            ? fileName
+                            : $"{directoryPath}\\{fileName}";
+
+                        files.Add(fullPath);
+                    }
                 }
             }
+            while (status == NTStatus.STATUS_SUCCESS);
         }
         finally
         {

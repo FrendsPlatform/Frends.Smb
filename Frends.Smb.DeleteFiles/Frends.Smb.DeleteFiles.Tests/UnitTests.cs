@@ -62,7 +62,6 @@ public class DeleteFilesTests
 
         await sambaContainer.StartAsync();
         await Task.Delay(TimeSpan.FromSeconds(5));
-        await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
     }
 
     [OneTimeTearDown]

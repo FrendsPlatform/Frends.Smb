@@ -16,7 +16,7 @@ public class Result
     /// <summary>
     /// List of deleted files.
     /// </summary>
-    /// <example>[ { "Name": "file1.txt", "Path": "Folder/file1.txt", "SizeInMegaBytes": 0.12 } ]</example>
+    /// <example>[ { "Name": "file1.txt", "Path": "Folder/file1.txt" } ]</example>
     public List<FileItem> FilesDeleted { get; set; }
 
     /// <summary>
