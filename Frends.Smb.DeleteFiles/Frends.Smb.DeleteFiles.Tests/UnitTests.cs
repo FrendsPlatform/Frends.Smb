@@ -55,7 +55,7 @@ public class DeleteFilesTests
                 "-u",
                 "testuser;testpass",
                 "-s",
-                "testshare;/share;yes;no;no;testuser;admin users=testuser",
+                "testshare;/share;no;no;no;testuser;root",
                 "-w",
                 "WORKGROUP")
             .Build();
@@ -63,7 +63,7 @@ public class DeleteFilesTests
         await sambaContainer.StartAsync();
         await Task.Delay(TimeSpan.FromSeconds(5));
 
-        await sambaContainer.ExecAsync(["sh", "-c", "chown -R root:root /share && chmod -R 0777 /share"]);
+        await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
     }
 
     [OneTimeTearDown]
