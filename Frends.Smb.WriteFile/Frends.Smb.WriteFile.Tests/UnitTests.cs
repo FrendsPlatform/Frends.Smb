@@ -52,6 +52,7 @@ public class UnitTests
 
         await sambaContainer.StartAsync();
         await Task.Delay(TimeSpan.FromSeconds(5));
+        await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
 
         var result = await sambaContainer.ExecAsync([
             "sh", "-c", "touch /share/debug.txt && echo 'ok'"
