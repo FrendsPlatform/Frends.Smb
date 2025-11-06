@@ -36,25 +36,6 @@ public class DeleteFilesTests
         testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "test-files-delete");
         Directory.CreateDirectory(testFilesPath);
 
-        sambaContainer = new ContainerBuilder()
-            .WithImage("dperson/samba:latest")
-            .WithName($"smb-test-delete-{Guid.NewGuid()}")
-            .WithBindMount(testFilesPath, "/share")
-            .WithPortBinding(445, 445)
-            .WithCommand(
-                "-u",
-                "testuser;testpass",
-                "-s",
-                "testshare;/share;yes;no;no;testuser",
-                "-w",
-                "WORKGROUP")
-            .Build();
-
-        await sambaContainer.StartAsync();
-        await Task.Delay(TimeSpan.FromSeconds(5));
-
-        await CreateTestFileAsync("rootfile.txt", "root");
-
         Directory.CreateDirectory(Path.Combine(testFilesPath, "pattern-test"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "subdir-test"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "subdir-test", "nested"));
@@ -62,6 +43,27 @@ public class DeleteFilesTests
         Directory.CreateDirectory(Path.Combine(testFilesPath, "dirtest", "nested"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "deep"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "deep", "inner"));
+        File.WriteAllText(Path.Combine(testFilesPath, "rootfile.txt"), "root");
+
+        sambaContainer = new ContainerBuilder()
+            .WithImage("dperson/samba:latest")
+            .WithName($"smb-test-delete-{Guid.NewGuid()}")
+            .WithBindMount(testFilesPath, "/share")
+            .WithPortBinding(445, 445)
+            .WithCommand(
+                "-n",
+                "-u",
+                "testuser;testpass",
+                "-s",
+                "testshare;/share;yes;no;no;testuser;admin users=testuser",
+                "-w",
+                "WORKGROUP")
+            .Build();
+
+        await sambaContainer.StartAsync();
+        await Task.Delay(TimeSpan.FromSeconds(5));
+
+        await sambaContainer.ExecAsync(["sh", "-c", "chown -R root:root /share && chmod -R 0777 /share"]);
     }
 
     [OneTimeTearDown]
