@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DotNet.Testcontainers.Builders;
@@ -22,8 +23,8 @@ public class UnitTests
     private static readonly string DestinationFilePath = Path.Combine(DestinationDirPath, TestFile);
 
     private static readonly byte[] SimpleContent = "Hello world"u8.ToArray();
+    private static readonly byte[] LargeContent = Encoding.UTF8.GetBytes(new string('x', 1024 * 1024));
 
-    // private static readonly byte[] LargeContent = Encoding.UTF8.GetBytes(new string('x', 1024 * 1024));
     private Input input;
     private Connection connection;
     private Options options;
@@ -105,139 +106,139 @@ public class UnitTests
         Assert.That(bytes, Is.EquivalentTo(SimpleContent));
     }
 
-    // [Test]
-    // public void WriteLargeFile()
-    // {
-    //     input.Content = LargeContent;
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Error.Message, Is.Null);
-    //     Assert.That(result.Success, Is.True);
-    //     var bytes = File.ReadAllBytes(DestinationFilePath);
-    //     Assert.That(bytes, Is.EquivalentTo(LargeContent));
-    // }
-    //
-    // [Test]
-    // public void OverwriteFile()
-    // {
-    //     File.WriteAllText(DestinationFilePath, "test");
-    //     options.Overwrite = true;
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Error.Message, Is.Null);
-    //     Assert.That(result.Success, Is.True);
-    //     var res = File.ReadAllBytes(DestinationFilePath);
-    //     Assert.That(res, Is.EquivalentTo(SimpleContent));
-    // }
-    //
-    // [Test]
-    // public void NoOverwriteFile()
-    // {
-    //     File.WriteAllText(DestinationFilePath, "test");
-    //     options.Overwrite = false;
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Success, Is.False);
-    //     Assert.That(result.Error, Is.Not.Null);
-    //     Assert.That(result.Error.Message, Does.Contain("STATUS_OBJECT_NAME_COLLISION"));
-    // }
-    //
-    // [Test]
-    // public void WriteFileInSubdirectory()
-    // {
-    //     input.DestinationPath = Path.Combine("subDir", TestFile);
-    //
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Error.Message, Is.Null);
-    //     Assert.That(result.Success, Is.True);
-    //     var dstFile = Path.Combine(DestinationDirPath, "subDir", TestFile);
-    //     var bytes = File.ReadAllBytes(dstFile);
-    //     Assert.That(bytes, Is.EquivalentTo(SimpleContent));
-    // }
-    //
-    // [Test]
-    // public void ResultReturnsCorrectSizeInMegaBytes()
-    // {
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Error.Message, Is.Null);
-    //     Assert.That(result.SizeInMegaBytes, Is.EqualTo(1));
-    // }
-    //
-    // [Test]
-    // public void WriteFile_InvalidCredentials_Fails()
-    // {
-    //     connection.Username = @"WORKGROUP\wrongUser";
-    //     connection.Password = "wrongPass";
-    //
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Success, Is.False);
-    //     Assert.That(result.Error.Message, Does.Contain("STATUS_ACCESS_DENIED"));
-    // }
-    //
-    // [Test]
-    // public void WriteFile_EmptyPath_Fails()
-    // {
-    //     input = new Input { DestinationPath = string.Empty };
-    //
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Success, Is.False);
-    //     Assert.That(result.Error.Message, Does.Contain("Path cannot be empty"));
-    // }
-    //
-    // [Test]
-    // public void WriteFile_Accepts_ServerName_AsHostname()
-    // {
-    //     connection.Server = "localhost";
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //     Assert.That(result.Error.Message, Is.Null);
-    //     Assert.That(result.Success, Is.True);
-    // }
-    //
-    // [Test]
-    // public void WriteFile_EmptyServer_Fails()
-    // {
-    //     connection.Server = string.Empty;
-    //
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Success, Is.False);
-    //     Assert.That(result.Error.Message, Does.Contain("Server cannot be empty"));
-    // }
-    //
-    // [Test]
-    // public void WriteFile_EmptyShare_Fails()
-    // {
-    //     connection.Share = string.Empty;
-    //
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Success, Is.False);
-    //     Assert.That(result.Error.Message, Does.Contain("Share cannot be empty"));
-    // }
-    //
-    // [Test]
-    // public void WriteFile_PathStartsWithUnc_Fails()
-    // {
-    //     input = new Input { DestinationPath = @"\\server\share\file.txt" };
-    //
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Success, Is.False);
-    //     Assert.That(result.Error.Message, Does.Contain("Path should be relative to the share"));
-    // }
-    //
-    // [Test]
-    // public void WriteFile_InvalidUsernameFormat_Fails()
-    // {
-    //     connection.Username = "user";
-    //
-    //     var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-    //
-    //     Assert.That(result.Success, Is.False);
-    //     Assert.That(result.Error.Message, Does.Contain(@"UserName field must be of format domain\username"));
-    // }
+    [Test]
+    public void WriteLargeFile()
+    {
+        input.Content = LargeContent;
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Error?.Message, Is.Null);
+        Assert.That(result.Success, Is.True);
+        var bytes = File.ReadAllBytes(DestinationFilePath);
+        Assert.That(bytes, Is.EquivalentTo(LargeContent));
+    }
+
+    [Test]
+    public void OverwriteFile()
+    {
+        File.WriteAllText(DestinationFilePath, "test");
+        options.Overwrite = true;
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Error?.Message, Is.Null);
+        Assert.That(result.Success, Is.True);
+        var res = File.ReadAllBytes(DestinationFilePath);
+        Assert.That(res, Is.EquivalentTo(SimpleContent));
+    }
+
+    [Test]
+    public void NoOverwriteFile()
+    {
+        File.WriteAllText(DestinationFilePath, "test");
+        options.Overwrite = false;
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error, Is.Not.Null);
+        Assert.That(result.Error.Message, Does.Contain("STATUS_OBJECT_NAME_COLLISION"));
+    }
+
+    [Test]
+    public void WriteFileInSubdirectory()
+    {
+        input.DestinationPath = Path.Combine("subDir", TestFile);
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Error?.Message, Is.Null);
+        Assert.That(result.Success, Is.True);
+        var dstFile = Path.Combine(DestinationDirPath, "subDir", TestFile);
+        var bytes = File.ReadAllBytes(dstFile);
+        Assert.That(bytes, Is.EquivalentTo(SimpleContent));
+    }
+
+    [Test]
+    public void ResultReturnsCorrectSizeInMegaBytes()
+    {
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Error?.Message, Is.Null);
+        Assert.That(result.SizeInMegaBytes, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void WriteFile_InvalidCredentials_Fails()
+    {
+        connection.Username = @"WORKGROUP\wrongUser";
+        connection.Password = "wrongPass";
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error.Message, Does.Contain("STATUS_ACCESS_DENIED"));
+    }
+
+    [Test]
+    public void WriteFile_EmptyPath_Fails()
+    {
+        input = new Input { DestinationPath = string.Empty };
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error.Message, Does.Contain("Path cannot be empty"));
+    }
+
+    [Test]
+    public void WriteFile_Accepts_ServerName_AsHostname()
+    {
+        connection.Server = "localhost";
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+        Assert.That(result.Error?.Message, Is.Null);
+        Assert.That(result.Success, Is.True);
+    }
+
+    [Test]
+    public void WriteFile_EmptyServer_Fails()
+    {
+        connection.Server = string.Empty;
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error.Message, Does.Contain("Server cannot be empty"));
+    }
+
+    [Test]
+    public void WriteFile_EmptyShare_Fails()
+    {
+        connection.Share = string.Empty;
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error.Message, Does.Contain("Share cannot be empty"));
+    }
+
+    [Test]
+    public void WriteFile_PathStartsWithUnc_Fails()
+    {
+        input = new Input { DestinationPath = @"\\server\share\file.txt" };
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error.Message, Does.Contain("Path should be relative to the share"));
+    }
+
+    [Test]
+    public void WriteFile_InvalidUsernameFormat_Fails()
+    {
+        connection.Username = "user";
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error.Message, Does.Contain(@"UserName field must be of format domain\username"));
+    }
 }
