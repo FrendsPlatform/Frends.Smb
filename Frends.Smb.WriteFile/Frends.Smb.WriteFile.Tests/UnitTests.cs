@@ -46,7 +46,7 @@ public class UnitTests
                 "-u",
                 "user;pass",
                 "-s",
-                "test-share;/share;no;no;no;user",
+                "test-share;/share;no;no;no;user,root",
                 "-w",
                 "WORKGROUP")
             .Build();
