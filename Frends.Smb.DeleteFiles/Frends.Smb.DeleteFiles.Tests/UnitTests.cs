@@ -36,16 +36,6 @@ public class DeleteFilesTests
         testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "test-files-delete");
         Directory.CreateDirectory(testFilesPath);
 
-        Directory.CreateDirectory(Path.Combine(testFilesPath, "pattern-test"));
-        Directory.CreateDirectory(Path.Combine(testFilesPath, "subdir-test"));
-        Directory.CreateDirectory(Path.Combine(testFilesPath, "subdir-test", "nested"));
-        Directory.CreateDirectory(Path.Combine(testFilesPath, "dirtest"));
-        Directory.CreateDirectory(Path.Combine(testFilesPath, "dirtest", "nested"));
-        Directory.CreateDirectory(Path.Combine(testFilesPath, "deep"));
-        Directory.CreateDirectory(Path.Combine(testFilesPath, "deep", "inner"));
-
-        File.WriteAllText(Path.Combine(testFilesPath, "rootfile.txt"), "root");
-
         sambaContainer = new ContainerBuilder()
             .WithImage("dperson/samba:latest")
             .WithName($"smb-test-delete-{Guid.NewGuid()}")
@@ -62,6 +52,16 @@ public class DeleteFilesTests
 
         await sambaContainer.StartAsync();
         await Task.Delay(TimeSpan.FromSeconds(5));
+
+        await CreateTestFileAsync("rootfile.txt", "root");
+
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "pattern-test"));
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "subdir-test"));
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "subdir-test", "nested"));
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "dirtest"));
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "dirtest", "nested"));
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "deep"));
+        Directory.CreateDirectory(Path.Combine(testFilesPath, "deep", "inner"));
     }
 
     [OneTimeTearDown]
@@ -108,49 +108,39 @@ public class DeleteFilesTests
             File.WriteAllText(Path.Combine(testFilesPath, "rootfile.txt"), "root");
     }
 
+    private async Task CreateTestFileAsync(string relativePath, string content)
+    {
+        string fullPath = Path.Combine(testFilesPath, relativePath);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        await File.WriteAllTextAsync(fullPath, content);
+        await sambaContainer.ExecAsync(["sh", "-c", $"chmod 0777 '/share/{relativePath}'"]);
+    }
+
     [Test]
     public async Task DeleteFiles_DirectFilePath_Success()
     {
-        string fileName = "single-target.txt";
-        string filePath = Path.Combine(testFilesPath, fileName);
-        File.WriteAllText(filePath, "Delete me!");
+        await CreateTestFileAsync("single-target.txt", "Delete me!");
 
-        await Task.Delay(TimeSpan.FromSeconds(1));
-
-        input = new Input
-        {
-            Path = fileName,
-            Pattern = null,
-        };
-
+        input = new Input { Path = "single-target.txt" };
         options.ThrowErrorOnFailure = true;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Success, Is.True, "File deletion should succeed");
-        Assert.That(result.TotalFilesDeleted, Is.EqualTo(1), "Exactly one file should be deleted");
-        Assert.That(result.FilesDeleted.Single().Name, Is.EqualTo(fileName), "Deleted file should match expected name");
-
-        Assert.That(File.Exists(filePath), Is.False, "The file should no longer exist on the host");
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.TotalFilesDeleted, Is.EqualTo(1));
+        Assert.That(result.FilesDeleted.Single().Name, Is.EqualTo("single-target.txt"));
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "single-target.txt")), Is.False);
     }
 
     [Test]
     public async Task DeleteFiles_PatternMatch_SuccessfullyDeletesMatchingFiles()
     {
-        string dir = Path.Combine(testFilesPath, "pattern-test");
-        string file1 = Path.Combine(dir, "match1.txt");
-        string file2 = Path.Combine(dir, "match2.txt");
-        string file3 = Path.Combine(dir, "ignore.log");
+        await CreateTestFileAsync("pattern-test/match1.txt", "to delete");
+        await CreateTestFileAsync("pattern-test/match2.txt", "to delete");
+        await CreateTestFileAsync("pattern-test/ignore.log", "keep");
 
-        File.WriteAllText(file1, "to delete");
-        File.WriteAllText(file2, "to delete");
-        File.WriteAllText(file3, "keep");
-
-        input = new Input
-        {
-            Path = "pattern-test",
-            Pattern = "*.txt",
-        };
+        input = new Input { Path = "pattern-test", Pattern = "*.txt" };
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
@@ -163,47 +153,31 @@ public class DeleteFilesTests
     [Test]
     public async Task DeleteFiles_DoesNotTouchSubdirectories()
     {
-        string rootFile = Path.Combine(testFilesPath, "subdir-test", "root.txt");
-        string nestedFile = Path.Combine(testFilesPath, "subdir-test", "nested", "inner.txt");
+        await CreateTestFileAsync("subdir-test/root.txt", "delete me");
+        await CreateTestFileAsync("subdir-test/nested/inner.txt", "keep me");
 
-        await File.WriteAllTextAsync(rootFile, "delete me");
-        await File.WriteAllTextAsync(nestedFile, "keep me");
-
-        await Task.Delay(TimeSpan.FromSeconds(1));
-
-        input = new Input
-        {
-            Path = "subdir-test",
-            Pattern = "*.txt",
-        };
+        input = new Input { Path = "subdir-test", Pattern = "*.txt" };
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.TotalFilesDeleted, Is.EqualTo(1));
-        Assert.That(File.Exists(rootFile), Is.False, "Root file should be deleted");
-        Assert.That(File.Exists(nestedFile), Is.True, "Files in subdirectories should not be deleted");
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "subdir-test", "root.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "subdir-test", "nested", "inner.txt")), Is.True);
     }
 
     [Test]
     public async Task DeleteFiles_DoesNotDeleteDirectories()
     {
-        string file1 = Path.Combine(testFilesPath, "dirtest", "file1.txt");
-        await File.WriteAllTextAsync(file1, "delete me");
+        await CreateTestFileAsync("dirtest/file1.txt", "delete me");
 
-        await Task.Delay(TimeSpan.FromSeconds(1));
-
-        input = new Input
-        {
-            Path = "dirtest",
-            Pattern = "*",
-        };
+        input = new Input { Path = "dirtest", Pattern = "*" };
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.TotalFilesDeleted, Is.EqualTo(1));
-        Assert.That(Directory.Exists(Path.Combine(testFilesPath, "dirtest", "nested")), Is.True, "Directories should remain intact");
+        Assert.That(Directory.Exists(Path.Combine(testFilesPath, "dirtest", "nested")), Is.True);
     }
 
     [Test]
@@ -222,11 +196,7 @@ public class DeleteFilesTests
     [Test]
     public async Task DeleteFiles_FileNotFound_ReturnsSuccessFalse()
     {
-        input = new Input
-        {
-            Path = "missing.txt",
-        };
-
+        input = new Input { Path = "missing.txt" };
         options.ThrowErrorOnFailure = false;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
@@ -239,14 +209,12 @@ public class DeleteFilesTests
     [Test]
     public async Task DeleteFiles_NoPermission_ReturnsFailure()
     {
-        string restrictedPath = Path.Combine(testFilesPath, "restricted.txt");
-        File.WriteAllText(restrictedPath, "cannot delete");
-        File.SetAttributes(restrictedPath, FileAttributes.ReadOnly);
-
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        await CreateTestFileAsync("restricted.txt", "cannot delete");
+        File.SetAttributes(Path.Combine(testFilesPath, "restricted.txt"), FileAttributes.ReadOnly);
 
         input = new Input { Path = "restricted.txt" };
         options.ThrowErrorOnFailure = false;
+
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
@@ -256,59 +224,40 @@ public class DeleteFilesTests
     [Test]
     public async Task DeleteFiles_EmptyPath_DeletesFilesInRoot()
     {
-        string fileName = "root-test.txt";
-        string filePath = Path.Combine(testFilesPath, fileName);
-        await File.WriteAllTextAsync(filePath, "test");
+        await CreateTestFileAsync("root-test.txt", "test");
 
-        await Task.Delay(TimeSpan.FromSeconds(1));
-
-        input = new Input
-        {
-            Path = string.Empty,
-            Pattern = "root-test.txt",
-        };
+        input = new Input { Path = string.Empty, Pattern = "root-test.txt" };
         options.ThrowErrorOnFailure = true;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.TotalFilesDeleted, Is.EqualTo(1));
-        Assert.That(File.Exists(filePath), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "root-test.txt")), Is.False);
     }
 
     [Test]
     public async Task DeleteFiles_DirectoryPath_IgnoresDeepMatches()
     {
-        string shallowFile = Path.Combine(testFilesPath, "deep", "match.txt");
-        string deepFile = Path.Combine(testFilesPath, "deep", "inner", "match.txt");
+        await CreateTestFileAsync("deep/match.txt", "delete me");
+        await CreateTestFileAsync("deep/inner/match.txt", "keep me");
 
-        await File.WriteAllTextAsync(shallowFile, "delete me");
-        await File.WriteAllTextAsync(deepFile, "keep me");
-
-        await Task.Delay(TimeSpan.FromSeconds(1));
-
-        input = new Input
-        {
-            Path = "deep",
-            Pattern = "*.txt",
-        };
+        input = new Input { Path = "deep", Pattern = "*.txt" };
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.TotalFilesDeleted, Is.EqualTo(1));
-        Assert.That(File.Exists(shallowFile), Is.False, "Shallow file should be deleted");
-        Assert.That(File.Exists(deepFile), Is.True, "Deep file should not be deleted");
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "deep", "match.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "deep", "inner", "match.txt")), Is.True);
     }
 
     [Test]
     public async Task DeleteFiles_RegexPattern_DeletesMatchingFiles()
     {
-        string dir = Path.Combine(testFilesPath, "regex-test");
-        Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, "foo_123.txt"), "x");
-        File.WriteAllText(Path.Combine(dir, "foo_abc.txt"), "x");
-        File.WriteAllText(Path.Combine(dir, "bar_456.txt"), "x");
+        await CreateTestFileAsync("regex-test/foo_123.txt", "x");
+        await CreateTestFileAsync("regex-test/foo_abc.txt", "x");
+        await CreateTestFileAsync("regex-test/bar_456.txt", "x");
 
         input = new Input { Path = "regex-test", Pattern = "<regex>foo_\\d+\\.txt" };
 
