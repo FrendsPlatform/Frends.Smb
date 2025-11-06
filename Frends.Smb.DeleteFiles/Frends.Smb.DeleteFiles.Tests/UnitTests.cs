@@ -55,13 +55,14 @@ public class DeleteFilesTests
                 "-u",
                 "testuser;testpass",
                 "-s",
-                "testshare;/share;yes;yes;yes;testuser",
+                "testshare;/share;yes;no;no;testuser",
                 "-w",
                 "WORKGROUP")
             .Build();
 
         await sambaContainer.StartAsync();
         await Task.Delay(TimeSpan.FromSeconds(5));
+        await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
     }
 
     [OneTimeTearDown]
