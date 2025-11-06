@@ -108,15 +108,6 @@ public class DeleteFilesTests
             File.WriteAllText(Path.Combine(testFilesPath, "rootfile.txt"), "root");
     }
 
-    private async Task CreateTestFileAsync(string relativePath, string content)
-    {
-        string fullPath = Path.Combine(testFilesPath, relativePath);
-
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-        await File.WriteAllTextAsync(fullPath, content);
-        await sambaContainer.ExecAsync(["sh", "-c", $"chmod 0777 '/share/{relativePath}'"]);
-    }
-
     [Test]
     public async Task DeleteFiles_DirectFilePath_Success()
     {
@@ -266,5 +257,14 @@ public class DeleteFilesTests
         Assert.That(result.Success, Is.True);
         Assert.That(result.TotalFilesDeleted, Is.EqualTo(1));
         Assert.That(result.FilesDeleted.Single().Name, Is.EqualTo("foo_123.txt"));
+    }
+
+    private async Task CreateTestFileAsync(string relativePath, string content)
+    {
+        string fullPath = Path.Combine(testFilesPath, relativePath);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath) !);
+        await File.WriteAllTextAsync(fullPath, content);
+        await sambaContainer.ExecAsync(["sh", "-c", $"chmod 0777 '/share/{relativePath}'"]);
     }
 }
