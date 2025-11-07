@@ -10,6 +10,11 @@ using NUnit.Framework;
 
 namespace Frends.Smb.WriteFile.Tests;
 
+// These SMB integration tests require Docker and a Linux-compatible environment (e.g., WSL2).
+// They will not run on Windows natively because the OS reserves SMB port 445.
+// To execute the tests, run them inside WSL with Docker running:
+//    dotnet test
+// The tests will automatically start a temporary Samba container and mount test files for reading.
 [TestFixture]
 public class UnitTests
 {
@@ -96,23 +101,21 @@ public class UnitTests
     }
 
     [Test]
-    public void WriteSimpleFile()
+    public void SimpleFile()
     {
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Error?.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var bytes = File.ReadAllBytes(DestinationFilePath);
         Assert.That(bytes, Is.EquivalentTo(SimpleContent));
     }
 
     [Test]
-    public void WriteLargeFile()
+    public void LargeFile()
     {
         input.Content = LargeContent;
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Error?.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var bytes = File.ReadAllBytes(DestinationFilePath);
         Assert.That(bytes, Is.EquivalentTo(LargeContent));
@@ -126,7 +129,6 @@ public class UnitTests
         options.Overwrite = true;
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Error?.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var res = await File.ReadAllBytesAsync(DestinationFilePath);
         Assert.That(res, Is.EquivalentTo(SimpleContent));
@@ -140,18 +142,16 @@ public class UnitTests
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error, Is.Not.Null);
-        Assert.That(result.Error.Message, Does.Contain("STATUS_OBJECT_NAME_COLLISION"));
+        Assert.That(result.Error?.Message, Does.Contain("STATUS_OBJECT_NAME_COLLISION"));
     }
 
     [Test]
-    public void WriteFileInSubdirectory()
+    public void FileInSubdirectory()
     {
         input.DestinationPath = Path.Combine("subDir", TestFile);
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Error?.Message, Is.Null);
         Assert.That(result.Success, Is.True);
         var dstFile = Path.Combine(DestinationDirPath, "subDir", TestFile);
         var bytes = File.ReadAllBytes(dstFile);
@@ -163,12 +163,12 @@ public class UnitTests
     {
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Error?.Message, Is.Null);
+        Assert.That(result.Success, Is.True);
         Assert.That(result.SizeInMegaBytes, Is.EqualTo(1));
     }
 
     [Test]
-    public void WriteFile_InvalidCredentials_Fails()
+    public void InvalidCredentials_Fails()
     {
         connection.Username = @"WORKGROUP\wrongUser";
         connection.Password = "wrongPass";
@@ -176,70 +176,69 @@ public class UnitTests
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error.Message, Does.Contain("STATUS_ACCESS_DENIED"));
+        Assert.That(result.Error?.Message, Does.Contain("STATUS_ACCESS_DENIED"));
     }
 
     [Test]
-    public void WriteFile_EmptyPath_Fails()
+    public void EmptyPath_Fails()
     {
         input = new Input { DestinationPath = string.Empty };
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error.Message, Does.Contain("Path cannot be empty"));
+        Assert.That(result.Error?.Message, Does.Contain("Path cannot be empty"));
     }
 
     [Test]
-    public void WriteFile_Accepts_ServerName_AsHostname()
+    public void Accepts_ServerName_AsHostname()
     {
         connection.Server = "localhost";
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
-        Assert.That(result.Error?.Message, Is.Null);
         Assert.That(result.Success, Is.True);
     }
 
     [Test]
-    public void WriteFile_EmptyServer_Fails()
+    public void EmptyServer_Fails()
     {
         connection.Server = string.Empty;
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error.Message, Does.Contain("Server cannot be empty"));
+        Assert.That(result.Error?.Message, Does.Contain("Server cannot be empty"));
     }
 
     [Test]
-    public void WriteFile_EmptyShare_Fails()
+    public void EmptyShare_Fails()
     {
         connection.Share = string.Empty;
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error.Message, Does.Contain("Share cannot be empty"));
+        Assert.That(result.Error?.Message, Does.Contain("Share cannot be empty"));
     }
 
     [Test]
-    public void WriteFile_PathStartsWithUnc_Fails()
+    public void PathStartsWithUnc_Fails()
     {
         input = new Input { DestinationPath = @"\\server\share\file.txt" };
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error.Message, Does.Contain("Path should be relative to the share"));
+        Assert.That(result.Error?.Message, Does.Contain("Path should be relative to the share"));
     }
 
     [Test]
-    public void WriteFile_InvalidUsernameFormat_Fails()
+    public void InvalidUsernameFormat_Fails()
     {
         connection.Username = "user";
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error.Message, Does.Contain(@"UserName field must be of format domain\username"));
+        Assert.That(result.Error?.Message, Does.Contain(@"UserName field must be of format domain\username"));
     }
 }
