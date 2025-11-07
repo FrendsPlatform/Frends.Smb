@@ -114,6 +114,8 @@ public class DeleteFilesTests
         {
             foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
             {
+                if (file.Contains(".deleted") || file.Contains(".recycle"))
+                    continue;
                 try
                 {
                     File.Delete(file);
