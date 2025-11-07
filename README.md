@@ -5,6 +5,7 @@ Frends Task for SMB related operations.
 # Tasks
 
 - [Frends.Smb.ReadFile](Frends.Smb.ReadFile/README.md)
+- [Frends.Smb.WriteFile](Frends.Smb.WriteFile/README.md)
 
 # Contributing
 When contributing to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository before making a change.
