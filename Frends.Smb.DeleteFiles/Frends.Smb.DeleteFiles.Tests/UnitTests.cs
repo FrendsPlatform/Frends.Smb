@@ -79,13 +79,6 @@ public class DeleteFilesTests
             }
 
             await sambaContainer.DisposeAsync();
-            try
-            {
-                Directory.Delete(testFilesPath, true);
-            }
-            catch
-            {
-            }
         }
     }
 
