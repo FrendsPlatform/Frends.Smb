@@ -281,7 +281,10 @@ public class DeleteFilesTests
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);
 
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        string dirPath = Path.GetDirectoryName(fullPath);
+        if (dirPath != null)
+            Directory.CreateDirectory(dirPath);
+
         await File.WriteAllTextAsync(fullPath, content);
         await sambaContainer.ExecAsync(["sh", "-c", $"chmod 0777 '/share/{relativePath}'"]);
     }
