@@ -7,7 +7,6 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Frends.Smb.DeleteFiles.Definitions;
 using NUnit.Framework;
-using NUnit.Framework.Internal;
 
 namespace Frends.Smb.DeleteFiles.Tests;
 
@@ -44,13 +43,14 @@ public class DeleteFilesTests
         Directory.CreateDirectory(Path.Combine(testFilesPath, "deep"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "deep", "inner"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "regex-test"));
-        File.WriteAllText(Path.Combine(testFilesPath, "rootfile.txt"), "root");
+        await File.WriteAllTextAsync(Path.Combine(testFilesPath, "rootfile.txt"), "root");
 
         sambaContainer = new ContainerBuilder()
             .WithImage("dperson/samba:latest")
             .WithName($"smb-test-delete-{Guid.NewGuid()}")
             .WithBindMount(testFilesPath, "/share")
             .WithPortBinding(445, 445)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(445))
             .WithCommand(
                 "-n",
                 "-u",
@@ -62,8 +62,6 @@ public class DeleteFilesTests
             .Build();
 
         await sambaContainer.StartAsync();
-        await Task.Delay(TimeSpan.FromSeconds(5));
-
         await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
     }
 
@@ -81,6 +79,13 @@ public class DeleteFilesTests
             }
 
             await sambaContainer.DisposeAsync();
+            try
+            {
+                Directory.Delete(testFilesPath, true);
+            }
+            catch
+            {
+            }
         }
     }
 
@@ -91,7 +96,7 @@ public class DeleteFilesTests
         {
             Server = serverName,
             Share = shareName,
-            UserName = userName,
+            Username = userName,
             Password = password,
         };
 
@@ -105,12 +110,10 @@ public class DeleteFilesTests
     [TearDown]
     public void Cleanup()
     {
-        try
+        if (Directory.Exists(testFilesPath))
         {
             foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
             {
-                if (file.Contains(".deleted") || file.Contains(".recycle"))
-                    continue;
                 try
                 {
                     File.Delete(file);
@@ -119,9 +122,6 @@ public class DeleteFilesTests
                 {
                 }
             }
-        }
-        catch
-        {
         }
     }
 
@@ -191,13 +191,14 @@ public class DeleteFilesTests
     [Test]
     public void DeleteFiles_InvalidUsernameFormat_ThrowsArgumentException()
     {
-        connection.UserName = "invalidUser";
+        connection.Username = "invalidUser";
         input = new Input { Path = "rootfile.txt" };
         options.ThrowErrorOnFailure = true;
 
         var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
             await Smb.DeleteFiles(input, connection, options, CancellationToken.None));
 
+        Assert.That(ex, Is.Not.Null);
         Assert.That(ex.Message, Does.Contain("UserName field must be of format domain\\username"));
     }
 
@@ -280,9 +281,7 @@ public class DeleteFilesTests
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);
 
-#pragma warning disable SA1009
-        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
-#pragma warning restore SA1009
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath) !);
         await File.WriteAllTextAsync(fullPath, content);
         await sambaContainer.ExecAsync(["sh", "-c", $"chmod 0777 '/share/{relativePath}'"]);
     }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,7 +61,7 @@ public static class Smb
         if (input.Path.StartsWith(@"\\"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
-        var (domain, user) = GetDomainAndUsername(connection.UserName);
+        var (domain, user) = GetDomainAndUsername(connection.Username);
 
         SMB2Client client = new();
 
@@ -121,11 +120,11 @@ public static class Smb
                         if (deleteStatus == NTStatus.STATUS_SUCCESS)
                         {
                             var normalizedFilePath = filePath.Replace('/', '\\').TrimStart('\\');
-                            var normalizedForOS = normalizedFilePath
+                            var normalizedForOs = normalizedFilePath
                                 .Replace('\\', Path.DirectorySeparatorChar)
                                 .Replace('/', Path.DirectorySeparatorChar);
 
-                            var fileNameOnly = Path.GetFileName(normalizedForOS);
+                            var fileNameOnly = Path.GetFileName(normalizedForOs);
 
                             deletedFiles.Add(new FileItem
                             {
