@@ -103,7 +103,7 @@ public class DeleteFilesTests
     [TearDown]
     public void Cleanup()
     {
-        if (Directory.Exists(testFilesPath))
+        try
         {
             foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
             {
@@ -117,6 +117,9 @@ public class DeleteFilesTests
                 {
                 }
             }
+        }
+        catch
+        {
         }
     }
 
