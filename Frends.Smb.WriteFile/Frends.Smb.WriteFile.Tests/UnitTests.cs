@@ -46,6 +46,7 @@ public class UnitTests
             .WithName($"smb-test-server-{Guid.NewGuid()}")
             .WithBindMount(DestinationDirPath, "/share")
             .WithPortBinding(445, 445)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(445))
             .WithCommand(
                 "-n",
                 "-u",
@@ -57,7 +58,6 @@ public class UnitTests
             .Build();
 
         await sambaContainer.StartAsync();
-        await Task.Delay(TimeSpan.FromSeconds(5));
         await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
     }
 
