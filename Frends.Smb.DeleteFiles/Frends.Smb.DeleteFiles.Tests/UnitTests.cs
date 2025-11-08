@@ -70,6 +70,7 @@ public class DeleteFilesTests
     {
         if (sambaContainer != null)
         {
+            await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
             await sambaContainer.DisposeAsync();
         }
 
@@ -84,15 +85,13 @@ public class DeleteFilesTests
     }
 
     [TearDown]
-    public void Cleanup()
+    public async Task Cleanup()
     {
+        if (sambaContainer is not null)
+            await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
+
         foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
-        {
-            if (!file.Contains(".deleted"))
-            {
-                File.Delete(file);
-            }
-        }
+            File.Delete(file);
     }
 
     [Test]
