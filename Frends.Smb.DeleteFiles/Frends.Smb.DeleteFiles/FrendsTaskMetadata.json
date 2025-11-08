@@ -1,0 +1,7 @@
+﻿{
+  "Tasks": [
+    {
+      "TaskMethod": "Frends.Smb.DeleteFiles.Smb.DeleteFiles"
+    }
+  ]
+}
