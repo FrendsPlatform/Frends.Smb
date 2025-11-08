@@ -87,7 +87,12 @@ public class DeleteFilesTests
     public void Cleanup()
     {
         foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
-            File.Delete(file);
+        {
+            if (!file.Contains(".deleted"))
+            {
+                File.Delete(file);
+            }
+        }
     }
 
     [Test]
