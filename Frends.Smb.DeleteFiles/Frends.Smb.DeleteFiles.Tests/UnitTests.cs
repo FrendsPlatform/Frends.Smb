@@ -20,7 +20,7 @@ public class DeleteFilesTests
 {
     private readonly string serverName = "127.0.0.1";
     private readonly string shareName = "testshare";
-    private readonly string userName = "WORKGROUP\\testuser";
+    private readonly string user = "WORKGROUP\\testuser";
     private readonly string password = "testpass";
 
     private Input input;
@@ -79,12 +79,8 @@ public class DeleteFilesTests
     [SetUp]
     public void Setup()
     {
-        connection = new Connection
-        {
-            Server = serverName, Share = shareName, Username = userName, Password = password,
-        };
-
-        options = new Options { ThrowErrorOnFailure = true, ErrorMessageOnFailure = string.Empty, };
+        connection = new Connection { Server = serverName, Share = shareName, Username = user, Password = password };
+        options = new Options { ThrowErrorOnFailure = true, ErrorMessageOnFailure = string.Empty };
     }
 
     [TearDown]
