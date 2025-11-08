@@ -70,16 +70,10 @@ public class DeleteFilesTests
     {
         if (sambaContainer != null)
         {
-            try
-            {
-                await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
-            }
-            catch
-            {
-            }
-
             await sambaContainer.DisposeAsync();
         }
+
+        Directory.Delete(testFilesPath, true);
     }
 
     [SetUp]
@@ -87,40 +81,17 @@ public class DeleteFilesTests
     {
         connection = new Connection
         {
-            Server = serverName,
-            Share = shareName,
-            Username = userName,
-            Password = password,
+            Server = serverName, Share = shareName, Username = userName, Password = password,
         };
 
-        options = new Options
-        {
-            ThrowErrorOnFailure = true,
-            ErrorMessageOnFailure = string.Empty,
-        };
+        options = new Options { ThrowErrorOnFailure = true, ErrorMessageOnFailure = string.Empty, };
     }
 
     [TearDown]
     public void Cleanup()
     {
-        try
-        {
-            foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
-            {
-                if (file.Contains(".deleted") || file.Contains(".recycle"))
-                    continue;
-                try
-                {
-                    File.Delete(file);
-                }
-                catch
-                {
-                }
-            }
-        }
-        catch
-        {
-        }
+        foreach (var file in Directory.EnumerateFiles(testFilesPath, "*", SearchOption.AllDirectories))
+            File.Delete(file);
     }
 
     [Test]
