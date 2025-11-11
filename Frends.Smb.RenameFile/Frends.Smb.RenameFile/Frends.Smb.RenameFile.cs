@@ -93,6 +93,8 @@ public static class Smb
                     ? newFileName
                     : $"{directory}\\{newFileName}";
 
+                ShareAccess shareAccess = ShareAccess.Delete;
+
                 switch (options.RenameBehaviour)
                 {
                     case RenameBehaviour.Throw:
@@ -104,6 +106,11 @@ public static class Smb
 
                     case RenameBehaviour.Overwrite:
                         {
+                            if (FileExists(fileStore, newFilePath))
+                            {
+                                shareAccess = ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete;
+                            }
+
                             break;
                         }
 
@@ -120,7 +127,7 @@ public static class Smb
                     input.Path,
                     AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
                     SMBLibrary.FileAttributes.Normal,
-                    ShareAccess.Delete,
+                    shareAccess,
                     CreateDisposition.FILE_OPEN,
                     CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                     null);
