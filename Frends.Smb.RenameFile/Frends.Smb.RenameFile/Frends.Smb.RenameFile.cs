@@ -41,7 +41,7 @@ public static class Smb
         }
     }
 
-    private static Task<Result> ExecuteRenameAsync(
+    private static async Task<Result> ExecuteRenameAsync(
         Input input,
         Connection connection,
         Options options,
@@ -116,16 +116,31 @@ public static class Smb
                         }
                 }
 
-                NTStatus openStatus = fileStore.CreateFile(
-                    out object fileHandle,
-                    out FileStatus fileStatus,
-                    input.Path,
-                    AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
-                    SMBLibrary.FileAttributes.Normal,
-                    shareAccess,
-                    CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-                    null);
+                object fileHandle = null;
+                NTStatus openStatus = NTStatus.STATUS_ACCESS_DENIED;
+
+                for (int attempt = 1; attempt <= 3; attempt++)
+                {
+                    openStatus = fileStore.CreateFile(
+                        out fileHandle,
+                        out FileStatus fileStatus,
+                        input.Path,
+                        AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+                        SMBLibrary.FileAttributes.Normal,
+                        shareAccess,
+                        CreateDisposition.FILE_OPEN,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                        null);
+
+                    if (openStatus == NTStatus.STATUS_SUCCESS)
+                        break;
+
+                    if (attempt < 3)
+                    {
+                        Console.WriteLine($"Failed to open file '{input.Path}' (attempt {attempt}/3): {openStatus}");
+                        await Task.Delay(200 * attempt);
+                    }
+                }
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
                     throw new Exception($"Failed to open file '{input.Path}' for rename: {openStatus}");
@@ -167,7 +182,7 @@ public static class Smb
                     NewFilePath = newFilePath.TrimStart('\\'),
                 };
 
-                return Task.FromResult(result);
+                return result;
             }
             finally
             {
