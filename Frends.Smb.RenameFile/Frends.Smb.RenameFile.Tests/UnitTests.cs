@@ -126,7 +126,6 @@ public class RenameFileTests
         Console.WriteLine($"Before rename - file1.txt content: '{File.ReadAllText(LocalPath("file1.txt"))}'");
         Console.WriteLine($"Before rename - duplicate.txt exists: {File.Exists(LocalPath("duplicate.txt"))}");
 
-
         var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
 
         Console.WriteLine($"After rename - file1.txt exists: {File.Exists(LocalPath("file1.txt"))}");
