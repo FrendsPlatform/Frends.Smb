@@ -138,7 +138,7 @@ public static class Smb
                     if (attempt < 3)
                     {
                         Console.WriteLine($"Failed to open file '{input.Path}' (attempt {attempt}/3): {openStatus}");
-                        await Task.Delay(200 * attempt);
+                        await Task.Delay(200 * attempt, cancellationToken);
                     }
                 }
 
