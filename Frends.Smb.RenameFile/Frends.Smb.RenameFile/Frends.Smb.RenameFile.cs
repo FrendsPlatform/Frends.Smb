@@ -93,7 +93,7 @@ public static class Smb
                     ? newFileName
                     : $"{directory}\\{newFileName}";
 
-                ShareAccess shareAccess = ShareAccess.Delete;
+                ShareAccess shareAccess = ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete;
 
                 switch (options.RenameBehaviour)
                 {
@@ -106,11 +106,6 @@ public static class Smb
 
                     case RenameBehaviour.Overwrite:
                         {
-                            if (FileExists(fileStore, newFilePath))
-                            {
-                                shareAccess = ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete;
-                            }
-
                             break;
                         }
 

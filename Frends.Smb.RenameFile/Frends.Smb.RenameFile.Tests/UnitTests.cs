@@ -49,13 +49,16 @@ public class RenameFileTests
                 "-u",
                 "testuser;testpass",
                 "-s",
-                "testshare;/share;yes;no;no;testuser;root",
+                "testshare;/share;no;no;no;testuser;root",
                 "-w",
                 "WORKGROUP")
             .Build();
 
         await sambaContainer.StartAsync();
-        await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
+        await sambaContainer.ExecAsync(new[]
+        {
+            "sh", "-c", "chown -R 1000:1000 /share && chmod -R 0777 /share"
+        });
     }
 
     [OneTimeTearDown]
