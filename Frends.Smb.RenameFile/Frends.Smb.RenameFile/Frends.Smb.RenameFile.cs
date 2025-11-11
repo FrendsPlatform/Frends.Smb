@@ -141,7 +141,19 @@ public static class Smb
 
                     NTStatus renameStatus = fileStore.SetFileInformation(fileHandle, renameInfo);
                     if (renameStatus != NTStatus.STATUS_SUCCESS)
-                        throw new Exception($"Failed to rename file '{input.Path}' to '{newFilePath}': {renameStatus}");
+                    {
+                        // If overwrite failed due to access issues, try manual approach
+                        if (renameStatus == NTStatus.STATUS_ACCESS_DENIED &&
+                            options.RenameBehaviour == RenameBehaviour.Overwrite)
+                        {
+                            Console.WriteLine($"Overwrite rename failed, trying manual delete and rename for '{input.Path}' to '{newFilePath}'");
+                            DeleteFile(fileStore, newFilePath);
+                            renameStatus = fileStore.SetFileInformation(fileHandle, renameInfo);
+                        }
+
+                        if (renameStatus != NTStatus.STATUS_SUCCESS)
+                            throw new Exception($"Failed to rename file '{input.Path}' to '{newFilePath}': {renameStatus}");
+                    }
                 }
                 finally
                 {
