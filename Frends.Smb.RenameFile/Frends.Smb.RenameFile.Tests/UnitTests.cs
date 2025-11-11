@@ -49,7 +49,7 @@ public class RenameFileTests
                 "-u",
                 "testuser;testpass",
                 "-s",
-                "testshare;/share;no;no;no;testuser;root",
+                "testshare;/share;yes;no;no;testuser;root",
                 "-w",
                 "WORKGROUP")
             .Build();
