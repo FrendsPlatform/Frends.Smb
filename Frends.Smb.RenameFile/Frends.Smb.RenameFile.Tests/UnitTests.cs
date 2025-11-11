@@ -57,7 +57,7 @@ public class RenameFileTests
         await sambaContainer.StartAsync();
         await sambaContainer.ExecAsync(new[]
         {
-            "sh", "-c", "chown -R 1000:1000 /share && chmod -R 0777 /share"
+            "sh", "-c", "chown -R 1000:1000 /share && chmod -R 0777 /share",
         });
     }
 
