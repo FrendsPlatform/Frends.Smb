@@ -202,11 +202,20 @@ public static class Smb
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
+        Console.WriteLine($"DeleteFile: openStatus={openStatus} for {path}");
+
         if (openStatus == NTStatus.STATUS_SUCCESS)
         {
             var deleteInfo = new FileDispositionInformation { DeletePending = true };
-            fileStore.SetFileInformation(handle, deleteInfo);
+            NTStatus deleteStatus = fileStore.SetFileInformation(handle, deleteInfo);
+
+            Console.WriteLine($"DeleteFile: deleteStatus={deleteStatus}");
+
             fileStore.CloseFile(handle);
+        }
+        else
+        {
+            Console.WriteLine($"DeleteFile: FAILED to open file {path} ({openStatus})");
         }
     }
 
