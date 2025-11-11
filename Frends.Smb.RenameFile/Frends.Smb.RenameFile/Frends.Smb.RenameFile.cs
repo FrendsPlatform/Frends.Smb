@@ -25,7 +25,7 @@ public static class Smb
     /// <param name="options">Additional parameters.</param>
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
     /// <returns>object { bool Success, string NewFilePath, object Error { string Message, Exception AdditionalInfo } }</returns>
-    public static async Task<Result> RenameFile(
+    public static Result RenameFile(
      [PropertyTab] Input input,
      [PropertyTab] Connection connection,
      [PropertyTab] Options options,
@@ -33,7 +33,7 @@ public static class Smb
     {
         try
         {
-            return await ExecuteRenameAsync(input, connection, options, cancellationToken);
+            return ExecuteRenameAsync(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -41,7 +41,7 @@ public static class Smb
         }
     }
 
-    private static Task<Result> ExecuteRenameAsync(
+    private static Result ExecuteRenameAsync(
         Input input,
         Connection connection,
         Options options,
@@ -114,20 +114,18 @@ public static class Smb
                         }
                 }
 
-                var disposition = options.RenameBehaviour == RenameBehaviour.Overwrite
-                        ? CreateDisposition.FILE_OVERWRITE_IF
-                        : CreateDisposition.FILE_OPEN;
+                var disposition = CreateDisposition.FILE_OPEN;
 
                 NTStatus openStatus = fileStore.CreateFile(
-                        out object fileHandle,
-                        out FileStatus fileStatus,
-                        input.Path,
-                        AccessMask.SYNCHRONIZE | AccessMask.GENERIC_WRITE,
-                        SMBLibrary.FileAttributes.Normal,
-                        ShareAccess.Read | ShareAccess.Write,
-                        disposition,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-                        null);
+                    out object fileHandle,
+                    out FileStatus fileStatus,
+                    input.Path,
+                    AccessMask.SYNCHRONIZE | AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE | AccessMask.DELETE,
+                    SMBLibrary.FileAttributes.Normal,
+                    ShareAccess.Read | ShareAccess.Write,
+                    disposition,
+                    CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                    null);
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
                 {
@@ -146,17 +144,7 @@ public static class Smb
                     NTStatus renameStatus = fileStore.SetFileInformation(fileHandle, renameInfo);
                     if (renameStatus != NTStatus.STATUS_SUCCESS)
                     {
-                        // If overwrite failed due to access issues, try manual approach
-                        if (renameStatus == NTStatus.STATUS_ACCESS_DENIED &&
-                            options.RenameBehaviour == RenameBehaviour.Overwrite)
-                        {
-                            Console.WriteLine($"Overwrite rename failed, trying manual delete and rename for '{input.Path}' to '{newFilePath}'");
-                            DeleteFile(fileStore, newFilePath);
-                            renameStatus = fileStore.SetFileInformation(fileHandle, renameInfo);
-                        }
-
-                        if (renameStatus != NTStatus.STATUS_SUCCESS)
-                            throw new Exception($"Failed to rename file '{input.Path}' to '{newFilePath}': {renameStatus}");
+                        throw new Exception($"Failed to rename file '{input.Path}' to '{newFilePath}': {renameStatus}");
                     }
                 }
                 finally
@@ -171,7 +159,7 @@ public static class Smb
                     NewFilePath = newFilePath.TrimStart('\\'),
                 };
 
-                return Task.FromResult(result);
+                return result;
             }
             finally
             {
@@ -204,36 +192,6 @@ public static class Smb
         }
 
         return false;
-    }
-
-    private static void DeleteFile(ISMBFileStore fileStore, string path)
-    {
-        NTStatus openStatus = fileStore.CreateFile(
-            out object handle,
-            out FileStatus fileStatus,
-            path,
-            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
-            SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Delete,
-            CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-            null);
-
-        Console.WriteLine($"DeleteFile: openStatus={openStatus} for {path}");
-
-        if (openStatus == NTStatus.STATUS_SUCCESS)
-        {
-            var deleteInfo = new FileDispositionInformation { DeletePending = true };
-            NTStatus deleteStatus = fileStore.SetFileInformation(handle, deleteInfo);
-
-            Console.WriteLine($"DeleteFile: deleteStatus={deleteStatus}");
-
-            fileStore.CloseFile(handle);
-        }
-        else
-        {
-            Console.WriteLine($"DeleteFile: FAILED to open file {path} ({openStatus})");
-        }
     }
 
     private static string GetNonConflictingFilePath(ISMBFileStore fileStore, string destPath)
