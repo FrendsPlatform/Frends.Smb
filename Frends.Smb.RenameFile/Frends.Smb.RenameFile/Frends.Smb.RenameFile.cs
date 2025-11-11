@@ -119,9 +119,9 @@ public static class Smb
                     out object fileHandle,
                     out FileStatus fileStatus,
                     input.Path,
-                    AccessMask.DELETE | AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+                    AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
                     SMBLibrary.FileAttributes.Normal,
-                    ShareAccess.Delete,
+                    ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                     CreateDisposition.FILE_OPEN,
                     CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                     null);
@@ -195,11 +195,11 @@ public static class Smb
             out object handle,
             out FileStatus fileStatus,
             path,
-            AccessMask.DELETE,
+            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Delete,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
 
         Console.WriteLine($"DeleteFile: openStatus={openStatus} for {path}");
@@ -212,6 +212,7 @@ public static class Smb
             Console.WriteLine($"DeleteFile: deleteStatus={deleteStatus}");
 
             fileStore.CloseFile(handle);
+            fileStore.Disconnect();
         }
         else
         {
