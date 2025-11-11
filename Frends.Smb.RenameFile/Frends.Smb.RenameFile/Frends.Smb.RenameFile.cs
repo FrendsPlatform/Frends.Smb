@@ -1,9 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.IO;
-using System.Net.NetworkInformation;
 using System.Threading;
-using System.Threading.Tasks;
 using Frends.Smb.RenameFile.Definitions;
 using Frends.Smb.RenameFile.Helpers;
 using SMBLibrary;

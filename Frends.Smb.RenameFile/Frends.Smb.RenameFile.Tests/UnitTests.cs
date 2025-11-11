@@ -121,16 +121,8 @@ public class RenameFileTests
         };
 
         options.RenameBehaviour = RenameBehaviour.Overwrite;
-
-        Console.WriteLine($"Before rename - file1.txt exists: {File.Exists(LocalPath("file1.txt"))}");
-        Console.WriteLine($"Before rename - file1.txt content: '{File.ReadAllText(LocalPath("file1.txt"))}'");
-        Console.WriteLine($"Before rename - duplicate.txt exists: {File.Exists(LocalPath("duplicate.txt"))}");
-
         var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
 
-        Console.WriteLine($"After rename - file1.txt exists: {File.Exists(LocalPath("file1.txt"))}");
-        Console.WriteLine($"After rename - duplicate.txt exists: {File.Exists(LocalPath("duplicate.txt"))}");
-        Console.WriteLine($"After rename - duplicate.txt content: '{File.ReadAllText(LocalPath("duplicate.txt"))}'");
         Assert.That(result.Success, Is.True);
         Assert.That(File.Exists(LocalPath("duplicate.txt")), Is.True);
         Assert.That(File.ReadAllText(LocalPath("duplicate.txt")), Does.Contain("File One"));
