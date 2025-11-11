@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Update SMBLibrary version to 15.4.1.
+- Update SMBLibrary version to 1.5.4.1.
 
 ## [1.0.0] - 2025-11-04
 
