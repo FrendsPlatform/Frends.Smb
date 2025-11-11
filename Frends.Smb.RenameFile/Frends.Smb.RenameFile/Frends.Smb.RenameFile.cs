@@ -131,7 +131,7 @@ public static class Smb
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
                 {
-                throw new Exception($"Failed to open file '{input.Path}' for rename: {openStatus}");
+                    throw new Exception($"Failed to open file '{input.Path}' for rename: {openStatus}");
                 }
 
                 try
