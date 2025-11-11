@@ -114,6 +114,8 @@ public class RenameFileTests
     public async Task RenameFile_OverwriteIfExists_ShouldReplaceFile()
     {
         ResetTestFiles();
+        await sambaContainer.ExecAsync(new[] { "chmod", "777", $"/share/file1.txt" });
+        await sambaContainer.ExecAsync(new[] { "chmod", "777", $"/share/duplicate.txt" });
 
         input = new Input
         {
