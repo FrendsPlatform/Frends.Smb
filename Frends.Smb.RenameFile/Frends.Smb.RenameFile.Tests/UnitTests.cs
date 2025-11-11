@@ -121,7 +121,7 @@ public class RenameFileTests
         options.RenameBehaviour = RenameBehaviour.Overwrite;
 
         var result = await Smb.RenameFile(input, connection, options, CancellationToken.None);
-
+        Console.WriteLine($"Error.Message: {result.Error.Message}, AddInfo: {result.Error.AdditionalInfo}");
         Assert.That(result.Success, Is.True);
         Assert.That(File.Exists(LocalPath("duplicate.txt")), Is.True);
         Assert.That(File.ReadAllText(LocalPath("duplicate.txt")), Does.Contain("File One"));
@@ -141,7 +141,7 @@ public class RenameFileTests
         options.RenameBehaviour = RenameBehaviour.Rename;
 
         var result = await Smb.RenameFile(input, connection, options, CancellationToken.None);
-
+        Console.WriteLine($"Error.Message: {result.Error.Message}, AddInfo: {result.Error.AdditionalInfo}");
         Assert.That(result.Success, Is.True);
         Assert.That(result.NewFilePath, Does.Contain("(1)"));
         Assert.That(File.Exists(LocalPath("duplicate(1).txt")), Is.True);
