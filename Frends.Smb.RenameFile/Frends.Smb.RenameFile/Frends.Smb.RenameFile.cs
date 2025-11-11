@@ -212,7 +212,6 @@ public static class Smb
             Console.WriteLine($"DeleteFile: deleteStatus={deleteStatus}");
 
             fileStore.CloseFile(handle);
-            fileStore.Disconnect();
         }
         else
         {
