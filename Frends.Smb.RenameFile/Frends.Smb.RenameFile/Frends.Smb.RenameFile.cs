@@ -104,8 +104,6 @@ public static class Smb
 
                     case RenameBehaviour.Overwrite:
                         {
-                            if (FileExists(fileStore, newFilePath))
-                                DeleteFile(fileStore, newFilePath);
                             break;
                         }
 
