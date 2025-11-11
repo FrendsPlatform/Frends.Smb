@@ -6,7 +6,7 @@
     public enum RenameBehaviour
     {
         /// <summary>
-        /// Throw an error and roll back all transfers.
+        /// Rename the transferred file by appending a number to avoid conflicts.
         /// </summary>
         Rename,
 
@@ -16,7 +16,7 @@
         Overwrite,
 
         /// <summary>
-        /// Rename the transferred file by appending a number to the end.
+        /// Throw an error if the target file already exists.
         /// </summary>
         Throw,
     }

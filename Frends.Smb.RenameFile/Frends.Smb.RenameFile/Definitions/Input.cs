@@ -19,6 +19,6 @@ public class Input
     /// The new filename including extension.
     /// </summary>
     /// <example>newfile.txt</example>
-    [DefaultValue(3)]
-    public string NewFileName { get; set; }
+    [DefaultValue("")]
+    public string NewFileName { get; set; } = string.Empty;
 }

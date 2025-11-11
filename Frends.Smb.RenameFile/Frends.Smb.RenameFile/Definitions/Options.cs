@@ -11,7 +11,7 @@ public class Options
     /// <summary>
     /// How the file write should work if a file with the new name already exists
     /// </summary>
-    /// <example>WriteBehaviour.Throw</example>
+    /// <example>RenameBehaviour.Throw</example>
     [DefaultValue(RenameBehaviour.Throw)]
     public RenameBehaviour RenameBehaviour { get; set; }
 
