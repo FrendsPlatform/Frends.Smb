@@ -193,7 +193,7 @@ public class UnitTests
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error, Is.Not.Null);
-        StringAssert.Contains("Destination Path cannot be empty", result.Error.Message);
+        StringAssert.Contains("Directory cannot be empty", result.Error.Message);
     }
 
     [Test]
