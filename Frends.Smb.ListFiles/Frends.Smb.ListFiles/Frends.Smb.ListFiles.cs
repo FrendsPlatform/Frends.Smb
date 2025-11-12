@@ -44,7 +44,7 @@ public static class Smb
             if (string.IsNullOrWhiteSpace(connection.Share))
                 throw new ArgumentException("Share cannot be empty.", nameof(connection));
             if (string.IsNullOrWhiteSpace(input.Directory))
-                throw new ArgumentException("Destination Path cannot be empty.", nameof(input));
+                throw new ArgumentException("Directory cannot be empty.", nameof(input));
             if (input.Directory.StartsWith(@"\\"))
                 throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 

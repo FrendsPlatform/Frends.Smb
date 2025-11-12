@@ -16,7 +16,7 @@ public class Options
     public bool SearchRecursively { get; set; }
 
     /// <summary>
-    /// Whether to throw an error on failure.
+    /// Regex pattern to filter files. Empty pattern matches all files.
     /// </summary>
     /// <example>*.txt</example>
     [DisplayFormat(DataFormatString = "Text")]

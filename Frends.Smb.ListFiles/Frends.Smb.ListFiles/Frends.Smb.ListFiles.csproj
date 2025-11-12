@@ -11,7 +11,7 @@
         <PackageTags>Frends</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <Description>Task to list file from SMB server</Description>
+        <Description>Task to list files from SMB server</Description>
         <PackageProjectUrl>https://frends.com/</PackageProjectUrl>
         <RepositoryUrl>https://github.com/FrendsPlatform/Frends.Smb/tree/main/Frends.Smb.ListFiles</RepositoryUrl>
         <Nullable>enable</Nullable>

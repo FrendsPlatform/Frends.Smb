@@ -1,6 +1,6 @@
 # Frends.Smb.ListFiles
 
-Task to list file from SMB server
+Task to list files from SMB server
 
 [![ListFiles_build](https://github.com/FrendsPlatform/Frends.Smb/actions/workflows/ListFiles_build_and_test_on_main.yml/badge.svg)](https://github.com/FrendsPlatform/Frends.Smb/actions/workflows/ListFiles_build_and_test_on_main.yml)
 ![Coverage](https://app-github-custom-badges.azurewebsites.net/Badge?key=FrendsPlatform/Frends.Smb/Frends.Smb.ListFiles|main)
