@@ -66,8 +66,6 @@ public static class Smb
 
             // Normalize the base directory to SMB path format (forward slashes)
             var baseDir = input.Directory.Replace("\\", "/").Trim('/');
-            // if (string.IsNullOrEmpty(baseDir))
-            //     throw new ArgumentException("Directory cannot be root or empty.", nameof(input));
 
             // Prepare regex if provided (treat empty as match-all)
             Regex? regex = null;
