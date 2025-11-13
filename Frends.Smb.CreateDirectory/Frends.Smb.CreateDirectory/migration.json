@@ -1,0 +1,12 @@
+﻿[
+  {
+    "Task": "Frends.Smb.CreateDirectory",
+    "Migrations": [
+      {
+        "Version": "1.0.0",
+        "Description": "",
+        "Migration": []
+      }
+    ]
+  }
+]
