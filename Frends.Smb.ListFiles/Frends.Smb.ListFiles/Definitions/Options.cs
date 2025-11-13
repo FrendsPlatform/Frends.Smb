@@ -16,6 +16,13 @@ public class Options
     public bool SearchRecursively { get; set; }
 
     /// <summary>
+    /// Define if a pattern will use wildcards.
+    /// </summary>
+    /// <example>false</example>
+    [DefaultValue(false)]
+    public bool UseWildcards { get; set; }
+
+    /// <summary>
     /// Regex pattern to filter files. Empty pattern matches all files.
     /// </summary>
     /// <example>*.txt</example>

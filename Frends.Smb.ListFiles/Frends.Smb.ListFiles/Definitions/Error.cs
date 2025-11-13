@@ -10,7 +10,7 @@ public class Error
     /// <summary>
     /// Summary of the error.
     /// </summary>
-    /// <example>Unable to join strings.</example>
+    /// <example>Unable to list files.</example>
     public string Message { get; set; } = string.Empty;
 
     /// <summary>

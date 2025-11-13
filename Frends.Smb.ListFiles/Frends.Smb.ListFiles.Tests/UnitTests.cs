@@ -10,6 +10,11 @@ using NUnit.Framework.Legacy;
 
 namespace Frends.Smb.ListFiles.Tests;
 
+// These SMB integration tests require Docker and a Linux-compatible environment (e.g., WSL2).
+// They will not run on Windows natively because the OS reserves SMB port 445.
+// To execute the tests, run them inside WSL with Docker running:
+//    dotnet test
+// The tests will automatically start a temporary Samba container and mount test files for reading.
 [TestFixture]
 public class UnitTests
 {
@@ -163,6 +168,18 @@ public class UnitTests
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True, result.Error?.Message);
         var expected = new[] { "dir/sub/inner/c.txt" };
+        CollectionAssert.AreEquivalent(expected, result.Files);
+    }
+
+    [Test]
+    public void Should_Filter_By_Wildcard_Recursive()
+    {
+        options.SearchRecursively = true;
+        options.Pattern = "*.txt";
+        options.UseWildcards = true;
+        var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
+        Assert.That(result.Success, Is.True, result.Error?.Message);
+        var expected = new[] { "dir/sub/inner/c.txt", "dir/sub/a.txt", "dir/root.txt" };
         CollectionAssert.AreEquivalent(expected, result.Files);
     }
 

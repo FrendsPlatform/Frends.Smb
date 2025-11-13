@@ -70,7 +70,19 @@ public static class Smb
             // Prepare regex if provided (treat empty as match-all)
             Regex? regex = null;
             if (!string.IsNullOrWhiteSpace(options.Pattern))
-                regex = new Regex(options.Pattern, RegexOptions.Compiled);
+            {
+                if (options.UseWildcards)
+                {
+                    string regexPattern = "^" + Regex.Escape(options.Pattern)
+                        .Replace(@"\*", ".*")
+                        .Replace(@"\?", ".") + "$";
+                    regex = new Regex(regexPattern, RegexOptions.IgnoreCase);
+                }
+                else
+                {
+                    regex = new Regex(options.Pattern, RegexOptions.IgnoreCase);
+                }
+            }
 
             var files = new List<string>();
             EnumerateFiles(fileStore, baseDir, options.SearchRecursively, regex, files, cancellationToken);
