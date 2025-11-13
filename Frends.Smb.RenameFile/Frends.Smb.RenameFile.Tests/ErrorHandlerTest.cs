@@ -14,7 +14,7 @@ public class ErrorHandlerTest
     [Test]
     public void Should_Throw_Error_When_ThrowErrorOnFailure_Is_True()
     {
-        var ex = Assert.Throws<System.ArgumentException>(() =>
+        var ex = Assert.Throws<System.Exception>(() =>
                  Smb.RenameFile(DefaultInput(), DefaultConnection(), DefaultOptions(), CancellationToken.None));
 
         Assert.That(ex, Is.Not.Null);

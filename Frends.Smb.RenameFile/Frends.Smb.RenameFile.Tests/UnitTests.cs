@@ -34,9 +34,6 @@ public class RenameFileTests
     {
         testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "rename-tests");
         Directory.CreateDirectory(testFilesPath);
-        File.WriteAllText(Path.Combine(testFilesPath, "file1.txt"), "File One");
-        File.WriteAllText(Path.Combine(testFilesPath, "file2.txt"), "File Two");
-        File.WriteAllText(Path.Combine(testFilesPath, "duplicate.txt"), "Duplicate file");
 
         sambaContainer = new ContainerBuilder()
             .WithImage("dperson/samba:latest")
@@ -70,6 +67,17 @@ public class RenameFileTests
     [SetUp]
     public void Setup()
     {
+        File.WriteAllText(LocalPath("file1.txt"), "File One");
+        File.WriteAllText(LocalPath("file2.txt"), "File Two");
+        File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
+
+        if (File.Exists(LocalPath("renamed.txt"))) File.Delete(LocalPath("renamed.txt"));
+        if (File.Exists(LocalPath("duplicate(1).txt"))) File.Delete(LocalPath("duplicate(1).txt"));
+        if (File.Exists(LocalPath("duplicate(2).txt"))) File.Delete(LocalPath("duplicate(2).txt"));
+        if (File.Exists(LocalPath("duplicate(3).txt"))) File.Delete(LocalPath("duplicate(3).txt"));
+        if (File.Exists(LocalPath("file1-renamed.txt"))) File.Delete(LocalPath("file1-renamed.txt"));
+        if (File.Exists(LocalPath("file1-final.txt"))) File.Delete(LocalPath("file1-final.txt"));
+
         connection = new Connection
         {
             Server = serverName,
@@ -89,8 +97,6 @@ public class RenameFileTests
     [Test]
     public void RenameFile_ThrowIfExists_FileAlreadyExists_ShouldFail()
     {
-        ResetTestFiles();
-
         input = new Input
         {
             Path = @"file1.txt",
@@ -110,7 +116,6 @@ public class RenameFileTests
     [Test]
     public async Task RenameFile_OverwriteIfExists_ShouldReplaceFile()
     {
-        ResetTestFiles();
         await sambaContainer.ExecAsync(new[] { "chmod", "777", $"/share/file1.txt" });
         await sambaContainer.ExecAsync(new[] { "chmod", "777", $"/share/duplicate.txt" });
 
@@ -131,8 +136,6 @@ public class RenameFileTests
     [Test]
     public void RenameFile_RenameIfExists_ShouldGenerateNewName()
     {
-        ResetTestFiles();
-
         input = new Input
         {
             Path = @"duplicate.txt",
@@ -141,17 +144,33 @@ public class RenameFileTests
 
         options.RenameBehaviour = RenameBehaviour.Rename;
 
-        var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.NewFilePath, Does.Contain("(1)"));
+        var result1 = Smb.RenameFile(input, connection, options, CancellationToken.None);
+        Assert.That(result1.Success, Is.True);
+        Assert.That(result1.NewFilePath, Does.Contain("duplicate(1).txt"));
         Assert.That(File.Exists(LocalPath("duplicate(1).txt")), Is.True);
+
+        File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
+
+        var result2 = Smb.RenameFile(input, connection, options, CancellationToken.None);
+        Assert.That(result2.Success, Is.True);
+        Assert.That(result2.NewFilePath, Does.Contain("duplicate(2).txt"));
+        Assert.That(File.Exists(LocalPath("duplicate(2).txt")), Is.True);
+
+        File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
+
+        var result3 = Smb.RenameFile(input, connection, options, CancellationToken.None);
+        Assert.That(result3.Success, Is.True);
+        Assert.That(result3.NewFilePath, Does.Contain("duplicate(3).txt"));
+        Assert.That(File.Exists(LocalPath("duplicate(3).txt")), Is.True);
+
+        Assert.That(File.Exists(LocalPath("duplicate(1).txt")), Is.True);
+        Assert.That(File.Exists(LocalPath("duplicate(2).txt")), Is.True);
+        Assert.That(File.Exists(LocalPath("duplicate(3).txt")), Is.True);
     }
 
     [Test]
     public void RenameFile_SimpleRename_ShouldSucceed()
     {
-        ResetTestFiles();
-
         input = new Input
         {
             Path = @"file2.txt",
@@ -177,7 +196,6 @@ public class RenameFileTests
         };
 
         options.RenameBehaviour = RenameBehaviour.Throw;
-
         var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
@@ -187,8 +205,6 @@ public class RenameFileTests
     [Test]
     public void RenameFile_MultipleSequentialRenames_ShouldWork()
     {
-        ResetTestFiles();
-
         input = new Input
         {
             Path = @"file1.txt",
@@ -200,6 +216,7 @@ public class RenameFileTests
         var result1 = Smb.RenameFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result1.Success, Is.True);
+        Assert.That(File.Exists(LocalPath("file1-renamed.txt")), Is.True);
 
         input.Path = "file1-renamed.txt";
         input.NewFileName = "file1-final.txt";
@@ -211,13 +228,4 @@ public class RenameFileTests
     }
 
     private string LocalPath(string relative) => Path.Combine(testFilesPath, relative);
-
-    private void ResetTestFiles()
-    {
-        File.WriteAllText(LocalPath("file1.txt"), "File One");
-        File.WriteAllText(LocalPath("file2.txt"), "File Two");
-        File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
-        if (File.Exists(LocalPath("renamed.txt"))) File.Delete(LocalPath("renamed.txt"));
-        if (File.Exists(LocalPath("duplicate(1).txt"))) File.Delete(LocalPath("duplicate(1).txt"));
-    }
 }

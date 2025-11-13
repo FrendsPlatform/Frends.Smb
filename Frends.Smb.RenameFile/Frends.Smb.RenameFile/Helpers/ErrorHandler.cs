@@ -14,7 +14,7 @@ internal static class ErrorHandler
                 throw new Exception(errorMessageOnFailure, exception);
             }
 
-            throw exception;
+            throw new Exception(errorMessageOnFailure, exception);
         }
 
         var errorMessage = string.IsNullOrEmpty(errorMessageOnFailure)

@@ -85,17 +85,16 @@ public static class Smb
 
                 string directory = Path.GetDirectoryName(input.Path)?.Replace('/', '\\')?.TrimStart('\\') ?? string.Empty;
                 string oldFileName = Path.GetFileName(input.Path);
-                string newFileName = input.NewFileName;
 
-                string newFilePath = string.IsNullOrEmpty(directory)
-                    ? newFileName
-                    : $"{directory}\\{newFileName}";
+                string newFilePath = $"{directory}\\{input.NewFileName}".TrimStart('\\');
+
+                bool targetExists = FileExists(fileStore, newFilePath);
 
                 switch (options.RenameBehaviour)
                 {
                     case RenameBehaviour.Throw:
                         {
-                            if (FileExists(fileStore, newFilePath))
+                            if (targetExists)
                                 throw new IOException($"File already exists: {newFilePath}. No file renamed.");
                             break;
                         }
@@ -107,7 +106,11 @@ public static class Smb
 
                     case RenameBehaviour.Rename:
                         {
-                            newFilePath = GetNonConflictingFilePath(fileStore, newFilePath);
+                            if (targetExists)
+                            {
+                                newFilePath = GetNonConflictingFilePath(fileStore, newFilePath);
+                            }
+
                             break;
                         }
                 }
@@ -196,13 +199,22 @@ public static class Smb
     {
         string candidate = destPath;
         int count = 1;
-        string dir = Path.GetDirectoryName(destPath);
+        string dir = Path.GetDirectoryName(destPath) ?? string.Empty;
         string baseName = Path.GetFileNameWithoutExtension(destPath);
         string ext = Path.GetExtension(destPath);
 
         while (FileExists(fileStore, candidate))
         {
-            candidate = $"{dir}\\{baseName}({count++}){ext}";
+            string newFileName = $"{baseName}({count++}){ext}";
+
+            if (string.IsNullOrEmpty(dir))
+            {
+                candidate = newFileName;
+            }
+            else
+            {
+                candidate = $"{dir}\\{newFileName}";
+            }
         }
 
         return candidate;
