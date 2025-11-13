@@ -157,6 +157,7 @@ public class RenameFileTests
         Assert.That(File.Exists(LocalPath("duplicate(1).txt")), Is.True);
 
         File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
+        await sambaContainer.ExecAsync(new[] { "chmod", "777", "/share/duplicate.txt" });
 
         var result2 = Smb.RenameFile(input, connection, options, CancellationToken.None);
         Console.WriteLine(result2.Error.Message);
@@ -165,6 +166,7 @@ public class RenameFileTests
         Assert.That(File.Exists(LocalPath("duplicate(2).txt")), Is.True);
 
         File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
+        await sambaContainer.ExecAsync(new[] { "chmod", "777", "/share/duplicate.txt" });
 
         var result3 = Smb.RenameFile(input, connection, options, CancellationToken.None);
         Assert.That(result3.Success, Is.True);
