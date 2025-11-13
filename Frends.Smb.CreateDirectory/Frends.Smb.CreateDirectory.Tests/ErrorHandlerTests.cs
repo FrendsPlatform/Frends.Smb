@@ -5,9 +5,8 @@ using NUnit.Framework;
 
 namespace Frends.Smb.CreateDirectory.Tests;
 
-// TODO: Adjust the test to use a real invalid Input scenario (e.g., missing or malformed data)
 [TestFixture]
-public class ErrorHandlerTest
+public class ErrorHandlerTests
 {
     private const string CustomErrorMessage = "CustomErrorMessage";
 
@@ -15,7 +14,7 @@ public class ErrorHandlerTest
     public void Should_Throw_Error_When_ThrowErrorOnFailure_Is_True()
     {
         var ex = Assert.Throws<Exception>(() =>
-           Smb.CreateDirectory(DefaultInput(), DefaultConnection(), DefaultOptions(), CancellationToken.None));
+            Smb.CreateDirectory(DefaultInput(), DefaultConnection(), DefaultOptions(), CancellationToken.None));
         Assert.That(ex, Is.Not.Null);
     }
 
@@ -39,16 +38,10 @@ public class ErrorHandlerTest
         Assert.That(ex.Message, Contains.Substring(CustomErrorMessage));
     }
 
-    private static Input DefaultInput() => new()
-    {
-        Repeat = -1, // Invalid value to cause an exception
-    };
+    private static Input DefaultInput() => new();
 
     private static Connection DefaultConnection() => new();
 
-    private static Options DefaultOptions() => new()
-    {
-        ThrowErrorOnFailure = true,
-        ErrorMessageOnFailure = string.Empty,
-    };
+    private static Options DefaultOptions() =>
+        new() { ThrowErrorOnFailure = true, ErrorMessageOnFailure = string.Empty };
 }

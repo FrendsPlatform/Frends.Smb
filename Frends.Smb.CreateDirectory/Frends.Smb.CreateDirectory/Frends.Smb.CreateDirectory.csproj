@@ -11,17 +11,18 @@
         <PackageTags>Frends</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <Description>Description of the Task</Description>
+        <Description>Task to create a directory on SMB share.</Description>
         <PackageProjectUrl>https://frends.com/</PackageProjectUrl>
         <RepositoryUrl>https://github.com/FrendsPlatform/Frends.Smb/tree/main/Frends.Smb.CreateDirectory</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="SMBLibrary" Version="1.5.4.1"/>
         <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+        <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -31,21 +32,21 @@
     </ItemGroup>
 
     <ItemGroup>
-		<AdditionalFiles Include="FrendsTaskMetadata.json" Pack="true" PackagePath="/">
+        <AdditionalFiles Include="FrendsTaskMetadata.json" Pack="true" PackagePath="/">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </AdditionalFiles>
     </ItemGroup>
-	
-	<ItemGroup>
-		<Content Include="migration.json" PackagePath="/" Pack="true" />
-		<Content Include="../CHANGELOG.md" PackagePath="/" Pack="true" />
-	</ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="FrendsTaskAnalyzers" Version="*">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-	</ItemGroup>
+    <ItemGroup>
+        <Content Include="migration.json" PackagePath="/" Pack="true"/>
+        <Content Include="../CHANGELOG.md" PackagePath="/" Pack="true"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FrendsTaskAnalyzers" Version="*">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
 
 </Project>

@@ -9,14 +9,6 @@ namespace Frends.Smb.CreateDirectory.Definitions;
 public class Options
 {
     /// <summary>
-    /// Delimiter to use between the repeated strings.
-    /// </summary>
-    /// <example>,</example>
-    [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue(" ")]
-    public string Delimiter { get; set; }
-
-    /// <summary>
     /// Whether to throw an error on failure.
     /// </summary>
     /// <example>false</example>

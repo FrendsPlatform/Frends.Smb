@@ -12,10 +12,10 @@ public class Result
     public bool Success { get; set; }
 
     /// <summary>
-    /// Input string repeated the specified number of times.
+    /// Full path of the created directory.
     /// </summary>
     /// <example>foobar,foobar</example>
-    public string Output { get; set; }
+    public string FullUncPath { get; set; }
 
     /// <summary>
     /// Error that occurred during task execution.
