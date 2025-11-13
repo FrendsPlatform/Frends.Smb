@@ -65,18 +65,25 @@ public class RenameFileTests
     }
 
     [SetUp]
-    public void Setup()
+    public async Task Setup()
     {
-        File.WriteAllText(LocalPath("file1.txt"), "File One");
-        File.WriteAllText(LocalPath("file2.txt"), "File Two");
-        File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
-
+        // Clean up any files from previous tests first
         if (File.Exists(LocalPath("renamed.txt"))) File.Delete(LocalPath("renamed.txt"));
         if (File.Exists(LocalPath("duplicate(1).txt"))) File.Delete(LocalPath("duplicate(1).txt"));
         if (File.Exists(LocalPath("duplicate(2).txt"))) File.Delete(LocalPath("duplicate(2).txt"));
         if (File.Exists(LocalPath("duplicate(3).txt"))) File.Delete(LocalPath("duplicate(3).txt"));
         if (File.Exists(LocalPath("file1-renamed.txt"))) File.Delete(LocalPath("file1-renamed.txt"));
         if (File.Exists(LocalPath("file1-final.txt"))) File.Delete(LocalPath("file1-final.txt"));
+
+        File.WriteAllText(LocalPath("file1.txt"), "File One");
+        File.WriteAllText(LocalPath("file2.txt"), "File Two");
+        File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
+
+        await sambaContainer.ExecAsync(new[] { "chmod", "777", "/share/file1.txt" });
+        await sambaContainer.ExecAsync(new[] { "chmod", "777", "/share/file2.txt" });
+        await sambaContainer.ExecAsync(new[] { "chmod", "777", "/share/duplicate.txt" });
+
+        await Task.Delay(100);
 
         connection = new Connection
         {
