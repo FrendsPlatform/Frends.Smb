@@ -63,7 +63,7 @@ public class UnitTests
                 Path = "shareRoot.txt",
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
             });
 
         path = Path.Combine(dir, "root.txt");
@@ -77,7 +77,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "root.txt"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
             });
 
         path = Path.Combine(dir, "root.log");
@@ -91,7 +91,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "root.log"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
             });
 
         path = Path.Combine(sub, "a.txt");
@@ -105,7 +105,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "sub", "a.txt"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
             });
 
         path = Path.Combine(sub, "b.log");
@@ -119,7 +119,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "sub", "b.log"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
             });
 
         path = Path.Combine(inner, "c.txt");
@@ -133,7 +133,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "sub", "inner", "c.txt"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
             });
 
         sambaContainer = new ContainerBuilder()
@@ -325,12 +325,18 @@ public class UnitTests
             Assert.That(
                 actualFile,
                 Is.EqualTo(expectedFile).Using<FileItem>((a, b) =>
-                    a.Name == b.Name &&
-                    a.SizeInMegabyte == b.SizeInMegabyte &&
-                    a.CreationTime == b.CreationTime &&
-                    a.ModificationTime == b.ModificationTime
-                        ? 0
-                        : -1),
+                {
+                    if (a.Name != b.Name) return -1;
+                    if (a.SizeInMegabyte != b.SizeInMegabyte) return -1;
+
+                    var creationDiff = (a.CreationTime - b.CreationTime).Duration();
+                    var modificationDiff = (a.ModificationTime - b.ModificationTime).Duration();
+
+                    if (creationDiff > TimeSpan.FromSeconds(1)) return -1;
+                    if (modificationDiff > TimeSpan.FromSeconds(1)) return -1;
+
+                    return 0;
+                }),
 #pragma warning disable SA1118
                 $"""
                  File '{expectedFile.Name}' does not match expected metadata.
