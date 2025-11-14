@@ -16,13 +16,4 @@ public class Input
     /// <example>folder/subfolder/</example>
     [DisplayFormat(DataFormatString = "Text")]
     public string Path { get; set; } = string.Empty;
-
-    /// <summary>
-    /// File name pattern to match files to delete within the specified share and path.
-    /// Supports simple wildcards (* and ?) as well as regular expressions.
-    /// </summary>
-    /// <example>*.txt, report_*.csv, data?.xml, &lt;regex&gt;^log_\\d{{4}}\\.txt$</example>
-    [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("")]
-    public string Pattern { get; set; } = string.Empty;
 }
