@@ -14,7 +14,7 @@ public class Result
     /// <summary>
     /// Full path of the created directory.
     /// </summary>
-    /// <example>foobar,foobar</example>
+    /// <example>\\host\share\dir\newDir</example>
     public string FullUncPath { get; set; }
 
     /// <summary>
