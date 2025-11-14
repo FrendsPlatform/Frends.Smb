@@ -213,7 +213,10 @@ public static class Smb
         return matchedFiles;
     }
 
-    private static List<string> EnumerateFiles(ISMBFileStore fileStore, string directoryPath, Regex regex,
+    private static List<string> EnumerateFiles(
+        ISMBFileStore fileStore,
+        string directoryPath,
+        Regex regex,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -282,7 +285,8 @@ public static class Smb
                         files.Add(fullPath);
                     }
                 }
-            } while (status == NTStatus.STATUS_SUCCESS);
+            }
+            while (status == NTStatus.STATUS_SUCCESS);
         }
         finally
         {
