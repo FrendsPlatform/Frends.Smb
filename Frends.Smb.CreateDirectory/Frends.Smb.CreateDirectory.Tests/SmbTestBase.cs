@@ -22,6 +22,8 @@ public abstract class SmbTestBase
     private const string Password = "pass";
     private const string User = @"WORKGROUP\user";
 
+    private static readonly object Lock = new();
+
     private static IContainer sambaContainer;
     private static int refCount;
     private static bool isInitialized;
@@ -36,7 +38,7 @@ public abstract class SmbTestBase
     public async Task GlobalSetup()
     {
         bool shouldInitialize = false;
-        lock (this)
+        lock (Lock)
         {
             refCount++;
             if (!isInitialized)
@@ -71,7 +73,7 @@ public abstract class SmbTestBase
         await container.StartAsync();
         await container.ExecAsync(["chmod", "-R", "777", "/share"]);
 
-        lock (this)
+        lock (Lock)
         {
             sambaContainer = container;
         }
@@ -82,7 +84,7 @@ public abstract class SmbTestBase
     {
         bool shouldCleanup = false;
 
-        lock (this)
+        lock (Lock)
         {
             refCount--;
             if (refCount <= 0)
@@ -114,7 +116,7 @@ public abstract class SmbTestBase
         Console.WriteLine($"Starting test for {GetType().Name}");
         Connection = new Connection { Server = ServerName, Share = ShareName, Username = User, Password = Password };
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
-        Input = new Input { DirectoryPath = Path.Combine(TestDirPath, "testDir") };
+        Input = new Input { DirectoryPath = "testDir" };
     }
 
     [TearDown]

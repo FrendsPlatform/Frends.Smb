@@ -22,6 +22,8 @@ internal static class SmbHandler
             throw new ArgumentException("Destination Path cannot be empty.", nameof(input));
         if (input.DirectoryPath.StartsWith(@"\\"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
+        if (string.IsNullOrWhiteSpace(connection.Username))
+            throw new ArgumentException("Username cannot be empty.", nameof(connection));
     }
 
     internal static void PrepareSmbConnection(
@@ -54,7 +56,7 @@ internal static class SmbHandler
     {
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
-        var parts = smbFullPath.Split(["/"], StringSplitOptions.RemoveEmptyEntries);
+        var parts = smbFullPath.Replace('\\', '/').Split(["/"], StringSplitOptions.RemoveEmptyEntries);
 
         string current = string.Empty;
 
