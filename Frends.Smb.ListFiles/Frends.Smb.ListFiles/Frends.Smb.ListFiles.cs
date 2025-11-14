@@ -25,7 +25,7 @@ public static class Smb
     /// <param name="connection">Connection parameters.</param>
     /// <param name="options">Additional parameters.</param>
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
-    /// <returns>object { bool Success, string[] Files, object Error { string Message, Exception AdditionalInfo } }</returns>
+    /// <returns>object { bool Success, FileItem[] Files, object Error { string Message, Exception AdditionalInfo } }</returns>
     public static Result ListFiles(
         [PropertyTab] Input input,
         [PropertyTab] Connection connection,
@@ -67,23 +67,7 @@ public static class Smb
             // Normalize the base directory to SMB path format (forward slashes)
             var baseDir = input.Directory.Replace("\\", "/").Trim('/');
 
-            // Prepare regex if provided (treat empty as match-all)
-            Regex? regex = null;
-            if (!string.IsNullOrWhiteSpace(options.Pattern))
-            {
-                if (options.UseWildcards)
-                {
-                    string regexPattern = "^" + Regex.Escape(options.Pattern)
-                        .Replace(@"\*", ".*")
-                        .Replace(@"\?", ".") + "$";
-                    regex = new Regex(regexPattern, RegexOptions.IgnoreCase);
-                }
-                else
-                {
-                    regex = new Regex(options.Pattern, RegexOptions.IgnoreCase);
-                }
-            }
-
+            Regex? regex = PrepareRegex(options);
             var files = new List<FileItem>();
             EnumerateFiles(fileStore, baseDir, options.SearchRecursively, regex, files, cancellationToken);
 
@@ -110,6 +94,16 @@ public static class Smb
             if (status == NTStatus.STATUS_SUCCESS) client.Logoff();
             client.Disconnect();
         }
+    }
+
+    private static Regex? PrepareRegex(Options options)
+    {
+        Regex? regex = null;
+        if (string.IsNullOrWhiteSpace(options.Pattern)) return regex;
+        var pattern = options.Pattern;
+        if (options.PatternMatchingMode == PatternMatchingMode.Wildcards)
+            pattern = "^" + Regex.Escape(options.Pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
+        return new Regex(pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
     }
 
     private static void EnumerateFiles(
@@ -177,7 +171,8 @@ public static class Smb
                         {
                             Name = name,
                             Path = relativePath,
-                            SizeInMegabyte = (int)Math.Round(e.EndOfFile / (1024.0 * 1024.0)),
+                            SizeInMegabytes =
+                                Math.Round(e.EndOfFile / (1024.0 * 1024.0), 2, MidpointRounding.ToPositiveInfinity),
                             CreationTime = e.CreationTime,
                             ModificationTime = e.LastWriteTime,
                         });

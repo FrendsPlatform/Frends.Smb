@@ -63,7 +63,7 @@ public class UnitTests
                 Path = "shareRoot.txt",
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
+                SizeInMegabytes = Math.Round(fi.Length / (1024.0 * 1024.0), 2, MidpointRounding.ToPositiveInfinity),
             });
 
         path = Path.Combine(dir, "root.txt");
@@ -77,7 +77,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "root.txt"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
+                SizeInMegabytes = Math.Round(fi.Length / (1024.0 * 1024.0), 2, MidpointRounding.ToPositiveInfinity),
             });
 
         path = Path.Combine(dir, "root.log");
@@ -91,7 +91,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "root.log"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
+                SizeInMegabytes = Math.Round(fi.Length / (1024.0 * 1024.0), 2, MidpointRounding.ToPositiveInfinity),
             });
 
         path = Path.Combine(sub, "a.txt");
@@ -105,7 +105,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "sub", "a.txt"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
+                SizeInMegabytes = Math.Round(fi.Length / (1024.0 * 1024.0), 2, MidpointRounding.ToPositiveInfinity),
             });
 
         path = Path.Combine(sub, "b.log");
@@ -119,7 +119,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "sub", "b.log"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
+                SizeInMegabytes = Math.Round(fi.Length / (1024.0 * 1024.0), 2, MidpointRounding.ToPositiveInfinity),
             });
 
         path = Path.Combine(inner, "c.txt");
@@ -133,7 +133,7 @@ public class UnitTests
                 Path = Path.Combine("dir", "sub", "inner", "c.txt"),
                 CreationTime = fi.CreationTimeUtc,
                 ModificationTime = fi.LastWriteTimeUtc,
-                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0), 0),
+                SizeInMegabytes = Math.Round(fi.Length / (1024.0 * 1024.0), 2, MidpointRounding.ToPositiveInfinity),
             });
 
         sambaContainer = new ContainerBuilder()
@@ -258,10 +258,46 @@ public class UnitTests
     {
         options.SearchRecursively = true;
         options.Pattern = "*.txt";
-        options.UseWildcards = true;
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True, result.Error?.Message);
         var expected = new[] { FileItems["a.txt"], FileItems["root.txt"], FileItems["c.txt"] };
+        AssertAreEqual(expected, result.Files);
+    }
+
+    [Test]
+    public void Should_Filter_With_QuestionMark_Wildcard_Recursive()
+    {
+        options.SearchRecursively = true;
+        options.Pattern = "?.txt";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+        var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
+        Assert.That(result.Success, Is.True, result.Error?.Message);
+        var expected = new[] { FileItems["a.txt"], FileItems["c.txt"] };
+        AssertAreEqual(expected, result.Files);
+    }
+
+    [Test]
+    public void WildcardsMode_DoesNotTreatRegexMetacharactersAsRegex()
+    {
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+        options.Pattern = "^.\\.txt";
+        options.SearchRecursively = true;
+        var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
+        Assert.That(result.Success, Is.True, result.Error?.Message);
+        FileItem[] expected = [];
+        AssertAreEqual(expected, result.Files);
+    }
+
+    [Test]
+    public void RegexMode_TreatsPatternAsRegex()
+    {
+        options.PatternMatchingMode = PatternMatchingMode.Regex;
+        options.Pattern = "^.\\.txt";
+        options.SearchRecursively = true;
+        var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
+        Assert.That(result.Success, Is.True, result.Error?.Message);
+        var expected = new[] { FileItems["a.txt"], FileItems["c.txt"] };
         AssertAreEqual(expected, result.Files);
     }
 
@@ -317,6 +353,7 @@ public class UnitTests
 
     private static void AssertAreEqual(FileItem[] expected, FileItem[] actual)
     {
+        Assert.That(actual.Length, Is.EqualTo(expected.Length));
         foreach (var expectedFile in expected)
         {
             var actualFile = actual.FirstOrDefault(x => x.Name == expectedFile.Name);
@@ -327,7 +364,8 @@ public class UnitTests
                 Is.EqualTo(expectedFile).Using<FileItem>((a, b) =>
                 {
                     if (a.Name != b.Name) return -1;
-                    if (a.SizeInMegabyte != b.SizeInMegabyte) return -1;
+                    if (Math.Abs(a.SizeInMegabytes - b.SizeInMegabytes) > 1) return -1;
+                    if (a.Path != b.Path) return -1;
 
                     var creationDiff = (a.CreationTime - b.CreationTime).Duration();
                     var modificationDiff = (a.ModificationTime - b.ModificationTime).Duration();
@@ -341,7 +379,7 @@ public class UnitTests
                 $"""
                  File '{expectedFile.Name}' does not match expected metadata.
                                  Name - Expected: {expectedFile.Name},  Actual: {actualFile.Name}
-                                 Size - Expected: {expectedFile.SizeInMegabyte},  Actual: {actualFile.SizeInMegabyte}
+                                 Size - Expected: {expectedFile.SizeInMegabytes},  Actual: {actualFile.SizeInMegabytes}
                                  CreationTime - Expected: {expectedFile.CreationTime},  Actual: {actualFile.CreationTime}
                                  ModificationTime - Expected: {expectedFile.ModificationTime},  Actual: {actualFile.ModificationTime}
                  """);

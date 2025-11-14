@@ -16,11 +16,11 @@ public class Options
     public bool SearchRecursively { get; set; }
 
     /// <summary>
-    /// Define if a pattern will use wildcards.
+    /// Define how pattern matching will work.
     /// </summary>
-    /// <example>false</example>
-    [DefaultValue(false)]
-    public bool UseWildcards { get; set; }
+    /// <example>Regex</example>
+    [DefaultValue(PatternMatchingMode.Regex)]
+    public PatternMatchingMode PatternMatchingMode { get; set; } = PatternMatchingMode.Regex;
 
     /// <summary>
     /// Regex pattern to filter files. Empty pattern matches all files.

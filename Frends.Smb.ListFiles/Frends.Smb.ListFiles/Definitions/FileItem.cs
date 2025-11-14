@@ -23,7 +23,7 @@ public class FileItem
     /// Size of the file in megabytes.
     /// </summary>
     /// <example>2</example>
-    public int SizeInMegabyte { get; set; }
+    public double SizeInMegabytes { get; set; }
 
     /// <summary>
     /// Creation time of the file.

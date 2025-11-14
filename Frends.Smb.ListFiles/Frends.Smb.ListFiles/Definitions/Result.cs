@@ -14,7 +14,7 @@ public class Result
     /// <summary>
     /// List of files in a share
     /// </summary>
-    /// <example>[files/temp/foo.txt, files/temp/bar.txt]</example>
+    /// <example>[{ Name: "foo.txt", Path: "files/temp/foo.txt", SizeInMegabytes: 1, ... }, { Name: "bar.txt", Path: "files/temp/bar.txt", SizeInMegabytes: 2, ... }]</example>
     public FileItem[] Files { get; set; } = [];
 
     /// <summary>
