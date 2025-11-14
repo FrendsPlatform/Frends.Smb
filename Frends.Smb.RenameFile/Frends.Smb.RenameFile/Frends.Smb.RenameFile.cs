@@ -206,15 +206,7 @@ public static class Smb
         while (FileExists(fileStore, candidate))
         {
             string newFileName = $"{baseName}({count++}){ext}";
-
-            if (string.IsNullOrEmpty(dir))
-            {
-                candidate = newFileName;
-            }
-            else
-            {
-                candidate = $"{dir}\\{newFileName}";
-            }
+            candidate = Path.Combine(dir, newFileName);
         }
 
         return candidate;

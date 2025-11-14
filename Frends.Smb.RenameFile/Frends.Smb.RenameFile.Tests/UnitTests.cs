@@ -109,8 +109,6 @@ public class RenameFileTests
             NewFileName = "duplicate.txt",
         };
 
-        options.RenameBehaviour = RenameBehaviour.Throw;
-
         var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
@@ -185,7 +183,7 @@ public class RenameFileTests
             NewFileName = "renamed.txt",
         };
 
-        options.RenameBehaviour = RenameBehaviour.Throw;
+        options.RenameBehaviour = RenameBehaviour.Rename;
 
         var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True);
@@ -202,7 +200,6 @@ public class RenameFileTests
             NewFileName = "newfile.txt",
         };
 
-        options.RenameBehaviour = RenameBehaviour.Throw;
         var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
