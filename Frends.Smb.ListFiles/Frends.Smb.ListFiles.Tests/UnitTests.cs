@@ -331,7 +331,11 @@ public class UnitTests
                     a.ModificationTime == b.ModificationTime
                         ? 0
                         : -1),
-                $"File '{expectedFile.Name}' does not match expected metadata.");
+                @$"File '{expectedFile.Name}' does not match expected metadata.
+                Name - Expected: {expectedFile.Name},  Actual: {actualFile.Name}
+                Size - Expected: {expectedFile.SizeInMegabyte},  Actual: {actualFile.SizeInMegabyte}
+                CreationTime - Expected: {expectedFile.CreationTime},  Actual: {actualFile.CreationTime}
+                ModificationTime - Expected: {expectedFile.ModificationTime},  Actual: {actualFile.ModificationTime}");
         }
     }
 }
