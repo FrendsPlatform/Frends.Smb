@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DotNet.Testcontainers.Builders;
@@ -29,8 +31,9 @@ public class UnitTests
     private Input input;
     private Connection connection;
     private Options options;
-
     private IContainer sambaContainer;
+
+    private Dictionary<string, FileItem> FileItems { get; set; } = [];
 
     [OneTimeSetUp]
     public async Task GlobalSetup()
@@ -49,12 +52,89 @@ public class UnitTests
         Directory.CreateDirectory(empty);
 
         // Create files
-        await File.WriteAllTextAsync(Path.Combine(TestDirPath, "shareRoot.txt"), "root txt content");
-        await File.WriteAllTextAsync(Path.Combine(dir, "root.txt"), "root txt content");
-        await File.WriteAllTextAsync(Path.Combine(dir, "root.log"), "root log content");
-        await File.WriteAllTextAsync(Path.Combine(sub, "a.txt"), "a txt content");
-        await File.WriteAllTextAsync(Path.Combine(sub, "b.log"), "b log content");
-        await File.WriteAllTextAsync(Path.Combine(inner, "c.txt"), "c txt content");
+        var path = Path.Combine(TestDirPath, "shareRoot.txt");
+        await File.WriteAllTextAsync(path, "root txt content");
+        var fi = new FileInfo(path);
+        FileItems.Add(
+            "shareRoot.txt",
+            new FileItem
+            {
+                Name = "shareRoot.txt",
+                Path = "shareRoot.txt",
+                CreationTime = fi.CreationTimeUtc,
+                ModificationTime = fi.LastWriteTimeUtc,
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+            });
+
+        path = Path.Combine(dir, "root.txt");
+        await File.WriteAllTextAsync(path, "root txt content");
+        fi = new FileInfo(path);
+        FileItems.Add(
+            "root.txt",
+            new FileItem
+            {
+                Name = "root.txt",
+                Path = Path.Combine("dir", "root.txt"),
+                CreationTime = fi.CreationTimeUtc,
+                ModificationTime = fi.LastWriteTimeUtc,
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+            });
+
+        path = Path.Combine(dir, "root.log");
+        await File.WriteAllTextAsync(path, "root log content");
+        fi = new FileInfo(path);
+        FileItems.Add(
+            "root.log",
+            new FileItem
+            {
+                Name = "root.log",
+                Path = Path.Combine("dir", "root.log"),
+                CreationTime = fi.CreationTimeUtc,
+                ModificationTime = fi.LastWriteTimeUtc,
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+            });
+
+        path = Path.Combine(sub, "a.txt");
+        await File.WriteAllTextAsync(path, "a txt content");
+        fi = new FileInfo(path);
+        FileItems.Add(
+            "a.txt",
+            new FileItem
+            {
+                Name = "a.txt",
+                Path = Path.Combine("dir", "sub", "a.txt"),
+                CreationTime = fi.CreationTimeUtc,
+                ModificationTime = fi.LastWriteTimeUtc,
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+            });
+
+        path = Path.Combine(sub, "b.log");
+        await File.WriteAllTextAsync(path, "b log content");
+        fi = new FileInfo(path);
+        FileItems.Add(
+            "b.log",
+            new FileItem
+            {
+                Name = "b.log",
+                Path = Path.Combine("dir", "sub", "b.log"),
+                CreationTime = fi.CreationTimeUtc,
+                ModificationTime = fi.LastWriteTimeUtc,
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+            });
+
+        path = Path.Combine(inner, "c.txt");
+        await File.WriteAllTextAsync(path, "c txt content");
+        fi = new FileInfo(path);
+        FileItems.Add(
+            "c.txt",
+            new FileItem
+            {
+                Name = "c.txt",
+                Path = Path.Combine("dir", "sub", "inner", "c.txt"),
+                CreationTime = fi.CreationTimeUtc,
+                ModificationTime = fi.LastWriteTimeUtc,
+                SizeInMegabyte = (int)Math.Round(fi.Length / (1024.0 * 1024.0)),
+            });
 
         sambaContainer = new ContainerBuilder()
             .WithImage("dperson/samba:latest")
@@ -107,15 +187,16 @@ public class UnitTests
     public void Should_Work_With_Both_Slashes()
     {
         input.Directory = "/";
+        var expected = new[] { FileItems["shareRoot.txt"] };
+
         var result1 = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result1.Success, Is.True, result1.Error?.Message);
+        AssertAreEqual(expected, result1.Files);
+
         input.Directory = @"\";
         var result2 = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result2.Success, Is.True, result2.Error?.Message);
-
-        var expected = new[] { "shareRoot.txt" };
-        CollectionAssert.AreEquivalent(expected, result1.Files);
-        CollectionAssert.AreEquivalent(expected, result2.Files);
+        AssertAreEqual(expected, result2.Files);
     }
 
     [Test]
@@ -124,8 +205,8 @@ public class UnitTests
         input.Directory = "/";
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True, result.Error?.Message);
-        var expected = new[] { "shareRoot.txt" };
-        CollectionAssert.AreEquivalent(expected, result.Files);
+        var expected = new[] { FileItems["shareRoot.txt"] };
+        AssertAreEqual(expected, result.Files);
     }
 
     [Test]
@@ -133,8 +214,8 @@ public class UnitTests
     {
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True, result.Error?.Message);
-        var expected = new[] { "dir/root.txt", "dir/root.log" };
-        CollectionAssert.AreEquivalent(expected, result.Files);
+        var expected = new[] { FileItems["root.txt"], FileItems["root.log"] };
+        AssertAreEqual(expected, result.Files);
     }
 
     [Test]
@@ -145,9 +226,10 @@ public class UnitTests
         Assert.That(result.Success, Is.True, result.Error?.Message);
         var expected = new[]
         {
-            "dir/root.txt", "dir/root.log", "dir/sub/a.txt", "dir/sub/b.log", "dir/sub/inner/c.txt",
+            FileItems["root.txt"], FileItems["root.log"], FileItems["a.txt"], FileItems["b.log"],
+            FileItems["c.txt"],
         };
-        CollectionAssert.AreEquivalent(expected, result.Files);
+        AssertAreEqual(expected, result.Files);
     }
 
     [Test]
@@ -156,8 +238,8 @@ public class UnitTests
         options.Pattern = "^.*\\.txt$"; // only .txt files
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True, result.Error?.Message);
-        var expected = new[] { "dir/root.txt" };
-        CollectionAssert.AreEquivalent(expected, result.Files);
+        var expected = new[] { FileItems["root.txt"] };
+        AssertAreEqual(expected, result.Files);
     }
 
     [Test]
@@ -167,8 +249,8 @@ public class UnitTests
         options.Pattern = "/inner/";
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True, result.Error?.Message);
-        var expected = new[] { "dir/sub/inner/c.txt" };
-        CollectionAssert.AreEquivalent(expected, result.Files);
+        var expected = new[] { FileItems["c.txt"] };
+        AssertAreEqual(expected, result.Files);
     }
 
     [Test]
@@ -179,8 +261,8 @@ public class UnitTests
         options.UseWildcards = true;
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
         Assert.That(result.Success, Is.True, result.Error?.Message);
-        var expected = new[] { "dir/sub/inner/c.txt", "dir/sub/a.txt", "dir/root.txt" };
-        CollectionAssert.AreEquivalent(expected, result.Files);
+        var expected = new[] { FileItems["a.txt"], FileItems["root.txt"], FileItems["c.txt"] };
+        AssertAreEqual(expected, result.Files);
     }
 
     [Test]
@@ -231,5 +313,25 @@ public class UnitTests
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error, Is.Not.Null);
         StringAssert.Contains("UserName field must be of format", result.Error.Message);
+    }
+
+    private static void AssertAreEqual(FileItem[] expected, FileItem[] actual)
+    {
+        foreach (var expectedFile in expected)
+        {
+            var actualFile = actual.FirstOrDefault(x => x.Name == expectedFile.Name);
+
+            Assert.That(actualFile, Is.Not.Null, $"File '{expectedFile.Name}' was expected but not found in result.");
+            Assert.That(
+                actualFile,
+                Is.EqualTo(expectedFile).Using<FileItem>((a, b) =>
+                    a.Name == b.Name &&
+                    a.SizeInMegabyte == b.SizeInMegabyte &&
+                    a.CreationTime == b.CreationTime &&
+                    a.ModificationTime == b.ModificationTime
+                        ? 0
+                        : -1),
+                $"File '{expectedFile.Name}' does not match expected metadata.");
+        }
     }
 }

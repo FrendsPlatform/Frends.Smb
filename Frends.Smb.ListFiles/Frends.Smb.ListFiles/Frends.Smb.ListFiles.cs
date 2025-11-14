@@ -84,7 +84,7 @@ public static class Smb
                 }
             }
 
-            var files = new List<string>();
+            var files = new List<FileItem>();
             EnumerateFiles(fileStore, baseDir, options.SearchRecursively, regex, files, cancellationToken);
 
             return new Result { Success = true, Files = files.ToArray(), };
@@ -117,7 +117,7 @@ public static class Smb
         string currentDir,
         bool recursive,
         Regex? regex,
-        List<string> results,
+        List<FileItem> results,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -173,7 +173,14 @@ public static class Smb
                 {
                     if (regex == null || regex.IsMatch(name) || regex.IsMatch(relativePath))
                     {
-                        results.Add(relativePath);
+                        results.Add(new FileItem
+                        {
+                            Name = name,
+                            Path = relativePath,
+                            SizeInMegabyte = (int)Math.Round(e.EndOfFile / (1024.0 * 1024.0)),
+                            CreationTime = e.CreationTime,
+                            ModificationTime = e.LastWriteTime,
+                        });
                     }
                 }
             }

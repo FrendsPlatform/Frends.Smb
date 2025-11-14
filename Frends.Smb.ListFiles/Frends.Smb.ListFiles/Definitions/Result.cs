@@ -15,7 +15,7 @@ public class Result
     /// List of files in a share
     /// </summary>
     /// <example>[files/temp/foo.txt, files/temp/bar.txt]</example>
-    public string[] Files { get; set; } = [];
+    public FileItem[] Files { get; set; } = [];
 
     /// <summary>
     /// Error that occurred during task execution.
