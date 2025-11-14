@@ -8,6 +8,7 @@ Frends Task for SMB related operations.
 - [Frends.Smb.WriteFile](Frends.Smb.WriteFile/README.md)
 - [Frends.Smb.DeleteFiles](Frends.Smb.DeleteFiles/README.md)
 - [Frends.Smb.CreateDirectory](Frends.Smb.CreateDirectory/README.md)
+- [Frends.Smb.RenameFile](Frends.Smb.RenameFile/README.md)
 
 # Contributing
 When contributing to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository before making a change.
