@@ -145,7 +145,10 @@ public static class Smb
 
                 return new Result
                 {
-                    Success = true, FilesDeleted = deletedFiles, TotalFilesDeleted = deletedFiles.Count, Error = null,
+                    Success = true,
+                    FilesDeleted = deletedFiles,
+                    TotalFilesDeleted = deletedFiles.Count,
+                    Error = null,
                 };
             }
             finally
