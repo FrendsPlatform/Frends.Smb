@@ -117,7 +117,9 @@ public class DeleteFilesTests
         await CreateTestFileAsync("pattern-test/match2.txt", "to delete");
         await CreateTestFileAsync("pattern-test/ignore.log", "keep");
 
-        input = new Input { Path = "pattern-test", Pattern = "*.txt" };
+        input = new Input { Path = "pattern-test" };
+        options.Pattern = "*.txt";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
@@ -133,7 +135,9 @@ public class DeleteFilesTests
         await CreateTestFileAsync("subdir-test/root.txt", "delete me");
         await CreateTestFileAsync("subdir-test/nested/inner.txt", "keep me");
 
-        input = new Input { Path = "subdir-test", Pattern = "*.txt" };
+        input = new Input { Path = "subdir-test" };
+        options.Pattern = "*.txt";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
@@ -148,7 +152,9 @@ public class DeleteFilesTests
     {
         await CreateTestFileAsync("dirtest/file1.txt", "delete me");
 
-        input = new Input { Path = "dirtest", Pattern = "*" };
+        input = new Input { Path = "dirtest" };
+        options.Pattern = "*";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
@@ -204,7 +210,9 @@ public class DeleteFilesTests
     {
         await CreateTestFileAsync("root-test.txt", "test");
 
-        input = new Input { Path = string.Empty, Pattern = "root-test.txt" };
+        input = new Input { Path = string.Empty };
+        options.Pattern = "root-test.txt";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
         options.ThrowErrorOnFailure = true;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
@@ -220,7 +228,9 @@ public class DeleteFilesTests
         await CreateTestFileAsync("deep/match.txt", "delete me");
         await CreateTestFileAsync("deep/inner/match.txt", "keep me");
 
-        input = new Input { Path = "deep", Pattern = "*.txt" };
+        input = new Input { Path = "deep" };
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+        options.Pattern = "*.txt";
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
@@ -237,7 +247,9 @@ public class DeleteFilesTests
         await CreateTestFileAsync("regex-test/foo_abc.txt", "x");
         await CreateTestFileAsync("regex-test/bar_456.txt", "x");
 
-        input = new Input { Path = "regex-test", Pattern = "<regex>foo_\\d+\\.txt" };
+        input = new Input { Path = "regex-test" };
+        options.PatternMatchingMode = PatternMatchingMode.Regex;
+        options.Pattern = @"foo_\d+\.txt";
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 
