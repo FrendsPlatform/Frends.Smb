@@ -28,14 +28,14 @@ public static class Smb
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
     /// <returns>object { bool Success, List&lt;FileItem&gt; FilesDeleted, int TotalFilesDeleted, object Error { string Message, Exception AdditionalInfo } }</returns>
     public static async Task<Result> DeleteFiles(
-    [PropertyTab] Input input,
-    [PropertyTab] Connection connection,
-    [PropertyTab] Options options,
-    CancellationToken cancellationToken)
+        [PropertyTab] Input input,
+        [PropertyTab] Connection connection,
+        [PropertyTab] Options options,
+        CancellationToken cancellationToken)
     {
         try
         {
-            return await ExecuteDeleteAsync(input, connection, cancellationToken);
+            return await ExecuteDeleteAsync(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -44,9 +44,10 @@ public static class Smb
     }
 
     private static async Task<Result> ExecuteDeleteAsync(
-    Input input,
-    Connection connection,
-    CancellationToken cancellationToken)
+        Input input,
+        Connection connection,
+        Options options,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -83,12 +84,15 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var filesToDelete = await FindMatchingFilesAsync(fileStore, input.Path, input.Pattern, cancellationToken);
+                var filesToDelete =
+                    await FindMatchingFilesAsync(fileStore, input.Path, options, cancellationToken);
 
                 if (filesToDelete.Count == 0)
                 {
                     throw new Exception($"No files found matching path '{input.Path}'" +
-                        (string.IsNullOrWhiteSpace(input.Pattern) ? string.Empty : $" with pattern '{input.Pattern}'"));
+                                        (string.IsNullOrWhiteSpace(options.Pattern)
+                                            ? string.Empty
+                                            : $" with pattern '{options.Pattern}'"));
                 }
 
                 var deletedFiles = new List<FileItem>();
@@ -126,11 +130,7 @@ public static class Smb
 
                             var fileNameOnly = Path.GetFileName(normalizedForOs);
 
-                            deletedFiles.Add(new FileItem
-                            {
-                                Name = fileNameOnly,
-                                Path = normalizedFilePath,
-                            });
+                            deletedFiles.Add(new FileItem { Name = fileNameOnly, Path = normalizedFilePath, });
                         }
                         else
                         {
@@ -162,18 +162,24 @@ public static class Smb
         }
     }
 
+    private static Regex PrepareRegex(Options options)
+    {
+        if (string.IsNullOrWhiteSpace(options.Pattern)) return null;
+        var pattern = options.Pattern;
+        if (options.PatternMatchingMode == PatternMatchingMode.Wildcards)
+            pattern = "^" + Regex.Escape(options.Pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
+        return new Regex(pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    }
+
     private static async Task<List<string>> FindMatchingFilesAsync(
         ISMBFileStore fileStore,
         string basePath,
-        string pattern,
+        Options options,
         CancellationToken cancellationToken)
     {
         var matchedFiles = new List<string>();
 
         basePath = basePath?.Trim('\\', '/') ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(pattern))
-            pattern = "*";
 
         if (!string.IsNullOrEmpty(basePath))
         {
@@ -196,32 +202,22 @@ public static class Smb
             }
         }
 
-        bool isRegexPattern = pattern.StartsWith("<regex>", StringComparison.OrdinalIgnoreCase);
-        Regex regex = null;
-
-        if (isRegexPattern)
-        {
-            string regexPattern = pattern[7..];
-            regex = new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        }
-        else
-        {
-            string wildcardRegex = "^" + Regex.Escape(pattern)
-                .Replace(@"\*", ".*")
-                .Replace(@"\?", ".") + "$";
-            regex = new Regex(wildcardRegex, RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        }
+        var regex = PrepareRegex(options);
 
         matchedFiles = await Task.Run(
             () =>
-        {
-            return EnumerateFiles(fileStore, basePath, regex, cancellationToken);
-        }, cancellationToken);
+            {
+                return EnumerateFiles(fileStore, basePath, regex, cancellationToken);
+            }, cancellationToken);
 
         return matchedFiles;
     }
 
-    private static List<string> EnumerateFiles(ISMBFileStore fileStore, string directoryPath, Regex regex, CancellationToken token)
+    private static List<string> EnumerateFiles(
+        ISMBFileStore fileStore,
+        string directoryPath,
+        Regex regex,
+        CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
 

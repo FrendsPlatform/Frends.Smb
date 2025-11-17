@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
-namespace Frends.Smb.DeleteFiles.Definitions;
+namespace Frends.Smb.CreateDirectory.Definitions;
 
 /// <summary>
 /// Additional parameters.
@@ -22,19 +22,4 @@ public class Options
     [DisplayFormat(DataFormatString = "Text")]
     [DefaultValue("")]
     public string ErrorMessageOnFailure { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Define how pattern matching will work.
-    /// </summary>
-    /// <example>Regex</example>
-    [DefaultValue(PatternMatchingMode.Regex)]
-    public PatternMatchingMode PatternMatchingMode { get; set; } = PatternMatchingMode.Regex;
-
-    /// <summary>
-    /// Regex pattern to filter files. Empty pattern matches all files.
-    /// </summary>
-    /// <example>*.txt</example>
-    [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("")]
-    public string Pattern { get; set; } = string.Empty;
 }
