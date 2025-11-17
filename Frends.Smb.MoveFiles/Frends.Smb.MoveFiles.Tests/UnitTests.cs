@@ -368,10 +368,8 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.False);
 
-        // file1 should not exist in target (rolled back)
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "file1.txt")), Is.False);
 
-        // source files should still exist (not deleted because operation failed)
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "file1.txt")), Is.True);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "file2.txt")), Is.True);
     }
