@@ -522,7 +522,7 @@ public static class Smb
                     if (writeStatus != NTStatus.STATUS_SUCCESS)
                         throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
 
-                    bytesRead += data.Length;
+                    bytesRead += bytesWritten;
                 }
             }
             finally

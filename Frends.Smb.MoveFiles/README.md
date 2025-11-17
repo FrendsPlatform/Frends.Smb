@@ -28,8 +28,6 @@ To execute the tests, run them inside WSL with Docker running:
 `dotnet test`
 The tests will automatically start a temporary Samba container and mount test files for reading.
 
-`dotnet test`
-
 ### Create a NuGet package
 
 `dotnet pack --configuration Release`
