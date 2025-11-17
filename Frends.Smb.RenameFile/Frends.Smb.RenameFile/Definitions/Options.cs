@@ -1,13 +1,20 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
-namespace Frends.Smb.DeleteFiles.Definitions;
+namespace Frends.Smb.RenameFile.Definitions;
 
 /// <summary>
 /// Additional parameters.
 /// </summary>
 public class Options
 {
+    /// <summary>
+    /// How the file write should work if a file with the new name already exists
+    /// </summary>
+    /// <example>RenameBehaviour.Throw</example>
+    [DefaultValue(RenameBehaviour.Throw)]
+    public RenameBehaviour RenameBehaviour { get; set; }
+
     /// <summary>
     /// Whether to throw an error on failure.
     /// </summary>
@@ -22,19 +29,4 @@ public class Options
     [DisplayFormat(DataFormatString = "Text")]
     [DefaultValue("")]
     public string ErrorMessageOnFailure { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Define how pattern matching will work.
-    /// </summary>
-    /// <example>Regex</example>
-    [DefaultValue(PatternMatchingMode.Regex)]
-    public PatternMatchingMode PatternMatchingMode { get; set; } = PatternMatchingMode.Regex;
-
-    /// <summary>
-    /// Regex pattern to filter files. Empty pattern matches all files.
-    /// </summary>
-    /// <example>*.txt</example>
-    [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("")]
-    public string Pattern { get; set; } = string.Empty;
 }

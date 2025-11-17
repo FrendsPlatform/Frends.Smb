@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <LangVersion>latest</LangVersion>
-        <Version>1.2.0</Version>
+        <Version>1.0.0</Version>
         <Authors>Frends</Authors>
         <Copyright>Copyright (c) 2025 Frends EiPaaS</Copyright>
         <Company>Frends</Company>
@@ -11,9 +11,9 @@
         <PackageTags>Frends</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <Description>Deletes files from an SMB share by path or matching pattern.</Description>
+        <Description>Renames a file on a remote SMB share.</Description>
         <PackageProjectUrl>https://frends.com/</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/FrendsPlatform/Frends.Smb/tree/main/Frends.Smb.DeleteFiles</RepositoryUrl>
+        <RepositoryUrl>https://github.com/FrendsPlatform/Frends.Smb/tree/main/Frends.Smb.RenameFile</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
@@ -36,7 +36,7 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </AdditionalFiles>
     </ItemGroup>
-
+	
 	<ItemGroup>
 		<Content Include="migration.json" PackagePath="/" Pack="true" />
 		<Content Include="../CHANGELOG.md" PackagePath="/" Pack="true" />

@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
-namespace Frends.Smb.DeleteFiles.Definitions;
+namespace Frends.Smb.ListFiles.Definitions;
 
 /// <summary>
 /// Additional parameters.
@@ -9,19 +9,11 @@ namespace Frends.Smb.DeleteFiles.Definitions;
 public class Options
 {
     /// <summary>
-    /// Whether to throw an error on failure.
+    /// Whether to list files recursively or not.
     /// </summary>
     /// <example>false</example>
-    [DefaultValue(true)]
-    public bool ThrowErrorOnFailure { get; set; } = true;
-
-    /// <summary>
-    /// Overrides the error message on failure.
-    /// </summary>
-    /// <example>Custom error message</example>
-    [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("")]
-    public string ErrorMessageOnFailure { get; set; } = string.Empty;
+    [DefaultValue(false)]
+    public bool SearchRecursively { get; set; }
 
     /// <summary>
     /// Define how pattern matching will work.
@@ -37,4 +29,19 @@ public class Options
     [DisplayFormat(DataFormatString = "Text")]
     [DefaultValue("")]
     public string Pattern { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to throw an error on failure.
+    /// </summary>
+    /// <example>true</example>
+    [DefaultValue(true)]
+    public bool ThrowErrorOnFailure { get; set; } = true;
+
+    /// <summary>
+    /// Overrides the error message on failure.
+    /// </summary>
+    /// <example>Custom error message</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    [DefaultValue("")]
+    public string ErrorMessageOnFailure { get; set; } = string.Empty;
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.0] - 2025-11-14
+
+### Changed
+
+- Update pattern matching
+
 ## [1.1.0] - 2025-11-11
 
 ### Changed
