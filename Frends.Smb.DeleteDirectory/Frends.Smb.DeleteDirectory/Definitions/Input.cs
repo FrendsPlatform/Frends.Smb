@@ -9,17 +9,9 @@ namespace Frends.Smb.DeleteDirectory.Definitions;
 public class Input
 {
     /// <summary>
-    /// The input string to be repeated and output.
+    /// Full path  to the directory (relative to the share) we want to delete. If the folder already doesn't exist, nothing happens.
     /// </summary>
-    /// <example>foobar</example>
+    /// <example>root\folder\newFolder</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("Lorem ipsum dolor sit amet.")]
-    public string Content { get; set; }
-
-    /// <summary>
-    /// Number of times to repeat the input string.
-    /// </summary>
-    /// <example>2</example>
-    [DefaultValue(3)]
-    public int Repeat { get; set; }
+    public string DirectoryPath { get; set; }
 }

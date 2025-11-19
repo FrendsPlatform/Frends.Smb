@@ -9,14 +9,6 @@ namespace Frends.Smb.DeleteDirectory.Definitions;
 public class Options
 {
     /// <summary>
-    /// Delimiter to use between the repeated strings.
-    /// </summary>
-    /// <example>,</example>
-    [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue(" ")]
-    public string Delimiter { get; set; }
-
-    /// <summary>
     /// Whether to throw an error on failure.
     /// </summary>
     /// <example>false</example>
@@ -30,4 +22,11 @@ public class Options
     [DisplayFormat(DataFormatString = "Text")]
     [DefaultValue("")]
     public string ErrorMessageOnFailure { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to delete directories recursively.
+    /// </summary>
+    /// <example>false</example>
+    [DefaultValue(false)]
+    public bool DeleteRecursively { get; set; }
 }
