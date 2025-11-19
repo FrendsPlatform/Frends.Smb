@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Frends.Smb.DeleteDirectory.Tests;
 
 [TestFixture]
-public class CreateDirectoryTests : SmbTestBase
+public class DeleteDirectoryTests : SmbTestBase
 {
     [Test]
     public void SimpleDeleteDirectory()

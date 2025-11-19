@@ -119,13 +119,4 @@ public abstract class SmbTestBase
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
         Input = new Input { DirectoryPath = "testDir" };
     }
-
-    [TearDown]
-    public void TearDown()
-    {
-        if (!Directory.Exists(TestDirPath)) return;
-        var children = Directory.GetFileSystemEntries(TestDirPath);
-        foreach (var child in children)
-            Directory.Delete(child, true);
-    }
 }
