@@ -1,6 +1,6 @@
 # Frends.Smb.CopyFiles
 
-Description of what the Task will do.
+Task for copying files inside SMB share.
 
 [![CopyFiles_build](https://github.com/FrendsPlatform/Frends.Smb/actions/workflows/CopyFiles_build_and_test_on_main.yml/badge.svg)](https://github.com/FrendsPlatform/Frends.Smb/actions/workflows/CopyFiles_build_and_test_on_main.yml)
 ![Coverage](https://app-github-custom-badges.azurewebsites.net/Badge?key=FrendsPlatform/Frends.Smb/Frends.Smb.CopyFiles|main)
@@ -22,9 +22,11 @@ You can install the Task via Frends UI Task View.
 
 ### Run tests
 
-Run the tests
-
+These SMB integration tests require Docker and a Linux-compatible environment (e.g. WSL2).
+They will not run on Windows natively because the OS reserves SMB port 445.
+To execute the tests, run them inside WSL with Docker running:
 `dotnet test`
+The tests will automatically start a temporary Samba container and mount test files for reading.
 
 ### Create a NuGet package
 

@@ -9,17 +9,22 @@ namespace Frends.Smb.CopyFiles.Definitions;
 public class Input
 {
     /// <summary>
-    /// The input string to be repeated and output.
+    /// Source path relative to the share where files will be moved from.
+    /// Can be a directory path or a specific file path.
+    /// Empty means root directory.
     /// </summary>
-    /// <example>foobar</example>
+    /// <example>documents/reports</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [DefaultValue("Lorem ipsum dolor sit amet.")]
-    public string Content { get; set; }
+    [DefaultValue("")]
+    public string SourcePath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Number of times to repeat the input string.
+    /// Target path relative to the share where files will be moved to.
+    /// Must be a directory path.
+    /// Empty means root directory.
     /// </summary>
-    /// <example>2</example>
-    [DefaultValue(3)]
-    public int Repeat { get; set; }
+    /// <example>backup/reports</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    [DefaultValue("")]
+    public string TargetPath { get; set; } = string.Empty;
 }

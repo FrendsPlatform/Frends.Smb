@@ -1,4 +1,6 @@
-﻿namespace Frends.Smb.CopyFiles.Definitions;
+﻿using System.Collections.Generic;
+
+namespace Frends.Smb.CopyFiles.Definitions;
 
 /// <summary>
 /// Result of the task.
@@ -12,10 +14,10 @@ public class Result
     public bool Success { get; set; }
 
     /// <summary>
-    /// Input string repeated the specified number of times.
+    /// List of files that were successfully moved, including their source and target paths.
     /// </summary>
-    /// <example>foobar,foobar</example>
-    public string Output { get; set; }
+    /// <example>[{SourcePath: "documents\report.txt", TargetPath: "archive\report.txt"}]</example>
+    public List<FileItem> Files { get; set; }
 
     /// <summary>
     /// Error that occurred during task execution.
