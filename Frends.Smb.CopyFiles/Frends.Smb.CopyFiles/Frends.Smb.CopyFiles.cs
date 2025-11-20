@@ -22,7 +22,7 @@ public static class Smb
     /// <param name="connection">Connection parameters.</param>
     /// <param name="options">Additional parameters.</param>
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
-    /// <returns>object { bool Success, List&lt;FileItem&gt; Files, object Error { string Message, Exception AdditionalInfo } }</returns>    // TODO: Remove Connection parameter if the task does not make connections
+    /// <returns>object { bool Success, List&lt;FileItem&gt; Files, object Error { string Message, Exception AdditionalInfo } }</returns>
     public static Result CopyFiles(
         [PropertyTab] Input input,
         [PropertyTab] Connection connection,
