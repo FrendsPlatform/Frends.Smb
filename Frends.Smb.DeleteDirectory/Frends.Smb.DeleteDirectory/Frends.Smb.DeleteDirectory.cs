@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Linq;
 using System.Threading;
 using Frends.Smb.DeleteDirectory.Definitions;
 using Frends.Smb.DeleteDirectory.Helpers;

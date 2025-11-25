@@ -79,7 +79,7 @@ internal static class SmbHandler
                 if (!recursive)
                     throw new Exception($"Directory not empty (file found): {fullPath}");
 
-                DeleteFileOrEmptyDirectory(fileStore, fullPath);
+                DeleteFileOrEmptyDirectory(fileStore, fullPath, FileAttributes.Normal);
                 continue;
             }
 
@@ -88,14 +88,14 @@ internal static class SmbHandler
                 if (!IsDirectoryEmptyDeep(fileStore, fullPath, cancellationToken))
                     throw new Exception($"Directory not empty (non-empty subdirectory found): {fullPath}");
 
-                DeleteFileOrEmptyDirectory(fileStore, fullPath);
+                DeleteFileOrEmptyDirectory(fileStore, fullPath, FileAttributes.Directory);
                 continue;
             }
 
             DeleteDirectory(fileStore, fullPath, true, cancellationToken);
         }
 
-        DeleteFileOrEmptyDirectory(fileStore, smbFullPath);
+        DeleteFileOrEmptyDirectory(fileStore, smbFullPath, FileAttributes.Directory);
     }
 
     private static bool DirectoryExists(ISMBFileStore fileStore, string path)
@@ -161,14 +161,15 @@ internal static class SmbHandler
 
     private static void DeleteFileOrEmptyDirectory(
         ISMBFileStore fileStore,
-        string path)
+        string path,
+        FileAttributes fileAttribute)
     {
         var status = fileStore.CreateFile(
             out var handle,
             out _,
             path,
             DELETE,
-            FileAttributes.Normal,
+            fileAttribute,
             ShareAccess.Read | ShareAccess.Write,
             CreateDisposition.FILE_OPEN,
             0,
