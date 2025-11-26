@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net.Mail;
 using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -149,15 +150,30 @@ public static class Smb
                 }
 
                 fileStore.Disconnect();
-
                 Thread.Sleep(100);
 
-                fileStore = client.TreeConnect(connection.Share, out NTStatus reconnectStatus);
+                SMB2Client cleanupClient = new SMB2Client();
+                bool cleanupConnected = cleanupClient.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
+                if (!cleanupConnected)
+                    throw new Exception($"Failed to connect to SMB server for cleanup: {connection.Server}");
 
-                if (reconnectStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"Failed to reconnect to share '{connection.Share}' for cleanup: {reconnectStatus}");
+                NTStatus cleanupLoginStatus = cleanupClient.Login(domain, user, connection.Password);
+                if (cleanupLoginStatus != NTStatus.STATUS_SUCCESS)
+                    throw new Exception($"SMB login failed for cleanup: {cleanupLoginStatus}");
 
-                DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
+                ISMBFileStore cleanupFileStore = cleanupClient.TreeConnect(connection.Share, out NTStatus cleanupTreeStatus);
+                if (cleanupTreeStatus != NTStatus.STATUS_SUCCESS)
+                    throw new Exception($"Failed to connect to share for cleanup '{connection.Share}': {cleanupTreeStatus}");
+
+                try
+                {
+                    DeleteExistingFiles(cleanupFileStore, movedFiles.Select(x => x.SourcePath).ToList());
+                }
+                finally
+                {
+                    cleanupFileStore.Disconnect();
+                    cleanupClient.Disconnect();
+                }
 
                 return new Result
                 {
@@ -168,7 +184,7 @@ public static class Smb
             }
             finally
             {
-                fileStore.Disconnect();
+                fileStore?.Disconnect();
             }
         }
         finally
