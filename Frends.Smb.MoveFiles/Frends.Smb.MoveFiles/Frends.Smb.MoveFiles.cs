@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using Frends.Smb.MoveFiles.Definitions;
 using Frends.Smb.MoveFiles.Helpers;
 using SMBLibrary;
@@ -145,6 +146,8 @@ public static class Smb
                     DeleteExistingFiles(fileStore, movedFiles.Select(x => x.TargetPath).ToList());
                     throw;
                 }
+
+                Thread.Sleep(500);
 
                 DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
 
@@ -456,9 +459,9 @@ public static class Smb
             out object sourceHandle,
             out FileStatus sourceFileStatus,
             sourceFilePath,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Read,
+            ShareAccess.Read | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
