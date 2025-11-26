@@ -474,7 +474,7 @@ public static class Smb
                 targetFilePath,
                 AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.None,
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                 CreateDisposition.FILE_OVERWRITE_IF,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
