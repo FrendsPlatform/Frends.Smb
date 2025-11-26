@@ -544,9 +544,11 @@ public static class Smb
             }
         }
 
+        string enumPath = string.IsNullOrEmpty(basePath) ? string.Empty : basePath;
+
         var regex = PrepareRegex(options);
 
-        matchedFiles = EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken);
+        matchedFiles = EnumerateFiles(fileStore, enumPath, regex, options.Recursive, cancellationToken);
 
         return matchedFiles;
     }
