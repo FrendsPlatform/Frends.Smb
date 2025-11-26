@@ -220,7 +220,11 @@ public static class Smb
                 Console.WriteLine($"[DEBUG]     Fallback -> relativePath: '{relativePath}'");
             }
 
-            string finalTarget = Path.Join(normalizedTargetPath, relativePath);
+            string finalTarget = Path.Combine(
+                normalizedTargetPath,
+                relativePath.Replace('\\', Path.DirectorySeparatorChar))
+            .Replace('/', Path.DirectorySeparatorChar);
+
             entries[sourceFile] = finalTarget;
             Console.WriteLine($"[DEBUG]     Final target: '{finalTarget}'");
         }
