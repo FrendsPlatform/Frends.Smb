@@ -174,7 +174,9 @@ public static class Smb
     {
         var entries = new Dictionary<string, string>();
 
-        string normalizedSourcePath = sourcePath.Replace('/', '\\').Trim('\\');
+        string normalizedSourcePath = string.IsNullOrWhiteSpace(sourcePath)
+            ? string.Empty
+            : sourcePath.Replace('/', '\\').Trim('\\');
         string normalizedTargetPath = targetPath.Replace('/', '\\').Trim('\\');
 
         foreach (var sourceFile in sourceFiles)
@@ -544,11 +546,9 @@ public static class Smb
             }
         }
 
-        string enumPath = string.IsNullOrEmpty(basePath) ? string.Empty : basePath;
-
         var regex = PrepareRegex(options);
 
-        matchedFiles = EnumerateFiles(fileStore, enumPath, regex, options.Recursive, cancellationToken);
+        matchedFiles = EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken);
 
         return matchedFiles;
     }
