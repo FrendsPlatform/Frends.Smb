@@ -149,7 +149,7 @@ public static class Smb
                     throw;
                 }
 
-                Thread.Sleep(1000);
+                EnsureHandlesClosed();
 
                 DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
 
@@ -169,6 +169,18 @@ public static class Smb
         {
             client.Disconnect();
         }
+    }
+
+    private static void EnsureHandlesClosed()
+    {
+        // Force garbage collection to close any lingering handles
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        // Additional delay for CI environments
+        int baseDelay = Environment.GetEnvironmentVariable("CI") != null ? 1000 : 500;
+        Thread.Sleep(baseDelay);
     }
 
     private static Dictionary<string, string> BuildFileTransferEntries(
@@ -239,50 +251,28 @@ public static class Smb
 
     private static void DeleteExistingFiles(ISMBFileStore fileStore, List<string> filePaths)
     {
-        foreach (var filePath in filePaths)
+        // Sort by depth (deepest first) to ensure nested files are deleted before parent operations
+        var sortedPaths = filePaths
+            .OrderByDescending(p => p.Count(c => c == '\\' || c == '/'))
+            .ToList();
+
+        foreach (var filePath in sortedPaths)
         {
             try
             {
                 string normalizedPath = filePath.Replace('/', '\\').TrimStart('\\');
                 Console.WriteLine($"[DEBUG] Attempting to delete: '{filePath}' -> normalized: '{normalizedPath}'");
 
-                // Add retry logic specifically for delete
-                DeleteFileWithRetry(fileStore, normalizedPath);
+                DeleteFile(fileStore, normalizedPath);
 
                 Console.WriteLine($"[DEBUG] Successfully deleted: '{filePath}'");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[DEBUG] Failed to delete '{filePath}': {ex.Message}");
-                throw; // Re-throw to see the actual error
+                throw;
             }
         }
-    }
-
-    private static void DeleteFileWithRetry(ISMBFileStore fileStore, string filePath, int maxRetries = 3)
-    {
-        for (int i = 0; i < maxRetries; i++)
-        {
-            try
-            {
-                DeleteFile(fileStore, filePath);
-                return;
-            }
-            catch (Exception ex) when (i < maxRetries - 1)
-            {
-                Console.WriteLine($"[DEBUG] Delete attempt {i + 1} failed for '{filePath}': {ex.Message}");
-
-                // Add progressively longer delays
-                Thread.Sleep(200 * (i + 1));
-
-                // Force garbage collection to ensure all handles are closed
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-            }
-        }
-
-        // If we get here, all retries failed
-        throw new Exception($"Failed to delete '{filePath}' after {maxRetries} attempts");
     }
 
     private static string GetDirectoryPath(string filePath)
