@@ -217,7 +217,8 @@ public static class Smb
         {
             try
             {
-                DeleteFile(fileStore, filePath);
+                string normalizedPath = filePath.Replace('/', '\\').TrimStart('\\');
+                DeleteFile(fileStore, normalizedPath);
             }
             catch
             {
