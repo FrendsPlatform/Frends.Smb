@@ -146,10 +146,11 @@ public static class Smb
                 catch (Exception)
                 {
                     DeleteExistingFiles(fileStore, movedFiles.Select(x => x.TargetPath).ToList());
+                    Thread.Sleep(100);
                     throw;
                 }
 
-                EnsureHandlesClosed();
+                Thread.Sleep(1500);
 
                 DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
 
@@ -169,18 +170,6 @@ public static class Smb
         {
             client.Disconnect();
         }
-    }
-
-    private static void EnsureHandlesClosed()
-    {
-        // Force garbage collection to close any lingering handles
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        // Additional delay for CI environments
-        int baseDelay = Environment.GetEnvironmentVariable("CI") != null ? 1000 : 500;
-        Thread.Sleep(baseDelay);
     }
 
     private static Dictionary<string, string> BuildFileTransferEntries(
@@ -251,7 +240,7 @@ public static class Smb
 
     private static void DeleteExistingFiles(ISMBFileStore fileStore, List<string> filePaths)
     {
-        // Sort by depth (deepest first) to ensure nested files are deleted before parent operations
+        // Sort by depth (deepest first) to ensure nested files are deleted first
         var sortedPaths = filePaths
             .OrderByDescending(p => p.Count(c => c == '\\' || c == '/'))
             .ToList();
@@ -446,54 +435,58 @@ public static class Smb
 
     private static void DeleteFile(ISMBFileStore fileStore, string filePath)
     {
-        NTStatus openStatus = fileStore.CreateFile(
-            out object fileHandle,
-            out FileStatus fileStatus,
-            filePath,
-            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
-            SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Delete,
-            CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-            null);
-
-        if (openStatus != NTStatus.STATUS_SUCCESS)
-            throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
+        object fileHandle = null;
 
         try
         {
-            var deleteInfo = new FileDispositionInformation { DeletePending = true };
-            NTStatus deleteStatus = fileStore.SetFileInformation(fileHandle, deleteInfo);
+            NTStatus openStatus = fileStore.CreateFile(
+                out fileHandle,
+                out FileStatus fileStatus,
+                filePath,
+                AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+                SMBLibrary.FileAttributes.Normal,
+                ShareAccess.Delete,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT | CreateOptions.FILE_DELETE_ON_CLOSE,
+                null);
 
-            if (deleteStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
+            if (openStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
+
+            // File will be deleted when handle is closed due to FILE_DELETE_ON_CLOSE
         }
         finally
         {
-            fileStore.CloseFile(fileHandle);
+            if (fileHandle != null)
+            {
+                fileStore.CloseFile(fileHandle);
+            }
         }
     }
 
     private static void CopyFile(ISMBFileStore fileStore, string sourceFilePath, string targetFilePath, CancellationToken cancellationToken)
     {
-        NTStatus openSourceStatus = fileStore.CreateFile(
-            out object sourceHandle,
-            out FileStatus sourceFileStatus,
-            sourceFilePath,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
-            SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Read,
-            CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-            null);
-
-        if (openSourceStatus != NTStatus.STATUS_SUCCESS)
-            throw new Exception($"Failed to open source file '{sourceFilePath}': {openSourceStatus}");
+        object sourceHandle = null;
+        object targetHandle = null;
 
         try
         {
+            NTStatus openSourceStatus = fileStore.CreateFile(
+                out sourceHandle,
+                out FileStatus sourceFileStatus,
+                sourceFilePath,
+                AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+                SMBLibrary.FileAttributes.Normal,
+                ShareAccess.Read,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                null);
+
+            if (openSourceStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to open source file '{sourceFilePath}': {openSourceStatus}");
+
             NTStatus openTargetStatus = fileStore.CreateFile(
-                out object targetHandle,
+                out targetHandle,
                 out FileStatus targetFileStatus,
                 targetFilePath,
                 AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
@@ -506,60 +499,103 @@ public static class Smb
             if (openTargetStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to create target file '{targetFilePath}': {openTargetStatus}");
 
-            try
+            NTStatus infoStatus = fileStore.GetFileInformation(out FileInformation fileInfo, sourceHandle, FileInformationClass.FileStandardInformation);
+
+            if (infoStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to get file information for '{sourceFilePath}': {infoStatus}");
+
+            var standardInfo = (FileStandardInformation)fileInfo;
+            long fileSize = standardInfo.EndOfFile;
+            long bytesRead = 0;
+            const int bufferSize = 65536;
+
+            while (bytesRead < fileSize)
             {
-                NTStatus infoStatus = fileStore.GetFileInformation(out FileInformation fileInfo, sourceHandle, FileInformationClass.FileStandardInformation);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                if (infoStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"Failed to get file information for '{sourceFilePath}': {infoStatus}");
+                int readSize = (int)Math.Min(bufferSize, fileSize - bytesRead);
 
-                var standardInfo = (FileStandardInformation)fileInfo;
-                long fileSize = standardInfo.EndOfFile;
-                long bytesRead = 0;
-                const int bufferSize = 65536;
+                NTStatus readStatus = fileStore.ReadFile(out byte[] data, sourceHandle, bytesRead, readSize);
 
-                while (bytesRead < fileSize)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
+                if (readStatus != NTStatus.STATUS_SUCCESS && readStatus != NTStatus.STATUS_END_OF_FILE)
+                    throw new Exception($"Failed to read from file '{sourceFilePath}': {readStatus}");
 
-                    int readSize = (int)Math.Min(bufferSize, fileSize - bytesRead);
+                if (data == null || data.Length == 0)
+                    break;
 
-                    NTStatus readStatus = fileStore.ReadFile(out byte[] data, sourceHandle, bytesRead, readSize);
+                NTStatus writeStatus = fileStore.WriteFile(out int bytesWritten, targetHandle, bytesRead, data);
 
-                    if (readStatus != NTStatus.STATUS_SUCCESS && readStatus != NTStatus.STATUS_END_OF_FILE)
-                        throw new Exception($"Failed to read from file '{sourceFilePath}': {readStatus}");
+                if (writeStatus != NTStatus.STATUS_SUCCESS)
+                    throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
 
-                    if (data == null || data.Length == 0)
-                        break;
-
-                    NTStatus writeStatus = fileStore.WriteFile(out int bytesWritten, targetHandle, bytesRead, data);
-
-                    if (writeStatus != NTStatus.STATUS_SUCCESS)
-                        throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
-
-                    bytesRead += bytesWritten;
-                }
+                bytesRead += bytesWritten;
             }
-            catch
+        }
+        catch
+        {
+            if (targetHandle != null)
             {
                 try
                 {
-                    DeleteFile(fileStore, targetFilePath);
+                    fileStore.CloseFile(targetHandle);
                 }
                 catch
                 {
                 }
 
-                throw;
+                targetHandle = null;
             }
-            finally
+
+            if (sourceHandle != null)
             {
-                fileStore.CloseFile(targetHandle);
+                try
+                {
+                    fileStore.CloseFile(sourceHandle);
+                }
+                catch
+                {
+                }
+
+                sourceHandle = null;
             }
+
+            // Give SMB server time to release handles before attempting deletion
+            Thread.Sleep(100);
+
+            try
+            {
+                DeleteFile(fileStore, targetFilePath);
+            }
+            catch
+            {
+                // Ignore errors when cleaning up partial files
+            }
+
+            throw;
         }
         finally
         {
-            fileStore.CloseFile(sourceHandle);
+            if (targetHandle != null)
+            {
+                try
+                {
+                    fileStore.CloseFile(targetHandle);
+                }
+                catch
+                {
+                }
+            }
+
+            if (sourceHandle != null)
+            {
+                try
+                {
+                    fileStore.CloseFile(sourceHandle);
+                }
+                catch
+                {
+                }
+            }
         }
     }
 
