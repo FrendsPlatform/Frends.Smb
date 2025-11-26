@@ -167,10 +167,10 @@ public static class Smb
     }
 
     private static Dictionary<string, string> BuildFileTransferEntries(
-        List<string> sourceFiles,
-        string sourcePath,
-        string targetPath,
-        bool preserveDirectoryStructure)
+    List<string> sourceFiles,
+    string sourcePath,
+    string targetPath,
+    bool preserveDirectoryStructure)
     {
         var entries = new Dictionary<string, string>();
 
@@ -179,15 +179,26 @@ public static class Smb
             : sourcePath.Replace('/', '\\').Trim('\\');
         string normalizedTargetPath = targetPath.Replace('/', '\\').Trim('\\');
 
+        // DEBUG: Log the inputs
+        Console.WriteLine($"[DEBUG] BuildFileTransferEntries:");
+        Console.WriteLine($"[DEBUG]   sourcePath: '{sourcePath}'");
+        Console.WriteLine($"[DEBUG]   normalizedSourcePath: '{normalizedSourcePath}'");
+        Console.WriteLine($"[DEBUG]   targetPath: '{targetPath}'");
+        Console.WriteLine($"[DEBUG]   preserveDirectoryStructure: {preserveDirectoryStructure}");
+        Console.WriteLine($"[DEBUG]   sourceFiles count: {sourceFiles.Count}");
+
         foreach (var sourceFile in sourceFiles)
         {
             string normalizedSource = sourceFile.Replace('/', '\\').TrimStart('\\');
             string fileName = GetFileNameFromPath(normalizedSource);
 
+            Console.WriteLine($"[DEBUG]   Processing: '{sourceFile}' -> normalized: '{normalizedSource}', fileName: '{fileName}'");
+
             if (!preserveDirectoryStructure)
             {
                 string targetFile = Path.Join(normalizedTargetPath, fileName);
                 entries[sourceFile] = targetFile;
+                Console.WriteLine($"[DEBUG]     No preserve -> target: '{targetFile}'");
                 continue;
             }
 
@@ -196,18 +207,22 @@ public static class Smb
             if (string.IsNullOrEmpty(normalizedSourcePath))
             {
                 relativePath = normalizedSource;
+                Console.WriteLine($"[DEBUG]     Empty source -> relativePath: '{relativePath}'");
             }
             else if (normalizedSource.StartsWith(normalizedSourcePath + "\\", StringComparison.OrdinalIgnoreCase))
             {
                 relativePath = normalizedSource.Substring(normalizedSourcePath.Length).TrimStart('\\');
+                Console.WriteLine($"[DEBUG]     Subdirectory -> relativePath: '{relativePath}'");
             }
             else
             {
                 relativePath = fileName;
+                Console.WriteLine($"[DEBUG]     Fallback -> relativePath: '{relativePath}'");
             }
 
             string finalTarget = Path.Join(normalizedTargetPath, relativePath);
             entries[sourceFile] = finalTarget;
+            Console.WriteLine($"[DEBUG]     Final target: '{finalTarget}'");
         }
 
         return entries;
@@ -549,6 +564,12 @@ public static class Smb
         var regex = PrepareRegex(options);
 
         matchedFiles = EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken);
+
+        Console.WriteLine($"[DEBUG] FindMatchingFiles found {matchedFiles.Count} files:");
+        foreach (var file in matchedFiles)
+        {
+            Console.WriteLine($"[DEBUG]   '{file}'");
+        }
 
         return matchedFiles;
     }
