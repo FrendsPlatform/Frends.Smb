@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Net.Mail;
-using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using Frends.Smb.MoveFiles.Definitions;
 using Frends.Smb.MoveFiles.Helpers;
 using SMBLibrary;
@@ -146,11 +143,8 @@ public static class Smb
                 catch (Exception)
                 {
                     DeleteExistingFiles(fileStore, movedFiles.Select(x => x.TargetPath).ToList());
-                    Thread.Sleep(100);
                     throw;
                 }
-
-                Thread.Sleep(1500);
 
                 DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
 
@@ -185,26 +179,15 @@ public static class Smb
             : sourcePath.Replace('/', '\\').Trim('\\');
         string normalizedTargetPath = targetPath.Replace('/', '\\').Trim('\\');
 
-        // DEBUG: Log the inputs
-        Console.WriteLine($"[DEBUG] BuildFileTransferEntries:");
-        Console.WriteLine($"[DEBUG]   sourcePath: '{sourcePath}'");
-        Console.WriteLine($"[DEBUG]   normalizedSourcePath: '{normalizedSourcePath}'");
-        Console.WriteLine($"[DEBUG]   targetPath: '{targetPath}'");
-        Console.WriteLine($"[DEBUG]   preserveDirectoryStructure: {preserveDirectoryStructure}");
-        Console.WriteLine($"[DEBUG]   sourceFiles count: {sourceFiles.Count}");
-
         foreach (var sourceFile in sourceFiles)
         {
             string normalizedSource = sourceFile.Replace('/', '\\').TrimStart('\\');
             string fileName = GetFileNameFromPath(normalizedSource);
 
-            Console.WriteLine($"[DEBUG]   Processing: '{sourceFile}' -> normalized: '{normalizedSource}', fileName: '{fileName}'");
-
             if (!preserveDirectoryStructure)
             {
                 string targetFile = Path.Join(normalizedTargetPath, fileName);
                 entries[sourceFile] = targetFile;
-                Console.WriteLine($"[DEBUG]     No preserve -> target: '{targetFile}'");
                 continue;
             }
 
@@ -213,17 +196,14 @@ public static class Smb
             if (string.IsNullOrEmpty(normalizedSourcePath))
             {
                 relativePath = normalizedSource;
-                Console.WriteLine($"[DEBUG]     Empty source -> relativePath: '{relativePath}'");
             }
             else if (normalizedSource.StartsWith(normalizedSourcePath + "\\", StringComparison.OrdinalIgnoreCase))
             {
                 relativePath = normalizedSource.Substring(normalizedSourcePath.Length).TrimStart('\\');
-                Console.WriteLine($"[DEBUG]     Subdirectory -> relativePath: '{relativePath}'");
             }
             else
             {
                 relativePath = fileName;
-                Console.WriteLine($"[DEBUG]     Fallback -> relativePath: '{relativePath}'");
             }
 
             string finalTarget = Path.Combine(
@@ -232,7 +212,6 @@ public static class Smb
             .Replace('/', Path.DirectorySeparatorChar);
 
             entries[sourceFile] = finalTarget;
-            Console.WriteLine($"[DEBUG]     Final target: '{finalTarget}'");
         }
 
         return entries;
@@ -240,27 +219,10 @@ public static class Smb
 
     private static void DeleteExistingFiles(ISMBFileStore fileStore, List<string> filePaths)
     {
-        // Sort by depth (deepest first) to ensure nested files are deleted first
-        var sortedPaths = filePaths
-            .OrderByDescending(p => p.Count(c => c == '\\' || c == '/'))
-            .ToList();
-
-        foreach (var filePath in sortedPaths)
+        foreach (var filePath in filePaths)
         {
-            try
-            {
-                string normalizedPath = filePath.Replace('/', '\\').TrimStart('\\');
-                Console.WriteLine($"[DEBUG] Attempting to delete: '{filePath}' -> normalized: '{normalizedPath}'");
-
-                DeleteFile(fileStore, normalizedPath);
-
-                Console.WriteLine($"[DEBUG] Successfully deleted: '{filePath}'");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DEBUG] Failed to delete '{filePath}': {ex.Message}");
-                throw;
-            }
+            string normalizedPath = filePath.Replace('/', '\\').TrimStart('\\');
+            DeleteFile(fileStore, normalizedPath);
         }
     }
 
@@ -435,63 +397,59 @@ public static class Smb
 
     private static void DeleteFile(ISMBFileStore fileStore, string filePath)
     {
-        object fileHandle = null;
+        NTStatus openStatus = fileStore.CreateFile(
+            out object fileHandle,
+            out FileStatus fileStatus,
+            filePath,
+            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            SMBLibrary.FileAttributes.Normal,
+            ShareAccess.Delete,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (openStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
 
         try
         {
-            NTStatus openStatus = fileStore.CreateFile(
-                out fileHandle,
-                out FileStatus fileStatus,
-                filePath,
-                AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
-                SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Delete,
-                CreateDisposition.FILE_OPEN,
-                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT | CreateOptions.FILE_DELETE_ON_CLOSE,
-                null);
+            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+            NTStatus deleteStatus = fileStore.SetFileInformation(fileHandle, deleteInfo);
 
-            if (openStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
-
-            // File will be deleted when handle is closed due to FILE_DELETE_ON_CLOSE
+            if (deleteStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
         }
         finally
         {
-            if (fileHandle != null)
-            {
-                fileStore.CloseFile(fileHandle);
-            }
+            fileStore.CloseFile(fileHandle);
         }
     }
 
     private static void CopyFile(ISMBFileStore fileStore, string sourceFilePath, string targetFilePath, CancellationToken cancellationToken)
     {
-        object sourceHandle = null;
-        object targetHandle = null;
+        NTStatus openSourceStatus = fileStore.CreateFile(
+            out object sourceHandle,
+            out FileStatus sourceFileStatus,
+            sourceFilePath,
+            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            SMBLibrary.FileAttributes.Normal,
+            ShareAccess.Read,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (openSourceStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open source file '{sourceFilePath}': {openSourceStatus}");
 
         try
         {
-            NTStatus openSourceStatus = fileStore.CreateFile(
-                out sourceHandle,
-                out FileStatus sourceFileStatus,
-                sourceFilePath,
-                AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
-                SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Read,
-                CreateDisposition.FILE_OPEN,
-                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-                null);
-
-            if (openSourceStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to open source file '{sourceFilePath}': {openSourceStatus}");
-
             NTStatus openTargetStatus = fileStore.CreateFile(
-                out targetHandle,
+                out object targetHandle,
                 out FileStatus targetFileStatus,
                 targetFilePath,
                 AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                ShareAccess.None,
                 CreateDisposition.FILE_OVERWRITE_IF,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
@@ -499,103 +457,60 @@ public static class Smb
             if (openTargetStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to create target file '{targetFilePath}': {openTargetStatus}");
 
-            NTStatus infoStatus = fileStore.GetFileInformation(out FileInformation fileInfo, sourceHandle, FileInformationClass.FileStandardInformation);
-
-            if (infoStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to get file information for '{sourceFilePath}': {infoStatus}");
-
-            var standardInfo = (FileStandardInformation)fileInfo;
-            long fileSize = standardInfo.EndOfFile;
-            long bytesRead = 0;
-            const int bufferSize = 65536;
-
-            while (bytesRead < fileSize)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                int readSize = (int)Math.Min(bufferSize, fileSize - bytesRead);
-
-                NTStatus readStatus = fileStore.ReadFile(out byte[] data, sourceHandle, bytesRead, readSize);
-
-                if (readStatus != NTStatus.STATUS_SUCCESS && readStatus != NTStatus.STATUS_END_OF_FILE)
-                    throw new Exception($"Failed to read from file '{sourceFilePath}': {readStatus}");
-
-                if (data == null || data.Length == 0)
-                    break;
-
-                NTStatus writeStatus = fileStore.WriteFile(out int bytesWritten, targetHandle, bytesRead, data);
-
-                if (writeStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
-
-                bytesRead += bytesWritten;
-            }
-        }
-        catch
-        {
-            if (targetHandle != null)
-            {
-                try
-                {
-                    fileStore.CloseFile(targetHandle);
-                }
-                catch
-                {
-                }
-
-                targetHandle = null;
-            }
-
-            if (sourceHandle != null)
-            {
-                try
-                {
-                    fileStore.CloseFile(sourceHandle);
-                }
-                catch
-                {
-                }
-
-                sourceHandle = null;
-            }
-
-            // Give SMB server time to release handles before attempting deletion
-            Thread.Sleep(100);
-
             try
             {
-                DeleteFile(fileStore, targetFilePath);
+                NTStatus infoStatus = fileStore.GetFileInformation(out FileInformation fileInfo, sourceHandle, FileInformationClass.FileStandardInformation);
+
+                if (infoStatus != NTStatus.STATUS_SUCCESS)
+                    throw new Exception($"Failed to get file information for '{sourceFilePath}': {infoStatus}");
+
+                var standardInfo = (FileStandardInformation)fileInfo;
+                long fileSize = standardInfo.EndOfFile;
+                long bytesRead = 0;
+                const int bufferSize = 65536;
+
+                while (bytesRead < fileSize)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    int readSize = (int)Math.Min(bufferSize, fileSize - bytesRead);
+
+                    NTStatus readStatus = fileStore.ReadFile(out byte[] data, sourceHandle, bytesRead, readSize);
+
+                    if (readStatus != NTStatus.STATUS_SUCCESS && readStatus != NTStatus.STATUS_END_OF_FILE)
+                        throw new Exception($"Failed to read from file '{sourceFilePath}': {readStatus}");
+
+                    if (data == null || data.Length == 0)
+                        break;
+
+                    NTStatus writeStatus = fileStore.WriteFile(out int bytesWritten, targetHandle, bytesRead, data);
+
+                    if (writeStatus != NTStatus.STATUS_SUCCESS)
+                        throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
+
+                    bytesRead += bytesWritten;
+                }
             }
             catch
             {
-                // Ignore errors when cleaning up partial files
-            }
+                try
+                {
+                    DeleteFile(fileStore, targetFilePath);
+                }
+                catch
+                {
+                }
 
-            throw;
+                throw;
+            }
+            finally
+            {
+                fileStore.CloseFile(targetHandle);
+            }
         }
         finally
         {
-            if (targetHandle != null)
-            {
-                try
-                {
-                    fileStore.CloseFile(targetHandle);
-                }
-                catch
-                {
-                }
-            }
-
-            if (sourceHandle != null)
-            {
-                try
-                {
-                    fileStore.CloseFile(sourceHandle);
-                }
-                catch
-                {
-                }
-            }
+            fileStore.CloseFile(sourceHandle);
         }
     }
 
@@ -632,12 +547,6 @@ public static class Smb
         var regex = PrepareRegex(options);
 
         matchedFiles = EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken);
-
-        Console.WriteLine($"[DEBUG] FindMatchingFiles found {matchedFiles.Count} files:");
-        foreach (var file in matchedFiles)
-        {
-            Console.WriteLine($"[DEBUG]   '{file}'");
-        }
 
         return matchedFiles;
     }
