@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using Frends.Smb.MoveFiles.Definitions;
 using Frends.Smb.MoveFiles.Helpers;
 using SMBLibrary;
@@ -27,7 +26,7 @@ public static class Smb
     /// <param name="options">Additional parameters.</param>
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
     /// <returns>object { bool Success, List&lt;FileItem&gt; Files, object Error { string Message, Exception AdditionalInfo } }</returns>
-    public static async Task<Result> MoveFiles(
+    public static Result MoveFiles(
         [PropertyTab] Input input,
         [PropertyTab] Connection connection,
         [PropertyTab] Options options,
@@ -35,7 +34,7 @@ public static class Smb
     {
         try
         {
-            return await ExecuteMoveAsync(input, connection, options, cancellationToken);
+            return ExecuteMove(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -43,7 +42,7 @@ public static class Smb
         }
     }
 
-    private static async Task<Result> ExecuteMoveAsync(
+    private static Result ExecuteMove(
         Input input,
         Connection connection,
         Options options,
@@ -59,6 +58,9 @@ public static class Smb
 
         input.SourcePath ??= string.Empty;
         input.TargetPath ??= string.Empty;
+
+        if (string.IsNullOrWhiteSpace(input.TargetPath))
+            throw new ArgumentException("TargetPath cannot be empty.", nameof(input));
 
         if (input.SourcePath.StartsWith(@"\\"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
@@ -88,7 +90,7 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var filesToMove = await FindMatchingFilesAsync(fileStore, input.SourcePath, options, cancellationToken);
+                var filesToMove = FindMatchingFiles(fileStore, input.SourcePath, options, cancellationToken);
 
                 if (filesToMove.Count == 0)
                 {
@@ -101,11 +103,6 @@ public static class Smb
                     input.SourcePath,
                     input.TargetPath,
                     options.PreserveDirectoryStructure);
-
-                if (options.IfTargetFileExists == FileExistsAction.Throw)
-                {
-                    AssertNoTargetFileConflicts(fileTransferEntries.Values.ToList());
-                }
 
                 if (options.CreateTargetDirectories && !string.IsNullOrEmpty(input.TargetPath))
                 {
@@ -170,10 +167,10 @@ public static class Smb
     }
 
     private static Dictionary<string, string> BuildFileTransferEntries(
-    List<string> sourceFiles,
-    string sourcePath,
-    string targetPath,
-    bool preserveDirectoryStructure)
+        List<string> sourceFiles,
+        string sourcePath,
+        string targetPath,
+        bool preserveDirectoryStructure)
     {
         var entries = new Dictionary<string, string>();
 
@@ -187,16 +184,18 @@ public static class Smb
 
             if (!preserveDirectoryStructure)
             {
-                string targetFile = string.IsNullOrEmpty(normalizedTargetPath)
-                    ? fileName
-                    : $"{normalizedTargetPath}\\{fileName}";
-
+                string targetFile = Path.Join(normalizedTargetPath, fileName);
                 entries[sourceFile] = targetFile;
                 continue;
             }
 
             string relativePath;
-            if (normalizedSource.StartsWith(normalizedSourcePath + "\\", StringComparison.OrdinalIgnoreCase))
+
+            if (string.IsNullOrEmpty(normalizedSourcePath))
+            {
+                relativePath = normalizedSource;
+            }
+            else if (normalizedSource.StartsWith(normalizedSourcePath + "\\", StringComparison.OrdinalIgnoreCase))
             {
                 relativePath = normalizedSource.Substring(normalizedSourcePath.Length).TrimStart('\\');
             }
@@ -205,29 +204,11 @@ public static class Smb
                 relativePath = fileName;
             }
 
-            string finalTarget = string.IsNullOrEmpty(normalizedTargetPath)
-                ? relativePath
-                : $"{normalizedTargetPath}\\{relativePath}";
-
+            string finalTarget = Path.Join(normalizedTargetPath, relativePath);
             entries[sourceFile] = finalTarget;
         }
 
         return entries;
-    }
-
-    private static void AssertNoTargetFileConflicts(List<string> targetPaths)
-    {
-        var duplicates = targetPaths
-            .GroupBy(p => p.ToLowerInvariant())
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToList();
-
-        if (duplicates.Count > 0)
-        {
-            throw new IOException(
-                $"Multiple files would be written to {string.Join(", ", duplicates)}. The files would get overwritten. No files moved.");
-        }
     }
 
     private static void DeleteExistingFiles(ISMBFileStore fileStore, List<string> filePaths)
@@ -236,22 +217,7 @@ public static class Smb
         {
             try
             {
-                NTStatus checkStatus = fileStore.CreateFile(
-                    out object checkHandle,
-                    out FileStatus fileStatus,
-                    filePath,
-                    AccessMask.GENERIC_READ,
-                    SMBLibrary.FileAttributes.Normal,
-                    ShareAccess.Read | ShareAccess.Write,
-                    CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-                    null);
-
-                if (checkStatus == NTStatus.STATUS_SUCCESS)
-                {
-                    fileStore.CloseFile(checkHandle);
-                    DeleteFile(fileStore, filePath);
-                }
+                DeleteFile(fileStore, filePath);
             }
             catch
             {
@@ -350,7 +316,6 @@ public static class Smb
                 throw new IOException($"File '{targetFilePath}' already exists. No files moved.");
 
             case FileExistsAction.Overwrite:
-                DeleteFile(fileStore, targetFilePath);
                 return targetFilePath;
 
             case FileExistsAction.Rename:
@@ -484,7 +449,7 @@ public static class Smb
                 AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
                 SMBLibrary.FileAttributes.Normal,
                 ShareAccess.None,
-                CreateDisposition.FILE_CREATE,
+                CreateDisposition.FILE_OVERWRITE_IF,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
 
@@ -525,6 +490,18 @@ public static class Smb
                     bytesRead += bytesWritten;
                 }
             }
+            catch
+            {
+                try
+                {
+                    DeleteFile(fileStore, targetFilePath);
+                }
+                catch
+                {
+                }
+
+                throw;
+            }
             finally
             {
                 fileStore.CloseFile(targetHandle);
@@ -536,7 +513,7 @@ public static class Smb
         }
     }
 
-    private static async Task<List<string>> FindMatchingFilesAsync(
+    private static List<string> FindMatchingFiles(
      ISMBFileStore fileStore,
      string basePath,
      Options options,
@@ -568,9 +545,7 @@ public static class Smb
 
         var regex = PrepareRegex(options);
 
-        matchedFiles = await Task.Run(
-            () => EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken),
-            cancellationToken);
+        matchedFiles = EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken);
 
         return matchedFiles;
     }

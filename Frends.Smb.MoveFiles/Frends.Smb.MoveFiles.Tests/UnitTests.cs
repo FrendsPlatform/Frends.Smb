@@ -110,7 +110,7 @@ public class MoveFilesTests
             TargetPath = "target",
         };
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
@@ -136,7 +136,7 @@ public class MoveFilesTests
         options.PatternMatchingMode = PatternMatchingMode.Wildcards;
         options.Pattern = "*.txt";
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(2));
@@ -163,7 +163,7 @@ public class MoveFilesTests
         options.PatternMatchingMode = PatternMatchingMode.Regex;
         options.Pattern = "report_\\d+\\.txt";
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
@@ -187,7 +187,7 @@ public class MoveFilesTests
         options.PatternMatchingMode = PatternMatchingMode.Wildcards;
         options.Pattern = "*.txt";
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(2));
@@ -210,7 +210,7 @@ public class MoveFilesTests
         };
         options.PreserveDirectoryStructure = true;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(2));
@@ -231,9 +231,10 @@ public class MoveFilesTests
         };
         options.IfTargetFileExists = FileExistsAction.Throw;
 
-        var ex = Assert.ThrowsAsync<Exception>(async () =>
-            await Smb.MoveFiles(input, connection, options, CancellationToken.None));
+        var ex = Assert.Throws<Exception>(() =>
+                Smb.MoveFiles(input, connection, options, CancellationToken.None));
 
+        Assert.That(ex, Is.Not.Null);
         Assert.That(ex.Message, Does.Contain("already exists"));
         Assert.That(ex.Message, Does.Contain("No files moved"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "duplicate.txt")), Is.True);
@@ -252,7 +253,7 @@ public class MoveFilesTests
         };
         options.IfTargetFileExists = FileExistsAction.Overwrite;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
@@ -274,7 +275,7 @@ public class MoveFilesTests
         };
         options.IfTargetFileExists = FileExistsAction.Rename;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
@@ -296,7 +297,7 @@ public class MoveFilesTests
 
         options.CreateTargetDirectories = true;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "newdir", "subdir")), Is.True);
@@ -316,7 +317,7 @@ public class MoveFilesTests
         options.CreateTargetDirectories = false;
         options.ThrowErrorOnFailure = false;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error, Is.Not.Null);
@@ -340,10 +341,11 @@ public class MoveFilesTests
         options.PreserveDirectoryStructure = false;
         options.IfTargetFileExists = FileExistsAction.Throw;
 
-        var ex = Assert.ThrowsAsync<Exception>(async () =>
-            await Smb.MoveFiles(input, connection, options, CancellationToken.None));
+        var ex = Assert.Throws<Exception>(() =>
+                 Smb.MoveFiles(input, connection, options, CancellationToken.None));
 
-        Assert.That(ex.Message, Does.Contain("Multiple files would be written to target"));
+        Assert.That(ex, Is.Not.Null);
+        Assert.That(ex.Message, Does.Contain("No files moved."));
     }
 
     [Test]
@@ -364,7 +366,7 @@ public class MoveFilesTests
         options.IfTargetFileExists = FileExistsAction.Throw;
         options.ThrowErrorOnFailure = false;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
 
@@ -389,14 +391,14 @@ public class MoveFilesTests
         options.Pattern = "*.txt";
         options.ThrowErrorOnFailure = false;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error.Message, Does.Contain("No files found"));
     }
 
     [Test]
-    public async Task MoveFiles_InvalidSourcePath_ReturnsFailure()
+    public void MoveFiles_InvalidSourcePath_ReturnsFailure()
     {
         input = new Input
         {
@@ -405,7 +407,7 @@ public class MoveFilesTests
         };
         options.ThrowErrorOnFailure = false;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error, Is.Not.Null);
@@ -425,7 +427,7 @@ public class MoveFilesTests
         options.PatternMatchingMode = PatternMatchingMode.Wildcards;
         options.Pattern = "root-file.txt";
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
@@ -447,7 +449,7 @@ public class MoveFilesTests
 
         options.Recursive = false;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
@@ -469,7 +471,7 @@ public class MoveFilesTests
         options.Recursive = true;
         options.PreserveDirectoryStructure = true;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(2));
@@ -490,13 +492,44 @@ public class MoveFilesTests
         };
         options.Recursive = false;
 
-        var result = await Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
         Assert.That(result.Files[0].SourcePath, Does.Contain("root.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "root.txt")), Is.True);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "subdir", "nested.txt")), Is.True, "Nested file should remain");
+    }
+
+    [Test]
+    public async Task MoveFiles_EmptySourcePathWithPreserveStructure_PreservesDirectoryTree()
+    {
+        await CreateTestFileAsync("level1/level2/file1.txt", "content1");
+        await CreateTestFileAsync("level1/file2.txt", "content2");
+        await CreateTestFileAsync("another/file3.txt", "content3");
+
+        input = new Input
+        {
+            SourcePath = string.Empty,
+            TargetPath = "backup",
+        };
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+        options.Pattern = "*.txt";
+        options.PreserveDirectoryStructure = true;
+        options.Recursive = true;
+
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Files.Count, Is.EqualTo(3));
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "backup", "level1", "level2", "file1.txt")), Is.True);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "backup", "level1", "file2.txt")), Is.True);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "backup", "another", "file3.txt")), Is.True);
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "level1", "level2", "file1.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "level1", "file2.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "another", "file3.txt")), Is.False);
     }
 
     private async Task CreateTestFileAsync(string relativePath, string content)

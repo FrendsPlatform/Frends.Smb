@@ -26,8 +26,8 @@ public class Options
     /// If true, recreates the source directory structure in the target location.
     /// If false, all files are moved directly to the target directory without preserving subdirectories.
     /// </summary>
-    /// <example>false</example>
-    [DefaultValue(false)]
+    /// <example>true</example>
+    [DefaultValue(true)]
     public bool PreserveDirectoryStructure { get; set; } = false;
 
     /// <summary>
@@ -55,7 +55,7 @@ public class Options
     /// <summary>
     /// Whether to throw an error on failure.
     /// </summary>
-    /// <example>false</example>
+    /// <example>true</example>
     [DefaultValue(true)]
     public bool ThrowErrorOnFailure { get; set; } = true;
 
