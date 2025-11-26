@@ -149,31 +149,9 @@ public static class Smb
                     throw;
                 }
 
-                fileStore.Disconnect();
-                Thread.Sleep(100);
+                Thread.Sleep(1000);
 
-                SMB2Client cleanupClient = new SMB2Client();
-                bool cleanupConnected = cleanupClient.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
-                if (!cleanupConnected)
-                    throw new Exception($"Failed to connect to SMB server for cleanup: {connection.Server}");
-
-                NTStatus cleanupLoginStatus = cleanupClient.Login(domain, user, connection.Password);
-                if (cleanupLoginStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"SMB login failed for cleanup: {cleanupLoginStatus}");
-
-                ISMBFileStore cleanupFileStore = cleanupClient.TreeConnect(connection.Share, out NTStatus cleanupTreeStatus);
-                if (cleanupTreeStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"Failed to connect to share for cleanup '{connection.Share}': {cleanupTreeStatus}");
-
-                try
-                {
-                    DeleteExistingFiles(cleanupFileStore, movedFiles.Select(x => x.SourcePath).ToList());
-                }
-                finally
-                {
-                    cleanupFileStore.Disconnect();
-                    cleanupClient.Disconnect();
-                }
+                DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
 
                 return new Result
                 {
@@ -184,7 +162,7 @@ public static class Smb
             }
             finally
             {
-                fileStore?.Disconnect();
+                fileStore.Disconnect();
             }
         }
         finally
@@ -267,7 +245,10 @@ public static class Smb
             {
                 string normalizedPath = filePath.Replace('/', '\\').TrimStart('\\');
                 Console.WriteLine($"[DEBUG] Attempting to delete: '{filePath}' -> normalized: '{normalizedPath}'");
-                DeleteFile(fileStore, normalizedPath);
+
+                // Add retry logic specifically for delete
+                DeleteFileWithRetry(fileStore, normalizedPath);
+
                 Console.WriteLine($"[DEBUG] Successfully deleted: '{filePath}'");
             }
             catch (Exception ex)
@@ -276,6 +257,32 @@ public static class Smb
                 throw; // Re-throw to see the actual error
             }
         }
+    }
+
+    private static void DeleteFileWithRetry(ISMBFileStore fileStore, string filePath, int maxRetries = 3)
+    {
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                DeleteFile(fileStore, filePath);
+                return;
+            }
+            catch (Exception ex) when (i < maxRetries - 1)
+            {
+                Console.WriteLine($"[DEBUG] Delete attempt {i + 1} failed for '{filePath}': {ex.Message}");
+
+                // Add progressively longer delays
+                Thread.Sleep(200 * (i + 1));
+
+                // Force garbage collection to ensure all handles are closed
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+        // If we get here, all retries failed
+        throw new Exception($"Failed to delete '{filePath}' after {maxRetries} attempts");
     }
 
     private static string GetDirectoryPath(string filePath)
