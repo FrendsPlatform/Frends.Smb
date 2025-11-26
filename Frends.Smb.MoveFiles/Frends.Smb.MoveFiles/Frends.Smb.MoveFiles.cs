@@ -239,10 +239,14 @@ public static class Smb
             try
             {
                 string normalizedPath = filePath.Replace('/', '\\').TrimStart('\\');
+                Console.WriteLine($"[DEBUG] Attempting to delete: '{filePath}' -> normalized: '{normalizedPath}'");
                 DeleteFile(fileStore, normalizedPath);
+                Console.WriteLine($"[DEBUG] Successfully deleted: '{filePath}'");
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"[DEBUG] Failed to delete '{filePath}': {ex.Message}");
+                throw; // Re-throw to see the actual error
             }
         }
     }
