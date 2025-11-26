@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -147,7 +148,14 @@ public static class Smb
                     throw;
                 }
 
-                Thread.Sleep(500);
+                fileStore.Disconnect();
+
+                Thread.Sleep(100);
+
+                fileStore = client.TreeConnect(connection.Share, out NTStatus reconnectStatus);
+
+                if (reconnectStatus != NTStatus.STATUS_SUCCESS)
+                    throw new Exception($"Failed to reconnect to share '{connection.Share}' for cleanup: {reconnectStatus}");
 
                 DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
 
@@ -459,9 +467,9 @@ public static class Smb
             out object sourceHandle,
             out FileStatus sourceFileStatus,
             sourceFilePath,
-            AccessMask.GENERIC_READ | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
