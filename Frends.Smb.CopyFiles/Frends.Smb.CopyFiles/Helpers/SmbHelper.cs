@@ -238,16 +238,6 @@ internal static class SmbHandler
                     }
 
                     dstStore.CloseFile(dstHandle);
-                    status = dstStore.CreateFile(
-                        out dstHandle,
-                        out _,
-                        dstPath,
-                        AccessMask.GENERIC_WRITE,
-                        FileAttributes.Normal,
-                        ShareAccess.Read | ShareAccess.Write,
-                        CreateDisposition.FILE_OPEN_IF,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE,
-                        null);
                     tempFiles.Add(new Tuple<string, string>(tempName, dstPath));
                     break;
                 case FileExistsAction.Rename:
@@ -349,7 +339,7 @@ internal static class SmbHandler
                 current,
                 AccessMask.SYNCHRONIZE | AccessMask.GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Write,
+                ShareAccess.Read | ShareAccess.Write,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
