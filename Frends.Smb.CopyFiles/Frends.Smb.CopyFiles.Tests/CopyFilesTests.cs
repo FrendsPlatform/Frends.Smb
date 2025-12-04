@@ -26,7 +26,6 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
         Assert.That(result.Error.Message, Is.Empty);
 
-
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(expectedCopiesCount));
         var srcPat = Path.Combine(TestDirPath, sourcePath);
