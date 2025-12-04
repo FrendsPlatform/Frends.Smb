@@ -99,11 +99,6 @@ public abstract class SmbTestBase
             await sambaContainer.DisposeAsync();
             sambaContainer = null;
         }
-
-        if (Directory.Exists(TestDirPath))
-        {
-            Directory.Delete(TestDirPath, true);
-        }
     }
 
     [SetUp]
@@ -113,11 +108,6 @@ public abstract class SmbTestBase
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
         Input = new Input { SourcePath = string.Empty, TargetPath = "dst" };
         await PrepareDstDirectory();
-    }
-
-    [TearDown]
-    public void TearDown()
-    {
     }
 
     private static async Task PrepareDstDirectory()
