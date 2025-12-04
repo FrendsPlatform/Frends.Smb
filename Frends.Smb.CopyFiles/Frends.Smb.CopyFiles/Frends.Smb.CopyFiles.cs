@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Linq;
 using System.Threading;
 using Frends.Smb.CopyFiles.Definitions;
 using Frends.Smb.CopyFiles.Helpers;
@@ -29,13 +28,37 @@ public static class Smb
         [PropertyTab] Options options,
         CancellationToken cancellationToken)
     {
-        SMB2Client client = null;
-        ISMBFileStore fileStore = null;
+        SMB2Client srcClient = null;
+        SMB2Client dstClient = null;
+
+        ISMBFileStore dstFileStore = null;
+        ISMBFileStore srcFileStore = null;
         try
         {
             SmbHandler.ValidateParameters(input, connection);
-            SmbHandler.PrepareSmbConnection(out client, out fileStore, connection);
-            var copiedFiles = SmbHandler.CopyFiles(fileStore, input, options, cancellationToken);
+            SmbHandler.PrepareSmbConnection(out dstClient, out dstFileStore, connection);
+            SmbHandler.PrepareSmbConnection(out srcClient, out srcFileStore, connection);
+            input.SourcePath = input.SourcePath.ToSmbPath();
+            input.TargetPath = input.TargetPath.ToSmbPath();
+            int maxChunkSize;
+            try
+            {
+                maxChunkSize = srcClient.MaxReadSize < dstClient.MaxWriteSize
+                    ? checked((int)srcClient.MaxReadSize)
+                    : checked((int)dstClient.MaxWriteSize);
+            }
+            catch
+            {
+                maxChunkSize = int.MaxValue;
+            }
+
+            var copiedFiles = SmbHandler.CopyFiles(
+                dstFileStore,
+                srcFileStore,
+                input,
+                options,
+                maxChunkSize,
+                cancellationToken);
 
             return new Result { Success = true, Files = copiedFiles, Error = null, };
         }
@@ -45,20 +68,28 @@ public static class Smb
         }
         finally
         {
-            fileStore?.Disconnect();
+            dstFileStore?.Disconnect();
+            srcFileStore?.Disconnect();
 
             NTStatus status = NTStatus.STATUS_NOT_IMPLEMENTED;
             try
             {
-                client?.ListShares(out status);
+                srcClient?.ListShares(out status);
+                dstClient?.ListShares(out status);
             }
             catch
             {
                 // ignored
             }
 
-            if (status == NTStatus.STATUS_SUCCESS) client?.Logoff();
-            client?.Disconnect();
+            if (status == NTStatus.STATUS_SUCCESS)
+            {
+                srcClient?.Logoff();
+                dstClient?.Logoff();
+            }
+
+            srcClient?.Disconnect();
+            dstClient?.Disconnect();
         }
     }
 }

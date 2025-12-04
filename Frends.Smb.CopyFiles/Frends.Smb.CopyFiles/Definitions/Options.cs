@@ -23,6 +23,14 @@ public class Options
     public FileExistsAction IfTargetFileExists { get; set; } = FileExistsAction.Throw;
 
     /// <summary>
+    /// If true, recreates the source directory structure in the target location.
+    /// If false, all files are moved directly to the target directory without preserving subdirectories.
+    /// </summary>
+    /// <example>true</example>
+    [DefaultValue(true)]
+    public bool PreserveDirectoryStructure { get; set; } = true;
+
+    /// <summary>
     /// Search for files recursively in subdirectories. Default is true.
     /// </summary>
     /// <example>true</example>

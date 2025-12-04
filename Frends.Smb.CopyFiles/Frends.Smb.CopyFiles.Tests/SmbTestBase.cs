@@ -28,11 +28,11 @@ public abstract class SmbTestBase
     private static int refCount;
     private static bool isInitialized;
 
-    protected Input Input { get; set; }
+    protected Input Input { get; private set; }
 
-    protected Connection Connection { get; set; }
+    protected Connection Connection { get; private set; }
 
-    protected Options Options { get; set; }
+    protected Options Options { get; private set; }
 
     [OneTimeSetUp]
     public async Task GlobalSetup()
@@ -50,12 +50,8 @@ public abstract class SmbTestBase
 
         if (!shouldInitialize) return;
 
-        Console.WriteLine($"Starting Samba container for tests in {TestDirPath}");
+        await PrepareSrcDirectory();
 
-        Directory.CreateDirectory(Path.Combine(TestDirPath, "src"));
-        Directory.CreateDirectory(Path.Combine(TestDirPath, "dst"));
-
-        // create test files
         var container = new ContainerBuilder()
             .WithImage("dperson/samba:latest")
             .WithName($"smb-test-server-{Guid.NewGuid()}")
@@ -100,8 +96,6 @@ public abstract class SmbTestBase
 
         if (sambaContainer != null)
         {
-            Console.WriteLine("Stopping Samba container");
-
             await sambaContainer.DisposeAsync();
             sambaContainer = null;
         }
@@ -113,22 +107,58 @@ public abstract class SmbTestBase
     }
 
     [SetUp]
-    public void Setup()
+    public async Task Setup()
     {
-        Console.WriteLine($"Starting test for {GetType().Name}");
         Connection = new Connection { Server = ServerName, Share = ShareName, Username = User, Password = Password };
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
-        Input = new Input { SourcePath = string.Empty, TargetPath = string.Empty };
+        Input = new Input { SourcePath = string.Empty, TargetPath = "dst" };
+        await PrepareDstDirectory();
     }
 
     [TearDown]
     public void TearDown()
     {
-        Console.WriteLine($"Cleaning after test {GetType().Name}");
+    }
 
-        if (!Directory.Exists(TestDirPath)) return;
-        var children = Directory.GetFileSystemEntries(TestDirPath);
-        foreach (var child in children)
-            Directory.Delete(child, true);
+    private static async Task PrepareDstDirectory()
+    {
+        var dstPath = Path.Join(TestDirPath, "dst");
+        await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+        if (Directory.Exists(dstPath)) Directory.Delete(Path.Join(TestDirPath, "dst"), true);
+
+        Directory.CreateDirectory(Path.Combine(dstPath, "oldSub"));
+        await File.WriteAllTextAsync(Path.Join(dstPath, "old.foo"), "old test content");
+
+        Directory.CreateDirectory(Path.Combine(dstPath, "error"));
+        await File.WriteAllTextAsync(Path.Join(dstPath, "error", "old.foo"), "old test content");
+    }
+
+    private static async Task PrepareSrcDirectory()
+    {
+        var srcPath = Path.Join(TestDirPath, "src");
+        Directory.CreateDirectory(Path.Combine(TestDirPath, "src"));
+        await File.WriteAllTextAsync(Path.Join(srcPath, "test1.txt"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "test2.txt"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "test3.txt"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "test4.txt"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "the-test.txt"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "test1.log"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "test2.log"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "fest.log"), "test content");
+        await File.WriteAllTextAsync(Path.Join(srcPath, "old.foo"), "new test content");
+
+        Directory.CreateDirectory(Path.Combine(srcPath, "subDir"));
+        await File.WriteAllTextAsync(Path.Join(srcPath, "subDir", "sub.foo"), "test content");
+
+        Directory.CreateDirectory(Path.Combine(srcPath, "subDir", "subSubDir"));
+        await File.WriteAllTextAsync(Path.Join(srcPath, "subDir", "subSubDir", "sub.foo"), "test content");
+
+        Directory.CreateDirectory(Path.Combine(srcPath, "oldSub"));
+        await File.WriteAllTextAsync(Path.Join(srcPath, "oldSub", "oldSub1.foo"), "test content");
+
+        Directory.CreateDirectory(Path.Combine(srcPath, "error"));
+        await File.WriteAllTextAsync(Path.Join(srcPath, "error", "old.foo"), "test content");
+        Directory.CreateDirectory(Path.Combine(srcPath, "error", "errorSubDir"));
+        await File.WriteAllTextAsync(Path.Join(srcPath, "error", "errorSubDir", "old.foo"), "test content");
     }
 }

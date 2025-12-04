@@ -19,14 +19,15 @@ public class GeneralSmbTests : SmbTestBase
     }
 
     [Test]
-    public void EmptySourcePath_Fails()
+    public void SameSourceAndDestination_Fails()
     {
         Input.SourcePath = string.Empty;
+        Input.TargetPath = string.Empty;
 
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error?.Message, Does.Contain("Path cannot be empty"));
+        Assert.That(result.Error?.Message, Does.Contain("Destination and source cannot be the same"));
     }
 
     [Test]
