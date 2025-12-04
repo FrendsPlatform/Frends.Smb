@@ -81,7 +81,10 @@ public abstract class SmbTestBase
         }
 
         if (sambaContainer is not null)
+        {
             await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+            await sambaContainer.ExecAsync(["chmod", "-R", "g+s", "/share"]);
+        }
     }
 
     [OneTimeTearDown]
