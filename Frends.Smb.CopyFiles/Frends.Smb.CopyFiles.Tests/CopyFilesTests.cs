@@ -208,6 +208,7 @@ public class CopyFilesTests : SmbTestBase
         Input.SourcePath = "src/subDir";
 
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
+        Assert.That(result.Error.Message, Is.Empty);
         Assert.That(result.Success, Is.True);
 
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "sub.foo")), Is.True);
