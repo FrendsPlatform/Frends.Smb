@@ -50,35 +50,37 @@ public abstract class SmbTestBase
             }
         }
 
-        if (!shouldInitialize) return;
-
-        await PrepareSrcDirectory();
-
-        var container = new ContainerBuilder()
-            .WithImage("dperson/samba:latest")
-            .WithName($"smb-test-server-{Guid.NewGuid()}")
-            .WithBindMount(TestDirPath, "/share")
-            .WithPortBinding(445, 445)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(445))
-            .WithCommand(
-                "-n",
-                "-u",
-                "user;pass",
-                "-s",
-                "test-share;/share;no;no;no;user,root",
-                "-w",
-                "WORKGROUP")
-            .Build();
-
-        await container.StartAsync();
-        await container.ExecAsync(["chmod", "-R", "777", "/share"]);
-
-        lock (Lock)
+        if (shouldInitialize)
         {
-            sambaContainer = container;
-            isInitialized = true;
-            Monitor.PulseAll(Lock);
+            await PrepareSrcDirectory();
+
+            sambaContainer = new ContainerBuilder()
+                .WithImage("dperson/samba:latest")
+                .WithName($"smb-test-server-{Guid.NewGuid()}")
+                .WithBindMount(TestDirPath, "/share")
+                .WithPortBinding(445, 445)
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(445))
+                .WithCommand(
+                    "-n",
+                    "-u",
+                    "user;pass",
+                    "-s",
+                    "test-share;/share;no;no;no;user,root",
+                    "-w",
+                    "WORKGROUP")
+                .Build();
+
+            await sambaContainer.StartAsync();
+
+            lock (Lock)
+            {
+                isInitialized = true;
+                Monitor.PulseAll(Lock);
+            }
         }
+
+        if (sambaContainer is not null)
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
     }
 
     [OneTimeTearDown]
