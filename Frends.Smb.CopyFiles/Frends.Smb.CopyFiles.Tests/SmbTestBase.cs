@@ -114,6 +114,7 @@ public abstract class SmbTestBase
     [SetUp]
     public async Task Setup()
     {
+        await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
         Connection = new Connection { Server = ServerName, Share = ShareName, Username = User, Password = Password };
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
         Input = new Input { SourcePath = string.Empty, TargetPath = "dst" };
