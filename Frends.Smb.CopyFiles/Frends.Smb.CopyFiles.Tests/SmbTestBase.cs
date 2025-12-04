@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
@@ -41,10 +42,11 @@ public abstract class SmbTestBase
         lock (Lock)
         {
             refCount++;
-            if (!isInitialized)
+            if (!isInitialized && refCount == 1) shouldInitialize = true;
+            if (!isInitialized && refCount > 1)
             {
-                isInitialized = true;
-                shouldInitialize = true;
+                while (!isInitialized)
+                    Monitor.Wait(Lock);
             }
         }
 
@@ -74,6 +76,8 @@ public abstract class SmbTestBase
         lock (Lock)
         {
             sambaContainer = container;
+            isInitialized = true;
+            Monitor.PulseAll(Lock);
         }
     }
 
@@ -88,7 +92,6 @@ public abstract class SmbTestBase
             if (refCount <= 0)
             {
                 shouldCleanup = true;
-                isInitialized = false;
             }
         }
 
@@ -97,7 +100,11 @@ public abstract class SmbTestBase
         if (sambaContainer != null)
         {
             await sambaContainer.DisposeAsync();
-            sambaContainer = null;
+            lock (Lock)
+            {
+                isInitialized = false;
+                sambaContainer = null;
+            }
         }
     }
 
