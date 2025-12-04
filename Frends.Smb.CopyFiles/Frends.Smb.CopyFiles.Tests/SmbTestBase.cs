@@ -67,7 +67,8 @@ public abstract class SmbTestBase
                     "-s",
                     "test-share;/share;yes;no;yes;all;root",
                     "-w",
-                    "WORKGROUP")
+                    "WORKGROUP",
+                    "-p")
                 .Build();
 
             await sambaContainer.StartAsync();
