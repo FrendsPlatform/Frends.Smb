@@ -123,7 +123,9 @@ public abstract class SmbTestBase
     private static async Task PrepareDstDirectory()
     {
         var dstPath = Path.Join(TestDirPath, "dst");
-        await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+        if (sambaContainer is not null)
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+
         if (Directory.Exists(dstPath)) Directory.Delete(Path.Join(TestDirPath, "dst"), true);
 
         Directory.CreateDirectory(Path.Combine(dstPath, "oldSub"));
