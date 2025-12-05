@@ -7,6 +7,8 @@ using DotNet.Testcontainers.Containers;
 using Frends.Smb.CopyFiles.Definitions;
 using NUnit.Framework;
 
+[assembly: Parallelizable(ParallelScope.None)]
+
 namespace Frends.Smb.CopyFiles.Tests;
 
 // These SMB integration tests require Docker and a Linux-compatible environment (e.g., WSL2).
