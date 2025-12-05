@@ -27,17 +27,11 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.That(result.Success, Is.True, result.Error.Message);
         Assert.That(result.Files.Count, Is.EqualTo(expectedCopiesCount));
-        var srcPat = Path.Combine(TestDirPath, sourcePath);
-        if (File.Exists(srcPat))
-        {
-            var filesCount = Directory.GetFiles(Path.Combine(TestDirPath, "dst", "src")).Length;
-            Assert.That(filesCount, Is.EqualTo(expectedCopiesCount));
-        }
-        else
-        {
-            var filesCount = Directory.GetFiles(Path.Combine(TestDirPath, "dst", "src", "src")).Length;
-            Assert.That(filesCount, Is.EqualTo(expectedCopiesCount));
-        }
+        var resultDir = File.Exists(Path.Combine(TestDirPath, sourcePath))
+            ? Path.Combine(TestDirPath, "dst", "src")
+            : Path.Combine(TestDirPath, "dst", "src", "src");
+        var filesCount = Directory.GetFiles(resultDir).Length;
+        Assert.That(filesCount, Is.EqualTo(expectedCopiesCount));
     }
 
     [Test]
@@ -97,7 +91,6 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
         Assert.That(
             File.ReadAllText(Path.Combine(TestDirPath, "dst", "error", "old.foo")),
@@ -115,7 +108,6 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True, result.Error.Message);
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
         Assert.That(Directory.GetFiles(Path.Combine(TestDirPath, "dst", "error")).Length, Is.EqualTo(1));
     }
@@ -131,7 +123,6 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old(1).foo")), Is.False);
     }
@@ -158,10 +149,8 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True, result.Error.Message);
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "old.foo")), Is.True);
         Assert.That(File.ReadAllText(Path.Combine(TestDirPath, "dst", "old.foo")), Is.EqualTo("old test content"));
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "old(1).foo")), Is.True);
         Assert.That(File.ReadAllText(Path.Combine(TestDirPath, "dst", "old(1).foo")), Is.EqualTo("new test content"));
     }
@@ -177,7 +166,6 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True, result.Error.Message);
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "sub.foo")), Is.True);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "subSubDir", "sub.foo")), Is.True);
     }
@@ -194,8 +182,6 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error.Message, Contains.Substring(@"File dst\old.foo already exists."));
-
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "sub.foo")), Is.False);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "subSubDir", "sub.foo")), Is.False);
     }
@@ -209,7 +195,6 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True, result.Error.Message);
-
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "sub.foo")), Is.True);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "subSubDir", "sub.foo")), Is.True);
     }
@@ -221,8 +206,8 @@ public class CopyFilesTests : SmbTestBase
         Input.SourcePath = "src/subDir";
 
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
-        Assert.That(result.Success, Is.True, result.Error.Message);
 
+        Assert.That(result.Success, Is.True, result.Error.Message);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "sub.foo")), Is.True);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "subSubDir", "sub.foo")), Is.False);
     }
