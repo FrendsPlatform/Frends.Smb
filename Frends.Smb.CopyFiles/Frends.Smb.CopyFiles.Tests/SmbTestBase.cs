@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
@@ -41,40 +42,45 @@ public abstract class SmbTestBase
         lock (Lock)
         {
             refCount++;
-            if (!isInitialized)
+            if (!isInitialized && refCount == 1) shouldInitialize = true;
+            if (!isInitialized && refCount > 1)
             {
-                isInitialized = true;
-                shouldInitialize = true;
+                while (!isInitialized)
+                    Monitor.Wait(Lock);
             }
         }
 
-        if (!shouldInitialize) return;
-
-        await PrepareSrcDirectory();
-
-        var container = new ContainerBuilder()
-            .WithImage("dperson/samba:latest")
-            .WithName($"smb-test-server-{Guid.NewGuid()}")
-            .WithBindMount(TestDirPath, "/share")
-            .WithPortBinding(445, 445)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(445))
-            .WithCommand(
-                "-n",
-                "-u",
-                "user;pass",
-                "-s",
-                "test-share;/share;no;no;no;user,root",
-                "-w",
-                "WORKGROUP")
-            .Build();
-
-        await container.StartAsync();
-        await container.ExecAsync(["chmod", "-R", "777", "/share"]);
-
-        lock (Lock)
+        if (shouldInitialize)
         {
-            sambaContainer = container;
+            await PrepareSrcDirectory();
+
+            sambaContainer = new ContainerBuilder()
+                .WithImage("dperson/samba:latest")
+                .WithName($"smb-test-server-{Guid.NewGuid()}")
+                .WithBindMount(TestDirPath, "/share")
+                .WithPortBinding(445, 445)
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(445))
+                .WithCommand(
+                    "-n",
+                    "-u",
+                    "user;pass",
+                    "-s",
+                    "test-share;/share;yes;no;yes;all;root",
+                    "-w",
+                    "WORKGROUP",
+                    "-p")
+                .Build();
+
+            await sambaContainer.StartAsync();
+
+            lock (Lock)
+            {
+                isInitialized = true;
+                Monitor.PulseAll(Lock);
+            }
         }
+
+        if (sambaContainer is not null) await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
     }
 
     [OneTimeTearDown]
@@ -88,7 +94,6 @@ public abstract class SmbTestBase
             if (refCount <= 0)
             {
                 shouldCleanup = true;
-                isInitialized = false;
             }
         }
 
@@ -97,33 +102,30 @@ public abstract class SmbTestBase
         if (sambaContainer != null)
         {
             await sambaContainer.DisposeAsync();
-            sambaContainer = null;
-        }
-
-        if (Directory.Exists(TestDirPath))
-        {
-            Directory.Delete(TestDirPath, true);
+            lock (Lock)
+            {
+                isInitialized = false;
+                sambaContainer = null;
+            }
         }
     }
 
     [SetUp]
     public async Task Setup()
     {
+        await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
         Connection = new Connection { Server = ServerName, Share = ShareName, Username = User, Password = Password };
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
         Input = new Input { SourcePath = string.Empty, TargetPath = "dst" };
         await PrepareDstDirectory();
     }
 
-    [TearDown]
-    public void TearDown()
-    {
-    }
-
     private static async Task PrepareDstDirectory()
     {
         var dstPath = Path.Join(TestDirPath, "dst");
-        await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+        if (sambaContainer is not null)
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+
         if (Directory.Exists(dstPath)) Directory.Delete(Path.Join(TestDirPath, "dst"), true);
 
         Directory.CreateDirectory(Path.Combine(dstPath, "oldSub"));
