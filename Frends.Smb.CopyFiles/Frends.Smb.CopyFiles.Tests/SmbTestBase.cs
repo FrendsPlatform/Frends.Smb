@@ -69,6 +69,7 @@ public abstract class SmbTestBase
                     "-w",
                     "WORKGROUP",
                     "-p")
+                .WithPrivileged(true)
                 .Build();
 
             await sambaContainer.StartAsync();
