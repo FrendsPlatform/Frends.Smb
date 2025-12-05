@@ -65,7 +65,7 @@ public abstract class SmbTestBase
                     "-u",
                     "user;pass",
                     "-s",
-                    "test-share;/share;yes;no;yes;all;root",
+                    "test-share;/share;yes;no;yes;user;root",
                     "-w",
                     "WORKGROUP",
                     "-p")
