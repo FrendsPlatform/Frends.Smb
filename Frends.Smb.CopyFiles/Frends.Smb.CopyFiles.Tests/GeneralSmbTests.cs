@@ -35,7 +35,7 @@ public class GeneralSmbTests : SmbTestBase
     {
         Connection.Server = "localhost";
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
-        Assert.That(result.Success, Is.True);
+        Assert.That(result.Success, Is.True, result.Error?.Message);
     }
 
     [Test]
