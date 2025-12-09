@@ -140,8 +140,7 @@ public abstract class SmbTestBase
 
         if (sambaContainer is not null)
         {
-            await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 777 /share/dst"]);
-            await sambaContainer.ExecAsync(["sh", "-c", "chown -R root:root /share/dst"]);
+            await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 777 /share"]);
         }
     }
 
