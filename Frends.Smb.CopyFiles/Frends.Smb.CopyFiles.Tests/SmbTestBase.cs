@@ -82,8 +82,6 @@ public abstract class SmbTestBase
                 Monitor.PulseAll(Lock);
             }
         }
-
-        if (sambaContainer is not null) await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
     }
 
     [OneTimeTearDown]
@@ -116,7 +114,6 @@ public abstract class SmbTestBase
     [SetUp]
     public async Task Setup()
     {
-        await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
         Connection = new Connection { Server = ServerName, Share = ShareName, Username = User, Password = Password };
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
         Input = new Input { SourcePath = string.Empty, TargetPath = "dst" };
@@ -125,23 +122,15 @@ public abstract class SmbTestBase
 
     private static async Task PrepareDstDirectory()
     {
+        if (sambaContainer is not null) await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
         var dstPath = Path.Join(TestDirPath, "dst");
-
-        if (sambaContainer is not null)
-            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
-
         if (Directory.Exists(dstPath))
             Directory.Delete(dstPath, true);
-
         Directory.CreateDirectory(Path.Combine(dstPath, "oldSub"));
         await File.WriteAllTextAsync(Path.Join(dstPath, "old.foo"), "old test content");
         Directory.CreateDirectory(Path.Combine(dstPath, "error"));
         await File.WriteAllTextAsync(Path.Join(dstPath, "error", "old.foo"), "old test content");
-
-        if (sambaContainer is not null)
-        {
-            await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 777 /share"]);
-        }
+        if (sambaContainer is not null) await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
     }
 
     private static async Task PrepareSrcDirectory()
