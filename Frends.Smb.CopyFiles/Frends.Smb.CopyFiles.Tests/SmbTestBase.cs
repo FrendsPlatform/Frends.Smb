@@ -67,10 +67,9 @@ public abstract class SmbTestBase
                     "-u",
                     "user;pass",
                     "-s",
-                    "test-share;/share;yes;no;yes;user;root",
+                    "test-share;/share;no;no;no;user,root",
                     "-w",
-                    "WORKGROUP",
-                    "-p")
+                    "WORKGROUP")
                 .WithPrivileged(true)
                 .Build();
 
