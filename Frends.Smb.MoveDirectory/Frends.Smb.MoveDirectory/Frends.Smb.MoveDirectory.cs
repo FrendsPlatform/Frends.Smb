@@ -18,15 +18,14 @@ namespace Frends.Smb.MoveDirectory;
 public static class Smb
 {
     /// <summary>
-    /// Smbes the input string the specified number of times.
+    /// Task to move a directory inside the SMB share.
     /// [Documentation](https://tasks.frends.com/tasks/frends-tasks/Frends-Smb-MoveDirectory)
     /// </summary>
     /// <param name="input">Essential parameters.</param>
     /// <param name="connection">Connection parameters.</param>
     /// <param name="options">Additional parameters.</param>
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
-    /// <returns>object { bool Success, string Output, object Error { string Message, Exception AdditionalInfo } }</returns>
-    // TODO: Remove Connection parameter if the task does not make connections
+    /// <returns>object { bool Success, string SourcePath, string TargetPath, object Error { string Message, Exception AdditionalInfo } }</returns>
     public static Result MoveDirectory(
      [PropertyTab] Input input,
      [PropertyTab] Connection connection,

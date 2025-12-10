@@ -9,12 +9,10 @@ internal static class ErrorHandler
     {
         if (throwOnFailure)
         {
-            if (!string.IsNullOrEmpty(errorMessageOnFailure))
-            {
-                throw new Exception(errorMessageOnFailure, exception);
-            }
+            if (string.IsNullOrEmpty(errorMessageOnFailure))
+                throw new Exception(exception.Message, exception);
 
-            throw exception;
+            throw new Exception(errorMessageOnFailure, exception);
         }
 
         var errorMessage = string.IsNullOrEmpty(errorMessageOnFailure)
