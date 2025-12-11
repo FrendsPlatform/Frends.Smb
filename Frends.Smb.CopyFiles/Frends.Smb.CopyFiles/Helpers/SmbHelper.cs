@@ -17,7 +17,7 @@ internal static class SmbHandler
     internal static void ValidateParameters(Input input, Connection connection)
     {
         if (input.SourcePath == input.TargetPath)
-            throw new ArgumentException("Destination and source cannot be the same", nameof(connection));
+            throw new ArgumentException("Destination and source cannot be the same", nameof(input));
         if (string.IsNullOrWhiteSpace(connection.Server))
             throw new ArgumentException("Server cannot be empty.", nameof(connection));
         if (string.IsNullOrWhiteSpace(connection.Share))
@@ -46,10 +46,13 @@ internal static class SmbHandler
         }
 
         var isConnected = client.Connect(serverAddress, SMBTransportType.DirectTCPTransport);
+
         if (!isConnected) throw new Exception("Failed to connect to SMB server");
         var status = client.Login(domain, username, connection.Password);
+
         if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"SMB login failed: {status}");
         fileStore = client.TreeConnect(connection.Share, out status);
+
         if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
     }
 
@@ -71,6 +74,7 @@ internal static class SmbHandler
             cancellationToken);
         var newlyCreatedFiles = new List<string>();
         var tempFiles = new List<Tuple<string, string>>();
+
         try
         {
             foreach (var source in sources)
@@ -180,24 +184,34 @@ internal static class SmbHandler
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
+
         if (srcStatus != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to open source file: {srcPath}");
         if (dstStatus != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to open destination file: {dstPath}");
 
-        long bytesRead = 0;
-        while (true)
+        try
         {
-            srcStatus = srcFileStore.ReadFile(out var data, srcHandle, bytesRead, maxChunkSize);
-            if (srcStatus != NTStatus.STATUS_SUCCESS && srcStatus != NTStatus.STATUS_END_OF_FILE)
-                throw new Exception("Failed to read from source file");
-            if (srcStatus == NTStatus.STATUS_END_OF_FILE || data.Length == 0) break;
-            dstStatus = dstFileStore.WriteFile(out _, dstHandle, bytesRead, data);
-            bytesRead += data.Length;
-            if (dstStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception("Failed to write to file");
-        }
+            long bytesRead = 0;
 
-        srcFileStore.CloseFile(srcHandle);
-        dstFileStore.CloseFile(dstHandle);
+            while (true)
+            {
+                srcStatus = srcFileStore.ReadFile(out var data, srcHandle, bytesRead, maxChunkSize);
+
+                if (srcStatus != NTStatus.STATUS_SUCCESS && srcStatus != NTStatus.STATUS_END_OF_FILE)
+                    throw new Exception("Failed to read from source file");
+
+                if (srcStatus == NTStatus.STATUS_END_OF_FILE || data.Length == 0) break;
+                dstStatus = dstFileStore.WriteFile(out _, dstHandle, bytesRead, data);
+                bytesRead += data.Length;
+
+                if (dstStatus != NTStatus.STATUS_SUCCESS)
+                    throw new Exception("Failed to write to file");
+            }
+        }
+        finally
+        {
+            srcFileStore.CloseFile(srcHandle);
+            dstFileStore.CloseFile(dstHandle);
+        }
     }
 
     private static string PrepareForCopy(
@@ -231,6 +245,7 @@ internal static class SmbHandler
                         $"temp-{Guid.NewGuid().ToString()}-{dstFileName}").ToSmbPath();
                     var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = tempName };
                     status = dstStore.SetFileInformation(dstHandle, rename);
+
                     if (status != NTStatus.STATUS_SUCCESS)
                     {
                         throw new Exception(
@@ -239,17 +254,21 @@ internal static class SmbHandler
 
                     dstStore.CloseFile(dstHandle);
                     tempFiles.Add(new Tuple<string, string>(tempName, dstPath));
+
                     break;
                 case FileExistsAction.Rename:
                     dstStore.CloseFile(dstHandle);
                     finalDstPath = GenerateUniqueFilePath(dstStore, dstPath);
                     newlyCreatedFiles.Add(finalDstPath);
+
                     break;
                 case FileExistsAction.Throw:
                     dstStore.CloseFile(dstHandle);
+
                     throw new Exception($"File {dstPath} already exists.");
                 default:
                     dstStore.CloseFile(dstHandle);
+
                     throw new ArgumentOutOfRangeException(
                         nameof(fileExistsAction),
                         "Unknown IfTargetFileExists value.");
@@ -273,6 +292,7 @@ internal static class SmbHandler
             CreateDisposition.FILE_OPEN_IF,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
+
         return status != NTStatus.STATUS_SUCCESS
             ? throw new Exception("Failed to prepare target file to write into")
             : finalDstPath;
@@ -320,9 +340,11 @@ internal static class SmbHandler
     private static void EnsureDirectoriesExist(ISMBFileStore fileStore, string smbFullPath)
     {
         ArgumentNullException.ThrowIfNull(fileStore);
+
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
         var directory = Path.GetDirectoryName(smbFullPath.ToOsPath())?.ToSmbPath();
+
         if (string.IsNullOrEmpty(directory)) return;
 
         var parts = directory.Split(["\\"], StringSplitOptions.RemoveEmptyEntries);
@@ -343,6 +365,7 @@ internal static class SmbHandler
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
+
             if (status != NTStatus.STATUS_SUCCESS &&
                 status != NTStatus.STATUS_OBJECT_NAME_COLLISION &&
                 status != NTStatus.STATUS_OBJECT_NAME_EXISTS)
@@ -360,6 +383,7 @@ internal static class SmbHandler
         var pathSuffix = preserveStructure
             ? sourceFile.RelativeFilePath
             : Path.GetFileName(sourceFile.FilePath.ToOsPath());
+
         return Path.Combine(destinationRoot.ToOsPath(), pathSuffix.ToOsPath()).ToSmbPath();
     }
 
@@ -379,6 +403,7 @@ internal static class SmbHandler
             fileStore.CloseFile(fileHandle);
             if (MatchesPattern(Path.GetFileName(sourcePath), pattern, patternMatchingMode))
                 result.Add(new SourceFileInfo(sourcePath, sourcePath));
+
             return result;
         }
 
@@ -392,6 +417,7 @@ internal static class SmbHandler
             result,
             sourcePath,
             cancellationToken);
+
         return result;
     }
 
@@ -426,6 +452,7 @@ internal static class SmbHandler
                 token.ThrowIfCancellationRequested();
 
                 var name = e.FileName;
+
                 if (name is "." or "..")
                     continue;
 
@@ -463,6 +490,7 @@ internal static class SmbHandler
         if (status == NTStatus.STATUS_SUCCESS) return true;
 
         handle = null;
+
         return false;
     }
 
@@ -474,6 +502,7 @@ internal static class SmbHandler
             PatternMatchingMode.Regex => pattern,
             _ => string.Empty
         };
+
         return string.IsNullOrWhiteSpace(regexPattern) || Regex.IsMatch(
             fileName,
             regexPattern,
@@ -489,6 +518,7 @@ internal static class SmbHandler
     private static Tuple<string, string> GetDomainAndUsername(string username)
     {
         var domainAndUserName = username.Split('\\');
+
         return domainAndUserName.Length != 2
             ? throw new ArgumentException($@"Username field must be of format domain\username was: {username}")
             : new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);

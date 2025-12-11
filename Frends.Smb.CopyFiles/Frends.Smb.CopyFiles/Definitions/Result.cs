@@ -14,7 +14,7 @@ public class Result
     public bool Success { get; set; }
 
     /// <summary>
-    /// List of files that were successfully moved, including their source and target paths.
+    /// List of files that were successfully copied, including their source and target paths.
     /// </summary>
     /// <example>[{SourcePath: "documents\report.txt", TargetPath: "archive\report.txt"}]</example>
     public List<FileItem> Files { get; set; }

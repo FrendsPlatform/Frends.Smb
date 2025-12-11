@@ -1,7 +1,7 @@
 ﻿namespace Frends.Smb.CopyFiles.Definitions;
 
 /// <summary>
-/// Defines the action to take when a target file already exists during a move operation.
+/// Defines the action to take when a target file already exists during a copy operation.
 /// </summary>
 public enum FileExistsAction
 {

@@ -9,7 +9,7 @@ namespace Frends.Smb.CopyFiles.Definitions;
 public class Input
 {
     /// <summary>
-    /// Source path relative to the share where files will be moved from.
+    /// Source path relative to the share where files will be copied from.
     /// Can be a directory path or a specific file path.
     /// Empty means root directory.
     /// </summary>
@@ -19,7 +19,7 @@ public class Input
     public string SourcePath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Target path relative to the share where files will be moved to.
+    /// Target path relative to the share where files will be copied to.
     /// Must be a directory path.
     /// Empty means root directory.
     /// </summary>

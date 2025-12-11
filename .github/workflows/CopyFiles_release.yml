@@ -1,4 +1,6 @@
 name: CopyFiles_release
+permissions:
+  contents: write
 
 on:
   workflow_dispatch:

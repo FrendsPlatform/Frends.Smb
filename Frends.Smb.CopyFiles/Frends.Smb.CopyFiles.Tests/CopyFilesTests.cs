@@ -81,7 +81,7 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public void RollbackTmpFilesWhenErrorOccured()
+    public void RollbackTmpFilesWhenErrorOccurred()
     {
         Options.IfTargetFileExists = FileExistsAction.Overwrite;
         Input.SourcePath = "src/error";

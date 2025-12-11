@@ -49,7 +49,7 @@ public static class Smb
             }
             catch
             {
-                maxChunkSize = int.MaxValue;
+                maxChunkSize = 64 * 1024; // 64KB
             }
 
             var copiedFiles = SmbHandler.CopyFiles(

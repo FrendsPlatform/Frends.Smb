@@ -1,4 +1,6 @@
 name: CopyFiles_build_test
+permissions:
+  contents: read
 
 on:
   push:
