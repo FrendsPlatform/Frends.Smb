@@ -28,7 +28,7 @@ public class Options
     /// </summary>
     /// <example>true</example>
     [DefaultValue(true)]
-    public bool PreserveDirectoryStructure { get; set; } = false;
+    public bool PreserveDirectoryStructure { get; set; } = true;
 
     /// <summary>
     /// Search for files recursively in subdirectories. Default is true.

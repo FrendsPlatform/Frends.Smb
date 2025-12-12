@@ -532,6 +532,122 @@ public class MoveFilesTests
         Assert.That(File.Exists(Path.Combine(testFilesPath, "another", "file3.txt")), Is.False);
     }
 
+    [Test]
+    public async Task MoveFiles_LargeFile_CopiesCompletelyOrFails()
+    {
+        var largeContent = new string('X', 200_000);
+        await CreateTestFileAsync("source/large.txt", largeContent);
+
+        input = new Input
+        {
+            SourcePath = "source/large.txt",
+            TargetPath = "target",
+        };
+
+        options.CreateTargetDirectories = true;
+
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Files.Count, Is.EqualTo(1));
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "large.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "large.txt")), Is.True);
+
+        var targetContent = await File.ReadAllTextAsync(Path.Combine(testFilesPath, "target", "large.txt"));
+        Assert.That(targetContent.Length, Is.EqualTo(largeContent.Length));
+        Assert.That(targetContent, Is.EqualTo(largeContent));
+    }
+
+    [Test]
+    public async Task MoveFiles_MultipleBufferSizedFile_MaintainsDataIntegrity()
+    {
+        var expectedSize = (65536 * 3) + 12345;
+        var content = new string('A', expectedSize);
+        await CreateTestFileAsync("source/multi-buffer.txt", content);
+
+        input = new Input
+        {
+            SourcePath = "source/multi-buffer.txt",
+            TargetPath = "target",
+        };
+
+        options.CreateTargetDirectories = true;
+
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+
+        var targetPath = Path.Combine(testFilesPath, "target", "multi-buffer.txt");
+        Assert.That(File.Exists(targetPath), Is.True);
+
+        var fileInfo = new FileInfo(targetPath);
+        Assert.That(fileInfo.Length, Is.EqualTo(expectedSize));
+
+        var targetContent = await File.ReadAllTextAsync(targetPath);
+        Assert.That(targetContent, Is.EqualTo(content));
+    }
+
+    [Test]
+    public async Task MoveFiles_FileWithBinaryData_PreservesExactBytes()
+    {
+        var binaryData = new byte[150_000];
+        new Random(42).NextBytes(binaryData);
+
+        var sourcePath = Path.Combine(testFilesPath, "source", "binary.dat");
+        Directory.CreateDirectory(Path.GetDirectoryName(sourcePath));
+        await File.WriteAllBytesAsync(sourcePath, binaryData);
+        await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
+
+        input = new Input
+        {
+            SourcePath = "source/binary.dat",
+            TargetPath = "target",
+        };
+
+        options.CreateTargetDirectories = true;
+
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+
+        var targetPath = Path.Combine(testFilesPath, "target", "binary.dat");
+        var targetData = await File.ReadAllBytesAsync(targetPath);
+
+        Assert.That(targetData.Length, Is.EqualTo(binaryData.Length));
+        Assert.That(targetData, Is.EqualTo(binaryData));
+    }
+
+    [Test]
+    public async Task MoveFiles_OverwriteThenFailure_RestoresOriginalTargetFiles()
+    {
+        await CreateTestFileAsync("source/file1.txt", "new content 1");
+        await CreateTestFileAsync("source/subdir/file2.txt", "new content 2");
+        await CreateTestFileAsync("target/file1.txt", "ORIGINAL CONTENT - DO NOT LOSE");
+
+        input = new Input
+        {
+            SourcePath = "source",
+            TargetPath = "target",
+        };
+
+        options.IfTargetFileExists = FileExistsAction.Overwrite;
+        options.CreateTargetDirectories = false;
+        options.PreserveDirectoryStructure = true;
+        options.Recursive = true;
+        options.ThrowErrorOnFailure = false;
+
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False, "Operation should fail due to missing subdir");
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "file1.txt")), Is.True);
+
+        var restoredContent = await File.ReadAllTextAsync(Path.Combine(testFilesPath, "target", "file1.txt"));
+        Assert.That(restoredContent, Is.EqualTo("ORIGINAL CONTENT - DO NOT LOSE"));
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "file1.txt")), Is.True);
+    }
+
     private async Task CreateTestFileAsync(string relativePath, string content)
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);

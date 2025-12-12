@@ -110,6 +110,7 @@ public static class Smb
                 }
 
                 var movedFiles = new List<FileItem>();
+                var backups = new List<FileBackup>();
 
                 try
                 {
@@ -131,6 +132,17 @@ public static class Smb
 
                         string finalTargetPath = HandleExistingFile(fileStore, targetFilePath, options.IfTargetFileExists);
 
+                        if (finalTargetPath == targetFilePath && FileExists(fileStore, finalTargetPath))
+                        {
+                            string backupPath = finalTargetPath + ".backup_" + Guid.NewGuid().ToString("N");
+                            RenameFile(fileStore, finalTargetPath, backupPath);
+                            backups.Add(new FileBackup
+                            {
+                                OriginalPath = finalTargetPath,
+                                BackupPath = backupPath,
+                            });
+                        }
+
                         CopyFile(fileStore, sourceFilePath, finalTargetPath, cancellationToken);
 
                         movedFiles.Add(new FileItem
@@ -139,10 +151,21 @@ public static class Smb
                             TargetPath = finalTargetPath.Replace('/', '\\'),
                         });
                     }
+
+                    foreach (var backup in backups)
+                    {
+                        try
+                        {
+                            DeleteFile(fileStore, backup.BackupPath);
+                        }
+                        catch
+                        {
+                        }
+                    }
                 }
                 catch (Exception)
                 {
-                    DeleteExistingFiles(fileStore, movedFiles.Select(x => x.TargetPath).ToList());
+                    RollbackWithBackups(fileStore, movedFiles, backups);
                     throw;
                 }
 
@@ -449,7 +472,7 @@ public static class Smb
                 targetFilePath,
                 AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.None,
+                ShareAccess.Delete,
                 CreateDisposition.FILE_OVERWRITE_IF,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
@@ -488,7 +511,10 @@ public static class Smb
                     if (writeStatus != NTStatus.STATUS_SUCCESS)
                         throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
 
-                    bytesRead += bytesWritten;
+                    if (bytesWritten != data.Length)
+                       throw new Exception($"Partial write detected for '{targetFilePath}': wrote {bytesWritten} of {data.Length} bytes.");
+
+                    bytesRead += data.Length;
                 }
             }
             catch
@@ -644,6 +670,28 @@ public static class Smb
         return files;
     }
 
+    private static bool FileExists(ISMBFileStore fileStore, string filePath)
+    {
+        NTStatus checkStatus = fileStore.CreateFile(
+            out object checkHandle,
+            out FileStatus fileStatus,
+            filePath,
+            AccessMask.GENERIC_READ,
+            SMBLibrary.FileAttributes.Normal,
+            ShareAccess.Read | ShareAccess.Write,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (checkStatus == NTStatus.STATUS_SUCCESS)
+        {
+            fileStore.CloseFile(checkHandle);
+            return true;
+        }
+
+        return false;
+    }
+
     private static Regex PrepareRegex(Options options)
     {
         if (string.IsNullOrWhiteSpace(options.Pattern)) return null;
@@ -651,6 +699,80 @@ public static class Smb
         if (options.PatternMatchingMode == PatternMatchingMode.Wildcards)
             pattern = "^" + Regex.Escape(options.Pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
         return new Regex(pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    }
+
+    private static void RenameFile(ISMBFileStore fileStore, string oldPath, string newPath)
+    {
+        NTStatus openStatus = fileStore.CreateFile(
+            out object fileHandle,
+            out FileStatus fileStatus,
+            oldPath,
+            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            SMBLibrary.FileAttributes.Normal,
+            ShareAccess.Delete,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (openStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open file for rename '{oldPath}': {openStatus}");
+
+        try
+        {
+            var renameInfo = new FileRenameInformationType2
+            {
+                ReplaceIfExists = false,
+                FileName = newPath,
+            };
+
+            NTStatus renameStatus = fileStore.SetFileInformation(fileHandle, renameInfo);
+
+            if (renameStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to rename '{oldPath}' to '{newPath}': {renameStatus}");
+        }
+        finally
+        {
+            fileStore.CloseFile(fileHandle);
+        }
+    }
+
+    private static void RollbackWithBackups(ISMBFileStore fileStore, List<FileItem> movedFiles, List<FileBackup> backups)
+    {
+        foreach (var backup in backups)
+        {
+            try
+            {
+                if (FileExists(fileStore, backup.OriginalPath))
+                {
+                    DeleteFile(fileStore, backup.OriginalPath);
+                }
+
+                RenameFile(fileStore, backup.BackupPath, backup.OriginalPath);
+            }
+            catch
+            {
+            }
+        }
+
+        var backedUpPaths = new HashSet<string>(
+            backups.Select(b => b.OriginalPath.Replace('/', '\\')),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in movedFiles)
+        {
+            string normalizedPath = file.TargetPath.Replace('/', '\\');
+
+            if (!backedUpPaths.Contains(normalizedPath))
+            {
+                try
+                {
+                    DeleteFile(fileStore, file.TargetPath);
+                }
+                catch
+                {
+                }
+            }
+        }
     }
 
     private static (string domain, string user) GetDomainAndUsername(string username)
