@@ -71,23 +71,20 @@ public static class Smb
             dstFileStore?.Disconnect();
             srcFileStore?.Disconnect();
 
-            NTStatus status = NTStatus.STATUS_NOT_IMPLEMENTED;
+            var srcStatus = NTStatus.STATUS_NOT_IMPLEMENTED;
+            var dstStatus = NTStatus.STATUS_NOT_IMPLEMENTED;
             try
             {
-                srcClient?.ListShares(out status);
-                dstClient?.ListShares(out status);
+                srcClient?.ListShares(out srcStatus);
+                dstClient?.ListShares(out dstStatus);
             }
             catch
             {
                 // ignored
             }
 
-            if (status == NTStatus.STATUS_SUCCESS)
-            {
-                srcClient?.Logoff();
-                dstClient?.Logoff();
-            }
-
+            if (srcStatus == NTStatus.STATUS_SUCCESS) srcClient?.Logoff();
+            if (dstStatus == NTStatus.STATUS_SUCCESS) dstClient?.Logoff();
             srcClient?.Disconnect();
             dstClient?.Disconnect();
         }

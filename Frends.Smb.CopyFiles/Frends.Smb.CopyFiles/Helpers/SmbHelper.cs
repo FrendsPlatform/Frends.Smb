@@ -283,7 +283,7 @@ internal static class SmbHandler
         }
 
         status = dstStore.CreateFile(
-            out dstHandle,
+            out _,
             out _,
             finalDstPath,
             AccessMask.GENERIC_WRITE,
