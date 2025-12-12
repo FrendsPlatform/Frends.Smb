@@ -512,7 +512,7 @@ public static class Smb
                         throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
 
                     if (bytesWritten != data.Length)
-                       throw new Exception($"Partial write detected for '{targetFilePath}': wrote {bytesWritten} of {data.Length} bytes.");
+                        throw new Exception($"Partial write detected for '{targetFilePath}': wrote {bytesWritten} of {data.Length} bytes.");
 
                     bytesRead += data.Length;
                 }
