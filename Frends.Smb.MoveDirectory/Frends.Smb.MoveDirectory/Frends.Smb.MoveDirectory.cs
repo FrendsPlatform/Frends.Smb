@@ -364,7 +364,7 @@ public static class Smb
         if (parts.Length == 2)
             return (parts[0], parts[1]);
 
-        return (string.Empty, username);
+        throw new ArgumentException($@"Username field must be of format domain\username was: {username}");
     }
 
     private static void EnsureDirectoryExists(ISMBFileStore fileStore, string directoryPath)
