@@ -104,11 +104,6 @@ public static class Smb
                     input.TargetPath,
                     options.PreserveDirectoryStructure);
 
-                if (options.CreateTargetDirectories && !string.IsNullOrEmpty(input.TargetPath))
-                {
-                    EnsureDirectoryExists(fileStore, input.TargetPath.Trim('\\', '/'));
-                }
-
                 var movedFiles = new List<FileItem>();
                 var backups = new List<FileBackup>();
 
@@ -135,7 +130,7 @@ public static class Smb
                         if (finalTargetPath == targetFilePath && FileExists(fileStore, finalTargetPath))
                         {
                             string backupPath = finalTargetPath + ".backup_" + Guid.NewGuid().ToString("N");
-                            RenameFile(fileStore, finalTargetPath, backupPath);
+                            CopyFile(fileStore, finalTargetPath, backupPath, cancellationToken);
                             backups.Add(new FileBackup
                             {
                                 OriginalPath = finalTargetPath,
@@ -152,20 +147,11 @@ public static class Smb
                         });
                     }
 
-                    foreach (var backup in backups)
-                    {
-                        try
-                        {
-                            DeleteFile(fileStore, backup.BackupPath);
-                        }
-                        catch
-                        {
-                        }
-                    }
+                    DeleteExistingFiles(fileStore, backups.Select(b => b.BackupPath).ToList());
                 }
                 catch (Exception)
                 {
-                    RollbackWithBackups(fileStore, movedFiles, backups);
+                    RollbackWithBackups(fileStore, movedFiles, backups, cancellationToken);
                     throw;
                 }
 
@@ -424,7 +410,7 @@ public static class Smb
             out object fileHandle,
             out FileStatus fileStatus,
             filePath,
-            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Normal,
             ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
@@ -519,14 +505,7 @@ public static class Smb
             }
             catch
             {
-                try
-                {
-                    DeleteFile(fileStore, targetFilePath);
-                }
-                catch
-                {
-                }
-
+                DeleteFile(fileStore, targetFilePath);
                 throw;
             }
             finally
@@ -701,42 +680,11 @@ public static class Smb
         return new Regex(pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
     }
 
-    private static void RenameFile(ISMBFileStore fileStore, string oldPath, string newPath)
-    {
-        NTStatus openStatus = fileStore.CreateFile(
-            out object fileHandle,
-            out FileStatus fileStatus,
-            oldPath,
-            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
-            SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Delete,
-            CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-            null);
-
-        if (openStatus != NTStatus.STATUS_SUCCESS)
-            throw new Exception($"Failed to open file for rename '{oldPath}': {openStatus}");
-
-        try
-        {
-            var renameInfo = new FileRenameInformationType2
-            {
-                ReplaceIfExists = false,
-                FileName = newPath,
-            };
-
-            NTStatus renameStatus = fileStore.SetFileInformation(fileHandle, renameInfo);
-
-            if (renameStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to rename '{oldPath}' to '{newPath}': {renameStatus}");
-        }
-        finally
-        {
-            fileStore.CloseFile(fileHandle);
-        }
-    }
-
-    private static void RollbackWithBackups(ISMBFileStore fileStore, List<FileItem> movedFiles, List<FileBackup> backups)
+    private static void RollbackWithBackups(
+    ISMBFileStore fileStore,
+    List<FileItem> movedFiles,
+    List<FileBackup> backups,
+    CancellationToken cancellationToken)
     {
         foreach (var backup in backups)
         {
@@ -747,10 +695,15 @@ public static class Smb
                     DeleteFile(fileStore, backup.OriginalPath);
                 }
 
-                RenameFile(fileStore, backup.BackupPath, backup.OriginalPath);
+                CopyFile(fileStore, backup.BackupPath, backup.OriginalPath, cancellationToken);
+
+                DeleteFile(fileStore, backup.BackupPath);
             }
             catch
             {
+                // Swallow exceptions to continue cleanup. The main operation exception
+                // will be thrown anyway, so partial rollback failures
+                // won't mask the original error.
             }
         }
 
@@ -770,6 +723,9 @@ public static class Smb
                 }
                 catch
                 {
+                    // Swallow exceptions to continue cleanup. The main operation exception
+                    // will be thrown anyway, so partial rollback failures
+                    // won't mask the original error.
                 }
             }
         }
