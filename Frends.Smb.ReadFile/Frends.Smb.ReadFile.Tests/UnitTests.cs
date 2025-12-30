@@ -83,6 +83,7 @@ public class UnitTests
             FileEncoding = FileEncoding.Utf8,
             EnableBom = false,
             EncodingInString = null,
+            UseEncoding = false,
         };
     }
 
