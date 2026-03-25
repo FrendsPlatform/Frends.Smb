@@ -36,4 +36,11 @@ public class Connection
     /// <example>Password123</example>
     [PasswordPropertyText]
     public string Password { get; set; }
+
+    /// <summary>
+    /// Defines the operating system of the SMB server.
+    /// Options used to determine correct path separator to use.
+    /// </summary>
+    /// <example>Windows</example>
+    public Os OperatingSystem { get; set; } = Os.Windows;
 }
