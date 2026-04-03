@@ -69,11 +69,39 @@ public class PathStringTests
         PathString.Setup(Separator.Slash);
 
         PathString path1 = @"one/two\three";
-        PathString path2 = new PathString { Value = @"one\two\three" };
+        PathString path2 = new PathString
+        {
+            Value = @"one\two\three",
+        };
         PathString path3 = new PathString(@"one\two\three");
 
         Assert.That(path1, Is.EqualTo("one/two/three"));
         Assert.That(path2, Is.EqualTo("one/two/three"));
         Assert.That(path3, Is.EqualTo("one/two/three"));
+    }
+
+    [Test]
+    public void EqualityOperator_ComparesNormalizedPathValues()
+    {
+        PathString.Setup(Separator.Backslash);
+
+        PathString left = @"folder/file.txt";
+        PathString right = @"folder\file.txt";
+
+        Assert.That(left == right, Is.True);
+        Assert.That(left != right, Is.False);
+    }
+
+    [Test]
+    public void EqualityOperator_HandlesNullsCorrectly()
+    {
+        PathString left = null;
+        PathString right = null;
+        PathString value = @"file.txt";
+
+        Assert.That(left == right, Is.True);
+        Assert.That(left != right, Is.False);
+        Assert.That(value == left, Is.False);
+        Assert.That(value != left, Is.True);
     }
 }

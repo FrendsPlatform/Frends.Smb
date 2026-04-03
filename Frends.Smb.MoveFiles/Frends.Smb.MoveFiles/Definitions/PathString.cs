@@ -3,28 +3,12 @@
 namespace Frends.Smb.MoveFiles.Definitions;
 
 /// <summary>
-/// Supported separators for normalized paths.
-/// </summary>
-public enum Separator
-{
-    /// <summary>
-    /// Uses slash.
-    /// </summary>
-    Slash,
-
-    /// <summary>
-    /// Uses backslash.
-    /// </summary>
-    Backslash,
-}
-
-/// <summary>
 /// Wraps a string path value and normalizes separators on assignment.
 /// By default, Backslash is set up as PathSeparator
 /// </summary>
-public sealed class PathString : IEquatable<string>, IEquatable<PathString>
+public class PathString : IEquatable<string>, IEquatable<PathString>
 {
-    private readonly string value = string.Empty;
+    private string value = string.Empty;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PathString"/> class.
@@ -51,7 +35,7 @@ public sealed class PathString : IEquatable<string>, IEquatable<PathString>
     public string Value
     {
         get => value;
-        init => this.value = Normalize(value);
+        set => this.value = Normalize(value);
     }
 
     private static Separator PathSeparator { get; set; } = Separator.Backslash;
@@ -61,7 +45,10 @@ public sealed class PathString : IEquatable<string>, IEquatable<PathString>
     /// </summary>
     /// <param name="value">Path value to normalize.</param>
     /// <returns>Normalized wrapper instance.</returns>
-    public static implicit operator PathString(string value) => new() { Value = value };
+    public static implicit operator PathString(string value) => new()
+    {
+        Value = value,
+    };
 
     /// <summary>
     /// Converts a path string wrapper to a string.
@@ -69,6 +56,31 @@ public sealed class PathString : IEquatable<string>, IEquatable<PathString>
     /// <param name="path">Path string wrapper.</param>
     /// <returns>Normalized string value.</returns>
     public static implicit operator string(PathString path) => path?.Value;
+
+    /// <summary>
+    /// Compares two PathString instances for value equality.
+    /// </summary>
+    /// <param name="left">Left operand.</param>
+    /// <param name="right">Right operand.</param>
+    /// <returns>True when both are equal or both are null.</returns>
+    public static bool operator ==(PathString left, PathString right)
+    {
+        if (ReferenceEquals(left, right))
+            return true;
+
+        if (left is null || right is null)
+            return false;
+
+        return left.Value == right.Value;
+    }
+
+    /// <summary>
+    /// Compares two PathString instances for value inequality.
+    /// </summary>
+    /// <param name="left">Left operand.</param>
+    /// <param name="right">Right operand.</param>
+    /// <returns>True when values differ.</returns>
+    public static bool operator !=(PathString left, PathString right) => !(left == right);
 
     /// <summary>
     /// Configures the global separator used by path strings.
@@ -111,25 +123,29 @@ public sealed class PathString : IEquatable<string>, IEquatable<PathString>
         {
             string s => Value == s,
             PathString p => Value == p.Value,
-            _ => obj?.ToString() == Value
+            _ => obj?.ToString() == Value,
         };
     }
 
     /// <summary>
     /// Returns the hash code for the normalized path value.
     /// </summary>
-    /// <returns>Hash code of the path value.</returns>
+    /// <returns>hash code</returns>
     public override int GetHashCode() => Value.GetHashCode();
 
+    internal static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
+
+    /// <summary>
+    /// Returns the hash code for the normalized path value.
+    /// </summary>
+    /// <returns>Hash code of the path value.</returns>
     private static string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input))
             return input ?? string.Empty;
 
-        char separatorChar = PathSeparator == Separator.Slash ? '/' : '\\';
-
         return input
-            .Replace('\\', separatorChar)
-            .Replace('/', separatorChar);
+            .Replace('\\', GetSeparatorChar())
+            .Replace('/', GetSeparatorChar());
     }
 }

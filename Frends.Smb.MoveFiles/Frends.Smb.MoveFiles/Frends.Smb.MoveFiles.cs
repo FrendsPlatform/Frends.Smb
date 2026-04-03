@@ -34,6 +34,8 @@ public static class Smb
     {
         try
         {
+            PathString.Setup(connection.OperatingSystem == Os.Linux ? Separator.Slash : Separator.Backslash);
+
             return ExecuteMove(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
@@ -62,10 +64,10 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(input.TargetPath))
             throw new ArgumentException("TargetPath cannot be empty.", nameof(input));
 
-        if (input.SourcePath.StartsWith(@"\\"))
+        if (input.SourcePath.Value.StartsWith(@"\\"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
 
-        if (input.TargetPath.StartsWith(@"\\"))
+        if (input.TargetPath.Value.StartsWith(@"\\"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -75,14 +77,17 @@ public static class Smb
         try
         {
             bool connected = client.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
+
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
             NTStatus loginStatus = client.Login(domain, user, connection.Password);
+
             if (loginStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"SMB login failed: {loginStatus}");
 
             ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
+
             if (treeStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to connect to share '{connection.Share}': {treeStatus}");
 
@@ -95,7 +100,9 @@ public static class Smb
                 if (filesToMove.Count == 0)
                 {
                     throw new Exception($"No files found matching path '{input.SourcePath}'" +
-                        (string.IsNullOrWhiteSpace(options.Pattern) ? string.Empty : $" with pattern '{options.Pattern}'"));
+                                        (string.IsNullOrWhiteSpace(options.Pattern)
+                                            ? string.Empty
+                                            : $" with pattern '{options.Pattern}'"));
                 }
 
                 var fileTransferEntries = BuildFileTransferEntries(
@@ -113,23 +120,25 @@ public static class Smb
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        string sourceFilePath = kvp.Key;
-                        string targetFilePath = kvp.Value;
+                        PathString sourceFilePath = kvp.Key;
+                        PathString targetFilePath = kvp.Value;
 
                         if (options.CreateTargetDirectories)
                         {
-                            string targetDir = GetDirectoryPath(targetFilePath);
+                            PathString targetDir = GetDirectoryPath(targetFilePath);
+
                             if (!string.IsNullOrEmpty(targetDir))
                             {
                                 EnsureDirectoryExists(fileStore, targetDir);
                             }
                         }
 
-                        string finalTargetPath = HandleExistingFile(fileStore, targetFilePath, options.IfTargetFileExists);
+                        PathString finalTargetPath =
+                            HandleExistingFile(fileStore, targetFilePath, options.IfTargetFileExists);
 
                         if (finalTargetPath == targetFilePath && FileExists(fileStore, finalTargetPath))
                         {
-                            string backupPath = finalTargetPath + ".backup_" + Guid.NewGuid().ToString("N");
+                            PathString backupPath = finalTargetPath + ".backup_" + Guid.NewGuid().ToString("N");
                             CopyFile(fileStore, finalTargetPath, backupPath, cancellationToken);
                             backups.Add(new FileBackup
                             {
@@ -142,8 +151,8 @@ public static class Smb
 
                         movedFiles.Add(new FileItem
                         {
-                            SourcePath = sourceFilePath.Replace('/', '\\'),
-                            TargetPath = finalTargetPath.Replace('/', '\\'),
+                            SourcePath = sourceFilePath,
+                            TargetPath = finalTargetPath,
                         });
                     }
 
@@ -152,6 +161,7 @@ public static class Smb
                 catch (Exception)
                 {
                     RollbackWithBackups(fileStore, movedFiles, backups, cancellationToken);
+
                     throw;
                 }
 
@@ -175,50 +185,48 @@ public static class Smb
         }
     }
 
-    private static Dictionary<string, string> BuildFileTransferEntries(
-    List<string> sourceFiles,
-    string sourcePath,
-    string targetPath,
-    bool preserveDirectoryStructure)
+    private static Dictionary<PathString, PathString> BuildFileTransferEntries(
+        List<PathString> sourceFiles,
+        PathString sourcePath,
+        PathString targetPath,
+        bool preserveDirectoryStructure)
     {
-        var entries = new Dictionary<string, string>();
+        var entries = new Dictionary<PathString, PathString>();
 
-        string normalizedSourcePath = string.IsNullOrWhiteSpace(sourcePath)
+        PathString normalizedSourcePath = string.IsNullOrWhiteSpace(sourcePath)
             ? string.Empty
-            : sourcePath.Replace('/', '\\').Trim('\\');
-        string normalizedTargetPath = targetPath.Replace('/', '\\').Trim('\\');
+            : sourcePath.Value.Trim(PathString.GetSeparatorChar());
+        PathString normalizedTargetPath = targetPath.Value.Trim(PathString.GetSeparatorChar());
 
         foreach (var sourceFile in sourceFiles)
         {
-            string normalizedSource = sourceFile.Replace('/', '\\').TrimStart('\\');
-            string fileName = GetFileNameFromPath(normalizedSource);
+            PathString normalizedSource = sourceFile.Value.TrimStart(PathString.GetSeparatorChar());
+            PathString fileName = GetFileNameFromPath(normalizedSource);
 
             if (!preserveDirectoryStructure)
             {
-                string targetFile = Path.Join(normalizedTargetPath, fileName);
+                PathString targetFile = Path.Join(normalizedTargetPath, fileName);
                 entries[sourceFile] = targetFile;
+
                 continue;
             }
 
-            string relativePath;
+            PathString relativePath;
 
             if (string.IsNullOrEmpty(normalizedSourcePath))
             {
                 relativePath = normalizedSource;
             }
-            else if (normalizedSource.StartsWith(normalizedSourcePath + "\\", StringComparison.OrdinalIgnoreCase))
+            else if (normalizedSource.Value.StartsWith(normalizedSourcePath + "\\", StringComparison.OrdinalIgnoreCase))
             {
-                relativePath = normalizedSource.Substring(normalizedSourcePath.Length).TrimStart('\\');
+                relativePath = normalizedSource.Value.Substring(normalizedSourcePath.Value.Length).TrimStart('\\');
             }
             else
             {
                 relativePath = fileName;
             }
 
-            string finalTarget = Path.Combine(
-                normalizedTargetPath,
-                relativePath.Replace('\\', Path.DirectorySeparatorChar))
-            .Replace('/', Path.DirectorySeparatorChar);
+            PathString finalTarget = Path.Combine(normalizedTargetPath, relativePath);
 
             entries[sourceFile] = finalTarget;
         }
@@ -226,31 +234,31 @@ public static class Smb
         return entries;
     }
 
-    private static void DeleteExistingFiles(ISMBFileStore fileStore, List<string> filePaths)
+    private static void DeleteExistingFiles(ISMBFileStore fileStore, List<PathString> filePaths)
     {
         foreach (var filePath in filePaths)
         {
-            string normalizedPath = filePath.Replace('/', '\\').TrimStart('\\');
+            PathString normalizedPath = filePath.Value.TrimStart(PathString.GetSeparatorChar());
             DeleteFile(fileStore, normalizedPath);
         }
     }
 
-    private static string GetDirectoryPath(string filePath)
+    private static PathString GetDirectoryPath(PathString filePath)
     {
-        string normalized = filePath.Replace('/', '\\');
-        int lastSlash = normalized.LastIndexOf('\\');
-        return lastSlash > 0 ? normalized.Substring(0, lastSlash) : string.Empty;
+        PathString normalized = filePath;
+        int lastSlash = normalized.Value.LastIndexOf('\\');
+
+        return lastSlash > 0 ? normalized.Value.Substring(0, lastSlash) : string.Empty;
     }
 
-    private static void EnsureDirectoryExists(ISMBFileStore fileStore, string directoryPath)
+    private static void EnsureDirectoryExists(ISMBFileStore fileStore, PathString directoryPath)
     {
-        directoryPath = directoryPath.Trim('\\', '/');
         if (string.IsNullOrEmpty(directoryPath))
             return;
 
         NTStatus checkStatus = fileStore.CreateFile(
             out object checkHandle,
-            out FileStatus fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
@@ -262,10 +270,12 @@ public static class Smb
         if (checkStatus == NTStatus.STATUS_SUCCESS)
         {
             fileStore.CloseFile(checkHandle);
+
             return;
         }
 
-        string parentDir = GetDirectoryPath(directoryPath);
+        PathString parentDir = GetDirectoryPath(directoryPath);
+
         if (!string.IsNullOrEmpty(parentDir))
         {
             EnsureDirectoryExists(fileStore, parentDir);
@@ -273,7 +283,7 @@ public static class Smb
 
         NTStatus createStatus = fileStore.CreateFile(
             out object dirHandle,
-            out fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Directory,
@@ -292,14 +302,14 @@ public static class Smb
         }
     }
 
-    private static string HandleExistingFile(
+    private static PathString HandleExistingFile(
         ISMBFileStore fileStore,
-        string targetFilePath,
+        PathString targetFilePath,
         FileExistsAction action)
     {
         NTStatus checkStatus = fileStore.CreateFile(
             out object checkHandle,
-            out FileStatus fileStatus,
+            out _,
             targetFilePath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Normal,
@@ -336,27 +346,25 @@ public static class Smb
         }
     }
 
-    private static string GenerateUniqueFilePath(ISMBFileStore fileStore, string targetFilePath)
+    private static PathString GenerateUniqueFilePath(ISMBFileStore fileStore, PathString targetFilePath)
     {
-        string normalized = targetFilePath.Replace('/', '\\');
-        string directory = GetDirectoryPath(normalized);
+        PathString directory = GetDirectoryPath(targetFilePath);
 
-        string baseFileName = GetFileNameWithoutExtension(normalized);
-        string extension = GetFileExtension(normalized);
+        PathString baseFileName = GetFileNameWithoutExtension(targetFilePath);
+        PathString extension = GetFileExtension(targetFilePath);
 
         int counter = 1;
-        string newPath;
 
         do
         {
-            string newFileName = $"{baseFileName}({counter}){extension}";
-            newPath = string.IsNullOrEmpty(directory)
+            PathString newFileName = $"{baseFileName}({counter}){extension}";
+            PathString newPath = string.IsNullOrEmpty(directory)
                 ? newFileName
                 : $"{directory}\\{newFileName}";
 
             NTStatus checkStatus = fileStore.CreateFile(
                 out object checkHandle,
-                out FileStatus fileStatus,
+                out _,
                 newPath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
@@ -378,37 +386,39 @@ public static class Smb
         throw new Exception($"Could not generate unique filename for: {targetFilePath}");
     }
 
-    private static string GetFileNameFromPath(string path)
+    private static PathString GetFileNameFromPath(PathString path)
     {
         if (string.IsNullOrEmpty(path))
             return path;
 
-        int lastBackslash = path.LastIndexOf('\\');
-        int lastForwardSlash = path.LastIndexOf('/');
+        int lastBackslash = path.Value.LastIndexOf('\\');
+        int lastForwardSlash = path.Value.LastIndexOf('/');
         int lastSlash = Math.Max(lastBackslash, lastForwardSlash);
 
-        return lastSlash >= 0 ? path.Substring(lastSlash + 1) : path;
+        return lastSlash >= 0 ? path.Value.Substring(lastSlash + 1) : path;
     }
 
-    private static string GetFileNameWithoutExtension(string path)
+    private static PathString GetFileNameWithoutExtension(PathString path)
     {
-        string fileName = GetFileNameFromPath(path);
-        int lastDot = fileName.LastIndexOf('.');
-        return lastDot > 0 ? fileName.Substring(0, lastDot) : fileName;
+        PathString fileName = GetFileNameFromPath(path);
+        int lastDot = fileName.Value.LastIndexOf('.');
+
+        return lastDot > 0 ? fileName.Value.Substring(0, lastDot) : fileName;
     }
 
-    private static string GetFileExtension(string path)
+    private static PathString GetFileExtension(PathString path)
     {
-        string fileName = GetFileNameFromPath(path);
-        int lastDot = fileName.LastIndexOf('.');
-        return lastDot >= 0 ? fileName.Substring(lastDot) : string.Empty;
+        PathString fileName = GetFileNameFromPath(path);
+        int lastDot = fileName.Value.LastIndexOf('.');
+
+        return lastDot >= 0 ? fileName.Value.Substring(lastDot) : string.Empty;
     }
 
-    private static void DeleteFile(ISMBFileStore fileStore, string filePath)
+    private static void DeleteFile(ISMBFileStore fileStore, PathString filePath)
     {
         NTStatus openStatus = fileStore.CreateFile(
             out object fileHandle,
-            out FileStatus fileStatus,
+            out _,
             filePath,
             AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Normal,
@@ -422,7 +432,10 @@ public static class Smb
 
         try
         {
-            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+            var deleteInfo = new FileDispositionInformation
+            {
+                DeletePending = true,
+            };
             NTStatus deleteStatus = fileStore.SetFileInformation(fileHandle, deleteInfo);
 
             if (deleteStatus != NTStatus.STATUS_SUCCESS)
@@ -434,11 +447,15 @@ public static class Smb
         }
     }
 
-    private static void CopyFile(ISMBFileStore fileStore, string sourceFilePath, string targetFilePath, CancellationToken cancellationToken)
+    private static void CopyFile(
+        ISMBFileStore fileStore,
+        PathString sourceFilePath,
+        PathString targetFilePath,
+        CancellationToken cancellationToken)
     {
         NTStatus openSourceStatus = fileStore.CreateFile(
             out object sourceHandle,
-            out FileStatus sourceFileStatus,
+            out _,
             sourceFilePath,
             AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Normal,
@@ -454,7 +471,7 @@ public static class Smb
         {
             NTStatus openTargetStatus = fileStore.CreateFile(
                 out object targetHandle,
-                out FileStatus targetFileStatus,
+                out _,
                 targetFilePath,
                 AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
                 SMBLibrary.FileAttributes.Normal,
@@ -468,7 +485,10 @@ public static class Smb
 
             try
             {
-                NTStatus infoStatus = fileStore.GetFileInformation(out FileInformation fileInfo, sourceHandle, FileInformationClass.FileStandardInformation);
+                NTStatus infoStatus = fileStore.GetFileInformation(
+                    out FileInformation fileInfo,
+                    sourceHandle,
+                    FileInformationClass.FileStandardInformation);
 
                 if (infoStatus != NTStatus.STATUS_SUCCESS)
                     throw new Exception($"Failed to get file information for '{sourceFilePath}': {infoStatus}");
@@ -498,7 +518,10 @@ public static class Smb
                         throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
 
                     if (bytesWritten != data.Length)
-                        throw new Exception($"Partial write detected for '{targetFilePath}': wrote {bytesWritten} of {data.Length} bytes.");
+                    {
+                        throw new Exception(
+                            $"Partial write detected for '{targetFilePath}': wrote {bytesWritten} of {data.Length} bytes.");
+                    }
 
                     bytesRead += data.Length;
                 }
@@ -506,6 +529,7 @@ public static class Smb
             catch
             {
                 DeleteFile(fileStore, targetFilePath);
+
                 throw;
             }
             finally
@@ -519,21 +543,19 @@ public static class Smb
         }
     }
 
-    private static List<string> FindMatchingFiles(
-     ISMBFileStore fileStore,
-     string basePath,
-     Options options,
-     CancellationToken cancellationToken)
+    private static List<PathString> FindMatchingFiles(
+        ISMBFileStore fileStore,
+        PathString basePath,
+        Options options,
+        CancellationToken cancellationToken)
     {
-        var matchedFiles = new List<string>();
-
-        basePath = basePath?.Trim('\\', '/') ?? string.Empty;
+        basePath = basePath?.Value.Trim(PathString.GetSeparatorChar()) ?? string.Empty;
 
         if (!string.IsNullOrEmpty(basePath))
         {
             NTStatus fileCheckStatus = fileStore.CreateFile(
                 out object fileHandle,
-                out FileStatus fileStatus,
+                out _,
                 basePath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
@@ -545,23 +567,25 @@ public static class Smb
             if (fileCheckStatus == NTStatus.STATUS_SUCCESS)
             {
                 fileStore.CloseFile(fileHandle);
-                return new List<string> { basePath.Replace('/', '\\').TrimStart('\\') };
+
+                return [basePath.Value.TrimStart(PathString.GetSeparatorChar())];
             }
         }
 
         var regex = PrepareRegex(options);
 
-        matchedFiles = EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken);
+        List<PathString> matchedFiles =
+            EnumerateFiles(fileStore, basePath, regex, options.Recursive, cancellationToken);
 
         return matchedFiles;
     }
 
-    private static List<string> EnumerateFiles(
-     ISMBFileStore fileStore,
-     string directoryPath,
-     Regex regex,
-     bool recursive,
-     CancellationToken token)
+    private static List<PathString> EnumerateFiles(
+        ISMBFileStore fileStore,
+        PathString directoryPath,
+        Regex regex,
+        bool recursive,
+        CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
 
@@ -571,12 +595,12 @@ public static class Smb
         }
         else
         {
-            directoryPath = directoryPath.Trim('\\', '/');
+            directoryPath = directoryPath.Value.Trim(PathString.GetSeparatorChar());
         }
 
         NTStatus openStatus = fileStore.CreateFile(
             out object dirHandle,
-            out FileStatus fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Directory,
@@ -588,19 +612,18 @@ public static class Smb
         if (openStatus != NTStatus.STATUS_SUCCESS)
             throw new Exception($"Failed to open directory '{directoryPath}': {openStatus}");
 
-        var files = new List<string>();
+        var files = new List<PathString>();
 
         try
         {
             NTStatus status;
-            List<QueryDirectoryFileInformation> entries;
 
             do
             {
                 token.ThrowIfCancellationRequested();
 
                 status = fileStore.QueryDirectory(
-                    out entries,
+                    out var entries,
                     dirHandle,
                     "*",
                     FileInformationClass.FileDirectoryInformation);
@@ -615,11 +638,12 @@ public static class Smb
                 {
                     token.ThrowIfCancellationRequested();
 
-                    string fileName = entry.FileName;
+                    PathString fileName = entry.FileName;
+
                     if (fileName == "." || fileName == "..")
                         continue;
 
-                    string fullPath = string.IsNullOrEmpty(directoryPath)
+                    PathString fullPath = string.IsNullOrEmpty(directoryPath)
                         ? fileName
                         : $"{directoryPath}\\{fileName}";
 
@@ -627,7 +651,7 @@ public static class Smb
 
                     if (isDir && recursive)
                     {
-                        var subDirFiles = EnumerateFiles(fileStore, fullPath, regex, recursive, token);
+                        var subDirFiles = EnumerateFiles(fileStore, fullPath, regex, true, token);
                         files.AddRange(subDirFiles);
                     }
                     else if (!isDir)
@@ -649,11 +673,11 @@ public static class Smb
         return files;
     }
 
-    private static bool FileExists(ISMBFileStore fileStore, string filePath)
+    private static bool FileExists(ISMBFileStore fileStore, PathString filePath)
     {
         NTStatus checkStatus = fileStore.CreateFile(
             out object checkHandle,
-            out FileStatus fileStatus,
+            out _,
             filePath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Normal,
@@ -665,6 +689,7 @@ public static class Smb
         if (checkStatus == NTStatus.STATUS_SUCCESS)
         {
             fileStore.CloseFile(checkHandle);
+
             return true;
         }
 
@@ -677,14 +702,15 @@ public static class Smb
         var pattern = options.Pattern;
         if (options.PatternMatchingMode == PatternMatchingMode.Wildcards)
             pattern = "^" + Regex.Escape(options.Pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
+
         return new Regex(pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
     }
 
     private static void RollbackWithBackups(
-    ISMBFileStore fileStore,
-    List<FileItem> movedFiles,
-    List<FileBackup> backups,
-    CancellationToken cancellationToken)
+        ISMBFileStore fileStore,
+        List<FileItem> movedFiles,
+        List<FileBackup> backups,
+        CancellationToken cancellationToken)
     {
         foreach (var backup in backups)
         {
@@ -707,13 +733,11 @@ public static class Smb
             }
         }
 
-        var backedUpPaths = new HashSet<string>(
-            backups.Select(b => b.OriginalPath.Replace('/', '\\')),
-            StringComparer.OrdinalIgnoreCase);
+        var backedUpPaths = new HashSet<PathString>(backups.Select(b => b.OriginalPath));
 
         foreach (var file in movedFiles)
         {
-            string normalizedPath = file.TargetPath.Replace('/', '\\');
+            PathString normalizedPath = file.TargetPath;
 
             if (!backedUpPaths.Contains(normalizedPath))
             {
@@ -737,6 +761,7 @@ public static class Smb
             return (string.Empty, string.Empty);
 
         var parts = username.Split('\\');
+
         if (parts.Length == 2)
             return (parts[0], parts[1]);
 

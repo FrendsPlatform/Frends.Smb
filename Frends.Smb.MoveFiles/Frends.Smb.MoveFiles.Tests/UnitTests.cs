@@ -31,7 +31,7 @@ public class MoveFilesTests
     [OneTimeSetUp]
     public async Task GlobalSetup()
     {
-        testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "test-files-move");
+        testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, $"test-files-move-{Guid.NewGuid()}");
         Directory.CreateDirectory(testFilesPath);
 
         Directory.CreateDirectory(Path.Combine(testFilesPath, "source"));
@@ -78,7 +78,13 @@ public class MoveFilesTests
     [SetUp]
     public void Setup()
     {
-        connection = new Connection { Server = serverName, Share = shareName, Username = user, Password = password };
+        connection = new Connection
+        {
+            Server = serverName,
+            Share = shareName,
+            Username = user,
+            Password = password
+        };
         options = new Options
         {
             ThrowErrorOnFailure = true,
@@ -232,7 +238,7 @@ public class MoveFilesTests
         options.IfTargetFileExists = FileExistsAction.Throw;
 
         var ex = Assert.Throws<Exception>(() =>
-                Smb.MoveFiles(input, connection, options, CancellationToken.None));
+            Smb.MoveFiles(input, connection, options, CancellationToken.None));
 
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex.Message, Does.Contain("already exists"));
@@ -342,7 +348,7 @@ public class MoveFilesTests
         options.IfTargetFileExists = FileExistsAction.Throw;
 
         var ex = Assert.Throws<Exception>(() =>
-                 Smb.MoveFiles(input, connection, options, CancellationToken.None));
+            Smb.MoveFiles(input, connection, options, CancellationToken.None));
 
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex.Message, Does.Contain("No files moved."));
@@ -498,7 +504,8 @@ public class MoveFilesTests
         Assert.That(result.Files.Count, Is.EqualTo(1));
         Assert.That(result.Files[0].SourcePath, Does.Contain("root.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "root.txt")), Is.True);
-        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "subdir", "nested.txt")), Is.True, "Nested file should remain");
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "subdir", "nested.txt")), Is.True,
+            "Nested file should remain");
     }
 
     [Test]
