@@ -83,7 +83,7 @@ public class MoveFilesTests
             Server = serverName,
             Share = shareName,
             Username = user,
-            Password = password
+            Password = password,
         };
         options = new Options
         {
@@ -504,7 +504,14 @@ public class MoveFilesTests
         Assert.That(result.Files.Count, Is.EqualTo(1));
         Assert.That(result.Files[0].SourcePath, Does.Contain("root.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "root.txt")), Is.True);
-        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "subdir", "nested.txt")), Is.True,
+        Assert.That(
+            File.Exists(
+                Path.Combine(
+                    testFilesPath,
+                    "source",
+                    "subdir",
+                    "nested.txt")),
+            Is.True,
             "Nested file should remain");
     }
 
