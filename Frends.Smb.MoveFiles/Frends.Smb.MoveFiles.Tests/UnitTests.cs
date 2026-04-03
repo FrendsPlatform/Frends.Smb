@@ -173,7 +173,7 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].SourcePath, Does.Contain("report_2024.txt"));
+        Assert.That(result.Files[0].SourcePath.Value, Does.Contain("report_2024.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "report_2024.txt")), Is.True);
     }
 
@@ -285,7 +285,7 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].TargetPath, Does.Match(@"target\\rename\(\d+\)\.txt"));
+        Assert.That(result.Files[0].TargetPath.Value, Does.Match(@"target\\rename\(\d+\)\.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "rename.txt")), Is.True);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "rename(1).txt")), Is.True);
     }
@@ -502,7 +502,7 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].SourcePath, Does.Contain("root.txt"));
+        Assert.That(result.Files[0].SourcePath.Value, Does.Contain("root.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "root.txt")), Is.True);
         Assert.That(
             File.Exists(
