@@ -76,7 +76,8 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-        Assert.That(result.Error.Message, Contains.Substring(@"File dst\old.foo already exists."));
+        PathString expectedMessage = @"File dst\old.foo already exists.";
+        Assert.That(result.Error.Message, Contains.Substring(expectedMessage));
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "old.foo")), Is.True);
     }
 
