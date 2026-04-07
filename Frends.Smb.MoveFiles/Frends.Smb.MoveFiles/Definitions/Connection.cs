@@ -41,6 +41,7 @@ public class Connection
     /// Defines the operating system of the SMB server.
     /// Options used to determine correct path separator to use.
     /// </summary>
-    /// <example>Windows</example>
-    public Os OperatingSystem { get; set; } = Os.Windows;
+    /// <example>Linux</example>
+    [DefaultValue(Os.Linux)]
+    public Os OperatingSystem { get; set; } = Os.Linux;
 }

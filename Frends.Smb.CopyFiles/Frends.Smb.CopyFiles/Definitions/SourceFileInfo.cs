@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using Frends.Smb.CopyFiles.Helpers;
 
 namespace Frends.Smb.CopyFiles.Definitions;
 
@@ -14,7 +13,7 @@ internal class SourceFileInfo
     }
 
     /// <summary>
-    /// File path from root of a share
+    /// File path from the root of a share
     /// </summary>
     internal string FilePath { get; }
 
@@ -33,16 +32,16 @@ internal class SourceFileInfo
         // Input.SourcePath is a file
         if (InitialPath == FilePath)
         {
-            return Path.GetFileName(FilePath.ToOsPath());
+            return Path.GetFileName(FilePath);
         }
 
         // Input.SourcePath == "" (root)
-        if (string.IsNullOrEmpty(InitialPath)) return FilePath.ToSmbPath();
+        if (string.IsNullOrEmpty(InitialPath)) return FilePath;
 
         // General case
         if (!FilePath.StartsWith(InitialPath))
             throw new Exception($"File '{FilePath}' is not under source path '{InitialPath}'");
-        var lastDir = Path.GetFileName(InitialPath.ToOsPath());
+        var lastDir = Path.GetFileName(InitialPath);
         string leftover = FilePath[InitialPath.Length..];
         return $"{lastDir}\\{leftover.Trim('\\')}";
     }
