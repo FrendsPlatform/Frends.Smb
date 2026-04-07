@@ -9,7 +9,7 @@ public class PathStringTests
     [Test]
     public void ImplicitConversion_Normalizes_WithDefaultBackslashSeparator()
     {
-        PathString.Setup(Separator.Backslash);
+        PathString.Setup(Os.Windows);
 
         PathString path = @"my/disk\test.txt";
 
@@ -19,7 +19,7 @@ public class PathStringTests
     [Test]
     public void SetupSeparatorToSlash_NormalizesAllSeparatorsToSlash()
     {
-        PathString.Setup(Separator.Slash);
+        PathString.Setup(Os.Linux);
 
         PathString path = @"my\disk/test.txt";
 
@@ -29,7 +29,7 @@ public class PathStringTests
     [Test]
     public void ReassigningValue_NormalizesOnEachAssignment()
     {
-        PathString.Setup(Separator.Backslash);
+        PathString.Setup(Os.Windows);
 
         PathString path = @"one\two/three";
         Assert.That(path, Is.EqualTo(@"one\two\three"));
@@ -44,8 +44,8 @@ public class PathStringTests
     [Test]
     public void Setup_CanBeCalledMultipleTimes_AndUsesLatestSeparator()
     {
-        PathString.Setup(Separator.Slash);
-        PathString.Setup(Separator.Backslash);
+        PathString.Setup(Os.Linux);
+        PathString.Setup(Os.Windows);
 
         PathString path = @"one/two\three";
 
@@ -55,7 +55,7 @@ public class PathStringTests
     [Test]
     public void GetValue_With_MultipleMethods()
     {
-        PathString.Setup(Separator.Slash);
+        PathString.Setup(Os.Linux);
 
         PathString path = @"one/two\three";
         Assert.That(path, Is.EqualTo("one/two/three"));
@@ -66,7 +66,7 @@ public class PathStringTests
     [Test]
     public void SetValue_With_MultipleMethods()
     {
-        PathString.Setup(Separator.Slash);
+        PathString.Setup(Os.Linux);
 
         PathString path1 = @"one/two\three";
         PathString path2 = new PathString
@@ -83,7 +83,7 @@ public class PathStringTests
     [Test]
     public void EqualityOperator_ComparesNormalizedPathValues()
     {
-        PathString.Setup(Separator.Backslash);
+        PathString.Setup(Os.Windows);
 
         PathString left = @"folder/file.txt";
         PathString right = @"folder\file.txt";

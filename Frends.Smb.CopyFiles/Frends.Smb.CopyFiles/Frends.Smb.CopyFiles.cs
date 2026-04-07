@@ -35,6 +35,7 @@ public static class Smb
         ISMBFileStore srcFileStore = null;
         try
         {
+            PathString.Setup(connection.OperatingSystem);
             SmbHandler.ValidateParameters(input, connection);
             SmbHandler.PrepareSmbConnection(out dstClient, out dstFileStore, connection);
             SmbHandler.PrepareSmbConnection(out srcClient, out srcFileStore, connection);
