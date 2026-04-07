@@ -4,7 +4,7 @@ namespace Frends.Smb.MoveFiles.Definitions;
 
 /// <summary>
 /// Wraps a string path value and normalizes separators on assignment.
-/// By default, Backslash is set up as PathSeparator
+/// By default, Slash is set up as PathSeparator
 /// </summary>
 public class PathString : IEquatable<string>, IEquatable<PathString>
 {
@@ -38,7 +38,7 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
         set => this.value = Normalize(value);
     }
 
-    private static Separator PathSeparator { get; set; } = Separator.Backslash;
+    private static Separator PathSeparator { get; set; } = Separator.Slash;
 
     /// <summary>
     /// Converts a string to a normalized path string wrapper.
@@ -85,10 +85,15 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     /// <summary>
     /// Configures the global separator used by path strings.
     /// </summary>
-    /// <param name="separator">Separator to use for normalization.</param>
-    public static void Setup(Separator separator)
+    /// <param name="os">OperatingSystem that will define used separator</param>
+    public static void Setup(Os os)
     {
-        PathSeparator = separator;
+        PathSeparator = os switch
+        {
+            Os.Windows => Separator.Backslash,
+            Os.Linux => Separator.Slash,
+            _ => throw new ArgumentException($"Unsupported operating system: {os}"),
+        };
     }
 
     /// <summary>

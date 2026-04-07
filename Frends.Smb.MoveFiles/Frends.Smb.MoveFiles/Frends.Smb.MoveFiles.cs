@@ -34,7 +34,7 @@ public static class Smb
     {
         try
         {
-            PathString.Setup(connection.OperatingSystem == Os.Linux ? Separator.Slash : Separator.Backslash);
+            PathString.Setup(connection.OperatingSystem);
 
             return ExecuteMove(input, connection, options, cancellationToken);
         }
