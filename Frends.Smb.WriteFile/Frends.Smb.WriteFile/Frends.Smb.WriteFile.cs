@@ -33,6 +33,7 @@ public static class Smb
         [PropertyTab] Options options,
         CancellationToken cancellationToken)
     {
+        PathString.Setup(connection.OperatingSystem);
         var client = new SMB2Client();
         ISMBFileStore fileStore = null;
 
@@ -44,7 +45,7 @@ public static class Smb
                 throw new ArgumentException("Share cannot be empty.", nameof(connection));
             if (string.IsNullOrWhiteSpace(input.DestinationPath))
                 throw new ArgumentException("Destination Path cannot be empty.", nameof(input));
-            if (input.DestinationPath.StartsWith(@"\\"))
+            if (input.DestinationPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
                 throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
             var (domain, username) = GetDomainAndUsername(connection.Username);
@@ -106,7 +107,7 @@ public static class Smb
             return new Result
             {
                 Success = true,
-                Path = $@"\\{connection.Server}\{connection.Share}\{input.DestinationPath.Replace('/', '\\')}",
+                Path = string.Join(PathString.GetSeparatorChar(), PathString.GetSeparatorChar(), connection.Server, connection.Share, input.DestinationPath),
                 SizeInMegaBytes = Math.Ceiling(writeOffset / 1024.0 / 1024.0),
             };
         }
@@ -141,21 +142,21 @@ public static class Smb
             : new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
     }
 
-    private static void EnsureDirectoriesExist(ISMBFileStore fileStore, string smbFullPath)
+    private static void EnsureDirectoriesExist(ISMBFileStore fileStore, PathString smbFullPath)
     {
         ArgumentNullException.ThrowIfNull(fileStore);
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
-        var directory = Path.GetDirectoryName(smbFullPath)?.Replace("\\", "/");
+        PathString directory = Path.GetDirectoryName(smbFullPath);
         if (string.IsNullOrEmpty(directory)) return;
 
-        var parts = directory.Split(["/"], StringSplitOptions.RemoveEmptyEntries);
+        var parts = directory.Value.Split([PathString.GetSeparatorChar()], StringSplitOptions.RemoveEmptyEntries);
 
         string current = string.Empty;
 
         foreach (var part in parts)
         {
-            current = string.IsNullOrEmpty(current) ? part : $"{current}/{part}";
+            current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
             var status = fileStore.CreateFile(
                 out _,

@@ -17,7 +17,7 @@ public class Result
     /// Full path to the written file.
     /// </summary>
     /// <example>\\server\share\dir\file.txt</example>
-    public string Path { get; set; }
+    public PathString Path { get; set; }
 
     /// <summary>
     /// Size of the written file in megabytes.
