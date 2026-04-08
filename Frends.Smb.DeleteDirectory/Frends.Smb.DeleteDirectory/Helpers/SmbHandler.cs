@@ -21,7 +21,7 @@ internal static class SmbHandler
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
         if (string.IsNullOrWhiteSpace(input.DirectoryPath))
             throw new ArgumentException("Destination Path cannot be empty.", nameof(input));
-        if (input.DirectoryPath.StartsWith(@"\\"))
+        if (input.DirectoryPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
         if (string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));
@@ -52,13 +52,13 @@ internal static class SmbHandler
 
     internal static void DeleteDirectory(
         ISMBFileStore fileStore,
-        [NotNull] string smbFullPath,
+        [NotNull] PathString smbFullPath,
         bool recursive,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
-        smbFullPath = smbFullPath.Replace('\\', '/').Trim('/');
+        smbFullPath = smbFullPath.Value.Trim(PathString.GetSeparatorChar());
 
         if (!DirectoryExists(fileStore, smbFullPath))
             return;
@@ -72,7 +72,7 @@ internal static class SmbHandler
             var e = (FileDirectoryInformation)entry;
             if (e.FileName is "." or "..") continue;
 
-            var fullPath = $"{smbFullPath}/{e.FileName}";
+            PathString fullPath = $"{smbFullPath}{PathString.GetSeparatorChar()}{e.FileName}";
 
             if ((e.FileAttributes & FileAttributes.Directory) == 0)
             {
@@ -98,7 +98,7 @@ internal static class SmbHandler
         DeleteFileOrEmptyDirectory(fileStore, smbFullPath, FileAttributes.Directory);
     }
 
-    private static bool DirectoryExists(ISMBFileStore fileStore, string path)
+    private static bool DirectoryExists(ISMBFileStore fileStore, PathString path)
     {
         var status = fileStore.CreateFile(
             out var handle,
@@ -118,7 +118,7 @@ internal static class SmbHandler
 
     private static List<FileInformation> ListDirectoryEntries(
         ISMBFileStore fileStore,
-        string directory,
+        PathString directory,
         CancellationToken cancellationToken)
     {
         var status = fileStore.CreateFile(
@@ -161,7 +161,7 @@ internal static class SmbHandler
 
     private static void DeleteFileOrEmptyDirectory(
         ISMBFileStore fileStore,
-        string path,
+        PathString path,
         FileAttributes fileAttribute)
     {
         var status = fileStore.CreateFile(
@@ -199,7 +199,7 @@ internal static class SmbHandler
 
     private static bool IsDirectoryEmptyDeep(
         ISMBFileStore fileStore,
-        string directory,
+        PathString directory,
         CancellationToken cancellationToken)
     {
         var entries = ListDirectoryEntries(fileStore, directory, cancellationToken);
@@ -212,7 +212,7 @@ internal static class SmbHandler
             if ((e.FileAttributes & FileAttributes.Directory) == 0)
                 return false;
 
-            var subDir = $"{directory}/{e.FileName}";
+            PathString subDir = $"{directory}/{e.FileName}";
             if (!IsDirectoryEmptyDeep(fileStore, subDir, cancellationToken))
                 return false;
         }

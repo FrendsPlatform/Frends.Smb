@@ -28,8 +28,10 @@ public static class Smb
         [PropertyTab] Options options,
         CancellationToken cancellationToken)
     {
+        PathString.Setup(connection.OperatingSystem);
         SMB2Client client = null;
         ISMBFileStore fileStore = null;
+
         try
         {
             SmbHandler.ValidateParameters(input, connection);
@@ -40,7 +42,7 @@ public static class Smb
             {
                 Success = true,
                 FullUncPath =
-                    $@"\\{connection.Server}\{connection.Share}\{input.DirectoryPath.Replace('/', '\\')}",
+                    $@"\\{connection.Server}\{connection.Share}\{input.DirectoryPath}",
                 Error = null,
             };
         }
@@ -53,6 +55,7 @@ public static class Smb
             fileStore?.Disconnect();
 
             NTStatus status = NTStatus.STATUS_NOT_IMPLEMENTED;
+
             try
             {
                 client?.ListShares(out status);
