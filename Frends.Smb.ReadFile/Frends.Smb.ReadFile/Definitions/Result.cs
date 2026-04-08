@@ -31,7 +31,7 @@ public class Result
     /// The full path of the file that was read.
     /// </summary>
     /// <example>c:\temp\foo.txt</example>
-    public string Path { get; set; }
+    public PathString Path { get; set; }
 
     /// <summary>
     /// Size of the read file in megabytes.
