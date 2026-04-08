@@ -32,6 +32,8 @@ public static class Smb
         [PropertyTab] Options options,
         CancellationToken cancellationToken)
     {
+        PathString.Setup(connection.OperatingSystem);
+
         var client = new SMB2Client();
         ISMBFileStore? fileStore = null;
 
@@ -45,7 +47,7 @@ public static class Smb
                 throw new ArgumentException("Share cannot be empty.", nameof(connection));
             if (string.IsNullOrWhiteSpace(input.Directory))
                 throw new ArgumentException("Directory cannot be empty.", nameof(input));
-            if (input.Directory.StartsWith(@"\\"))
+            if (input.Directory.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
                 throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
             var (domain, username) = GetDomainAndUsername(connection.Username);
@@ -65,7 +67,7 @@ public static class Smb
             if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
 
             // Normalize the base directory to SMB path format (forward slashes)
-            var baseDir = input.Directory.Replace("\\", "/").Trim('/');
+            PathString baseDir = input.Directory.Value.Trim(PathString.GetSeparatorChar());
 
             Regex? regex = PrepareRegex(options);
             var files = new List<FileItem>();
@@ -108,7 +110,7 @@ public static class Smb
 
     private static void EnumerateFiles(
         ISMBFileStore fileStore,
-        string currentDir,
+        PathString currentDir,
         bool recursive,
         Regex? regex,
         List<FileItem> results,
@@ -148,13 +150,13 @@ public static class Smb
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var e = (FileDirectoryInformation)entry;
-                string name = e.FileName;
-                if (name is "." or "..") continue;
+                PathString name = e.FileName;
+                if (name.Value is "." or "..") continue;
 
                 FileAttributes attrs = e.FileAttributes;
                 bool isDirectory = (attrs & FileAttributes.Directory) == FileAttributes.Directory;
 
-                var relativePath = string.IsNullOrEmpty(currentDir) ? name : $"{currentDir}/{name}";
+                PathString relativePath = string.IsNullOrEmpty(currentDir) ? name : $"{currentDir}/{name}";
 
                 if (isDirectory)
                 {
