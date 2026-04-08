@@ -14,7 +14,7 @@ public class Input
     /// <example>documents/reports</example>
     [DisplayFormat(DataFormatString = "Text")]
     [DefaultValue("")]
-    public string SourcePath { get; set; } = string.Empty;
+    public PathString SourcePath { get; set; } = string.Empty;
 
     /// <summary>
     /// Target path relative to the share where directory will be moved to.
@@ -22,5 +22,5 @@ public class Input
     /// <example>backup/reports</example>
     [DisplayFormat(DataFormatString = "Text")]
     [DefaultValue("")]
-    public string TargetPath { get; set; } = string.Empty;
+    public PathString TargetPath { get; set; } = string.Empty;
 }

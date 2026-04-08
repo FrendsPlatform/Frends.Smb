@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Frends.Smb.ListFiles.Definitions;
+namespace Frends.Smb.MoveDirectory.Definitions;
 
 /// <summary>
 /// Wraps a string path value and normalizes separators on assignment.
@@ -55,7 +55,7 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     /// </summary>
     /// <param name="path">Path string wrapper.</param>
     /// <returns>Normalized string value.</returns>
-    public static implicit operator string(PathString path) => path.Value;
+    public static implicit operator string(PathString path) => path?.Value;
 
     /// <summary>
     /// Compares two PathString instances for value equality.
@@ -63,7 +63,7 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     /// <param name="left">Left operand.</param>
     /// <param name="right">Right operand.</param>
     /// <returns>True when both are equal or both are null.</returns>
-    public static bool operator ==(PathString? left, PathString? right)
+    public static bool operator ==(PathString left, PathString right)
     {
         if (ReferenceEquals(left, right))
             return true;
@@ -107,14 +107,14 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     /// </summary>
     /// <param name="other">The string to compare with.</param>
     /// <returns>True if equal; otherwise false.</returns>
-    public bool Equals(string? other) => Value == other;
+    public bool Equals(string other) => Value == other;
 
     /// <summary>
     /// Determines whether this instance equals another PathString.
     /// </summary>
     /// <param name="other">The PathString to compare with.</param>
     /// <returns>True if equal; otherwise false.</returns>
-    public bool Equals(PathString? other) => other is not null && Value == other.Value;
+    public bool Equals(PathString other) => other is not null && Value == other.Value;
 
     /// <summary>
     /// Determines whether this instance equals another object.
@@ -122,7 +122,7 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     /// </summary>
     /// <param name="obj">The object to compare with.</param>
     /// <returns>True if equal; otherwise false.</returns>
-    public override bool Equals(object? obj)
+    public override bool Equals(object obj)
     {
         return obj switch
         {
@@ -144,7 +144,7 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     /// Returns the hash code for the normalized path value.
     /// </summary>
     /// <returns>Hash code of the path value.</returns>
-    private static string Normalize(string? input)
+    private static string Normalize(string input)
     {
         if (string.IsNullOrEmpty(input))
             return input ?? string.Empty;
