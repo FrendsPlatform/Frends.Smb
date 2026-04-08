@@ -22,9 +22,9 @@ internal static class SmbHandler
             throw new ArgumentException("Server cannot be empty.", nameof(connection));
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
-        if (input.SourcePath.Value.StartsWith(PathString.GetSeparatorChar()))
+        if (input.SourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
-        if (input.TargetPath.Value.StartsWith(PathString.GetSeparatorChar()))
+        if (input.TargetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
         if (string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));

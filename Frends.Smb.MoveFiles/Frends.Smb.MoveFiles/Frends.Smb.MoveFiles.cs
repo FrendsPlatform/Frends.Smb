@@ -64,10 +64,10 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(input.TargetPath))
             throw new ArgumentException("TargetPath cannot be empty.", nameof(input));
 
-        if (input.SourcePath.Value.StartsWith(PathString.GetSeparatorChar()))
+        if (input.SourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
 
-        if (input.TargetPath.Value.StartsWith(PathString.GetSeparatorChar()))
+        if (input.TargetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
