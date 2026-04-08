@@ -64,10 +64,10 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(input.TargetPath))
             throw new ArgumentException("TargetPath cannot be empty.", nameof(input));
 
-        if (input.SourcePath.Value.StartsWith(@"\\"))
+        if (input.SourcePath.Value.StartsWith(PathString.GetSeparatorChar()))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
 
-        if (input.TargetPath.Value.StartsWith(@"\\"))
+        if (input.TargetPath.Value.StartsWith(PathString.GetSeparatorChar()))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -217,9 +217,9 @@ public static class Smb
             {
                 relativePath = normalizedSource;
             }
-            else if (normalizedSource.Value.StartsWith(normalizedSourcePath + "\\", StringComparison.OrdinalIgnoreCase))
+            else if (normalizedSource.Value.StartsWith(normalizedSourcePath + PathString.GetSeparatorChar(), StringComparison.OrdinalIgnoreCase))
             {
-                relativePath = normalizedSource.Value.Substring(normalizedSourcePath.Value.Length).TrimStart('\\');
+                relativePath = normalizedSource.Value.Substring(normalizedSourcePath.Value.Length).TrimStart(PathString.GetSeparatorChar());
             }
             else
             {
@@ -246,7 +246,7 @@ public static class Smb
     private static PathString GetDirectoryPath(PathString filePath)
     {
         PathString normalized = filePath;
-        int lastSlash = normalized.Value.LastIndexOf('\\');
+        int lastSlash = normalized.Value.LastIndexOf(PathString.GetSeparatorChar());
 
         return lastSlash > 0 ? normalized.Value.Substring(0, lastSlash) : string.Empty;
     }
@@ -391,9 +391,7 @@ public static class Smb
         if (string.IsNullOrEmpty(path))
             return path;
 
-        int lastBackslash = path.Value.LastIndexOf('\\');
-        int lastForwardSlash = path.Value.LastIndexOf('/');
-        int lastSlash = Math.Max(lastBackslash, lastForwardSlash);
+        int lastSlash = path.Value.LastIndexOf(PathString.GetSeparatorChar());
 
         return lastSlash >= 0 ? path.Value.Substring(lastSlash + 1) : path;
     }

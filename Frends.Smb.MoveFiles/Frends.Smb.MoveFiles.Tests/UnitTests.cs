@@ -120,8 +120,8 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].SourcePath, Is.EqualTo("source\\single.txt"));
-        Assert.That(result.Files[0].TargetPath, Is.EqualTo("target\\single.txt"));
+        Assert.That(result.Files[0].SourcePath, Is.EqualTo($"source{PathString.GetSeparatorChar()}single.txt"));
+        Assert.That(result.Files[0].TargetPath, Is.EqualTo($"target{PathString.GetSeparatorChar()}single.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "single.txt")), Is.False);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
     }
@@ -285,7 +285,7 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].TargetPath.Value, Does.Match(@"target\\rename\(\d+\)\.txt"));
+        Assert.That(result.Files[0].TargetPath.Value, Does.Match($@"target{PathString.GetSeparatorChar()}rename\(\d+\)\.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "rename.txt")), Is.True);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "rename(1).txt")), Is.True);
     }
