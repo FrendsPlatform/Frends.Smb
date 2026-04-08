@@ -23,9 +23,17 @@ You can install the Task via Frends UI Task View.
 ### Run tests
 
 These SMB integration tests require Docker and a Linux-compatible environment (e.g. WSL2).
-They will not run on Windows natively because SMB port 445 is reserved by the OS.
-To execute the tests, run them inside WSL with Docker running:
-`dotnet test`
+They will not run on Windows natively because the OS reserves SMB port 445.
+To execute the tests, you can either:
+- Run them on a Linux machine 
+- Disable in Windows Services service named Server (LanmanServer) 
+  ```aiignore
+  Stop-Service -Name LanmanServer -Force
+  Set-Service -Name LanmanServer -StartupType Disabled
+  ```
+  and restart the machine (Remember to enable it again after tests) 
+
+After that you can start up Docker run tests with: `dotnet test`.
 The tests will automatically start a temporary Samba container and mount test files for reading.
 
 ### Create a NuGet package
