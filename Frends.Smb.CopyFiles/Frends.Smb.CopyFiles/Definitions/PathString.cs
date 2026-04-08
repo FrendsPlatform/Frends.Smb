@@ -138,7 +138,7 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     /// <returns>hash code</returns>
     public override int GetHashCode() => Value.GetHashCode();
 
-    private static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
+    internal static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
 
     /// <summary>
     /// Returns the hash code for the normalized path value.
