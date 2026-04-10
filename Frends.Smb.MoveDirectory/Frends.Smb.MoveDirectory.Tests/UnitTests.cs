@@ -9,11 +9,6 @@ using NUnit.Framework;
 
 namespace Frends.Smb.MoveDirectory.Tests;
 
-// These SMB integration tests require Docker and a Linux-compatible environment (e.g., WSL2).
-// They will not run on Windows natively because the OS reserves SMB port 445.
-// To execute the tests, run them inside WSL with Docker running:
-//    dotnet test
-// The tests will automatically start a temporary Samba container and mount test files for reading.
 [TestFixture]
 public class MoveDirectoryTests
 {
