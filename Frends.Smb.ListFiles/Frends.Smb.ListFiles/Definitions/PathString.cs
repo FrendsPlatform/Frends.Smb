@@ -141,9 +141,10 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     internal static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
 
     /// <summary>
-    /// Returns the hash code for the normalized path value.
+    /// Normalizes path separators in the input string.
     /// </summary>
-    /// <returns>Hash code of the path value.</returns>
+    /// <param name="input">The path string to normalize.</param>
+    /// <returns>Path string with separators normalized to the configured separator.</returns>
     private static string Normalize(string? input)
     {
         if (string.IsNullOrEmpty(input))
