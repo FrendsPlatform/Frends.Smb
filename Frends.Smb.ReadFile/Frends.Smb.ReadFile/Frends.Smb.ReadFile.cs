@@ -27,13 +27,15 @@ public static class Smb
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
     /// <returns>object { bool Success, byte[] Content, string TextContent, string Path, double SizeInMegaBytes, DateTime CreationTime, DateTime LastWriteTime, object Error { string Message, Exception AdditionalInfo } }</returns>
     public static async Task<Result> ReadFile(
-    [PropertyTab] Input input,
-    [PropertyTab] Connection connection,
-    [PropertyTab] Options options,
-    CancellationToken cancellationToken)
+        [PropertyTab] Input input,
+        [PropertyTab] Connection connection,
+        [PropertyTab] Options options,
+        CancellationToken cancellationToken)
     {
         try
         {
+            PathString.Setup(connection.OperatingSystem);
+
             return await ExecuteReadAsync(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
@@ -59,7 +61,7 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(input.Path))
             throw new ArgumentException("Path cannot be empty.", nameof(input));
 
-        if (input.Path.StartsWith(@"\\"))
+        if (input.Path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
         Encoding encoding = GetEncoding(options.FileEncoding, options.EnableBom, options.EncodingInString);
@@ -71,16 +73,19 @@ public static class Smb
         try
         {
             bool connected = client.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
+
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
             cancellationToken.ThrowIfCancellationRequested();
 
             NTStatus loginStatus = client.Login(domain, user, connection.Password);
+
             if (loginStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"SMB login failed: {loginStatus}");
 
             ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
+
             if (treeStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to connect to share '{connection.Share}': {treeStatus}");
 
@@ -161,6 +166,7 @@ public static class Smb
                     byte[] contentBytes = memoryStream.ToArray();
 
                     string decodedText = null;
+
                     if (options.UseEncoding)
                     {
                         try
@@ -213,8 +219,10 @@ public static class Smb
     private static Tuple<string, string> GetDomainAndUsername(string username)
     {
         var domainAndUserName = username.Split('\\');
+
         if (domainAndUserName.Length != 2)
             throw new ArgumentException($@"UserName field must be of format domain\username was: {username}");
+
         return new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
     }
 
@@ -233,11 +241,15 @@ public static class Smb
             case FileEncoding.Windows1252:
                 EncodingProvider provider = CodePagesEncodingProvider.Instance;
                 Encoding.RegisterProvider(provider);
+
                 return Encoding.GetEncoding(1252);
             case FileEncoding.Unicode:
                 return Encoding.Unicode;
             default:
-                throw new ArgumentOutOfRangeException(nameof(fileEncoding), fileEncoding, "Unsupported file encoding value.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(fileEncoding),
+                    fileEncoding,
+                    "Unsupported file encoding value.");
         }
     }
 }

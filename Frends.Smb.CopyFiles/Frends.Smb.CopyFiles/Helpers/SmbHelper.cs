@@ -22,9 +22,9 @@ internal static class SmbHandler
             throw new ArgumentException("Server cannot be empty.", nameof(connection));
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
-        if (input.SourcePath.StartsWith(@"\\"))
+        if (input.SourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
-        if (input.TargetPath.StartsWith(@"\\"))
+        if (input.TargetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
         if (string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));
@@ -72,8 +72,8 @@ internal static class SmbHandler
             options.Pattern,
             options.PatternMatchingMode,
             cancellationToken);
-        var newlyCreatedFiles = new List<string>();
-        var tempFiles = new List<Tuple<string, string>>();
+        var newlyCreatedFiles = new List<PathString>();
+        var tempFiles = new List<Tuple<PathString, PathString>>();
 
         try
         {
@@ -114,7 +114,7 @@ internal static class SmbHandler
                 dstFileStore.CloseFile(handle);
             }
 
-            // rollback temp files
+            // roll back temp files
             foreach (var (tmpFile, orgFile) in tempFiles)
             {
                 dstFileStore.CreateFile(
@@ -158,9 +158,9 @@ internal static class SmbHandler
     }
 
     private static void SafeCopy(
-        string srcPath,
+        PathString srcPath,
         ISMBFileStore srcFileStore,
-        string dstPath,
+        PathString dstPath,
         ISMBFileStore dstFileStore,
         int maxChunkSize)
     {
@@ -214,15 +214,15 @@ internal static class SmbHandler
         }
     }
 
-    private static string PrepareForCopy(
-        string dstPath,
+    private static PathString PrepareForCopy(
+        PathString dstPath,
         ISMBFileStore dstStore,
         FileExistsAction fileExistsAction,
         bool createTargetDirectories,
-        ref List<string> newlyCreatedFiles,
-        ref List<Tuple<string, string>> tempFiles)
+        ref List<PathString> newlyCreatedFiles,
+        ref List<Tuple<PathString, PathString>> tempFiles)
     {
-        var finalDstPath = dstPath;
+        PathString finalDstPath = dstPath;
         NTStatus status = dstStore.CreateFile(
             out var dstHandle,
             out _,
@@ -239,10 +239,10 @@ internal static class SmbHandler
             switch (fileExistsAction)
             {
                 case FileExistsAction.Overwrite:
-                    var dstFileName = Path.GetFileName(dstPath.ToOsPath());
-                    var tempName = Path.Combine(
-                        Path.GetDirectoryName(dstPath.ToOsPath()) ?? string.Empty,
-                        $"temp-{Guid.NewGuid().ToString()}-{dstFileName}").ToSmbPath();
+                    PathString dstFileName = Path.GetFileName(dstPath);
+                    PathString tempName = Path.Combine(
+                        Path.GetDirectoryName(dstPath) ?? string.Empty,
+                        $"temp-{Guid.NewGuid().ToString()}-{dstFileName}");
                     var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = tempName };
                     status = dstStore.SetFileInformation(dstHandle, rename);
 
@@ -253,7 +253,7 @@ internal static class SmbHandler
                     }
 
                     dstStore.CloseFile(dstHandle);
-                    tempFiles.Add(new Tuple<string, string>(tempName, dstPath));
+                    tempFiles.Add(new Tuple<PathString, PathString>(tempName, dstPath));
 
                     break;
                 case FileExistsAction.Rename:
@@ -298,21 +298,20 @@ internal static class SmbHandler
             : finalDstPath;
     }
 
-    private static string GenerateUniqueFilePath(ISMBFileStore fileStore, string path)
+    private static PathString GenerateUniqueFilePath(ISMBFileStore fileStore, PathString path)
     {
-        string normalized = path.ToOsPath();
-        string directory = Path.GetDirectoryName(normalized);
-        string baseFileName = Path.GetFileNameWithoutExtension(normalized);
-        string extension = Path.GetExtension(normalized);
+        PathString directory = Path.GetDirectoryName(path);
+        PathString baseFileName = Path.GetFileNameWithoutExtension(path);
+        PathString extension = Path.GetExtension(path);
 
         int counter = 1;
 
         while (counter < 10000)
         {
-            string newFileName = $"{baseFileName}({counter}){extension}";
-            var newPath = string.IsNullOrEmpty(directory)
+            PathString newFileName = $"{baseFileName}({counter}){extension}";
+            PathString newPath = string.IsNullOrEmpty(directory)
                 ? newFileName
-                : $"{directory}\\{newFileName}";
+                : $"{directory}{PathString.GetSeparatorChar()}{newFileName}";
 
             NTStatus checkStatus = fileStore.CreateFile(
                 out object checkHandle,
@@ -337,23 +336,23 @@ internal static class SmbHandler
         throw new Exception($"Could not generate unique filename for: {path}");
     }
 
-    private static void EnsureDirectoriesExist(ISMBFileStore fileStore, string smbFullPath)
+    private static void EnsureDirectoriesExist(ISMBFileStore fileStore, PathString smbFullPath)
     {
         ArgumentNullException.ThrowIfNull(fileStore);
 
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
-        var directory = Path.GetDirectoryName(smbFullPath.ToOsPath())?.ToSmbPath();
+        PathString directory = Path.GetDirectoryName(smbFullPath);
 
         if (string.IsNullOrEmpty(directory)) return;
 
-        var parts = directory.Split(["\\"], StringSplitOptions.RemoveEmptyEntries);
+        var parts = directory.Value.Split([PathString.GetSeparatorChar()], StringSplitOptions.RemoveEmptyEntries);
 
-        string current = string.Empty;
+        PathString current = string.Empty;
 
         foreach (var part in parts)
         {
-            current = string.IsNullOrEmpty(current) ? part : $"{current}\\{part}";
+            current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
             var status = fileStore.CreateFile(
                 out _,
@@ -375,21 +374,21 @@ internal static class SmbHandler
         }
     }
 
-    private static string PrepareDestinationPath(
+    private static PathString PrepareDestinationPath(
         SourceFileInfo sourceFile,
-        string destinationRoot,
+        PathString destinationRoot,
         bool preserveStructure)
     {
-        var pathSuffix = preserveStructure
-            ? sourceFile.RelativeFilePath
-            : Path.GetFileName(sourceFile.FilePath.ToOsPath());
+        PathString pathSuffix = preserveStructure
+            ? sourceFile.RelativeFilePath.Value
+            : Path.GetFileName(sourceFile.FilePath);
 
-        return Path.Combine(destinationRoot.ToOsPath(), pathSuffix.ToOsPath()).ToSmbPath();
+        return Path.Combine(destinationRoot, pathSuffix);
     }
 
     private static List<SourceFileInfo> GetSourceFiles(
         ISMBFileStore fileStore,
-        string sourcePath,
+        PathString sourcePath,
         bool recursive,
         string pattern,
         PatternMatchingMode patternMatchingMode,
@@ -423,12 +422,12 @@ internal static class SmbHandler
 
     private static void CollectFiles(
         ISMBFileStore fileStore,
-        string directoryPath,
+        PathString directoryPath,
         bool recursive,
         string pattern,
         PatternMatchingMode mode,
         List<SourceFileInfo> output,
-        string initialSourcePath,
+        PathString initialSourcePath,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -451,12 +450,12 @@ internal static class SmbHandler
             {
                 token.ThrowIfCancellationRequested();
 
-                var name = e.FileName;
+                PathString name = e.FileName;
 
-                if (name is "." or "..")
+                if (name == "." || name == "..")
                     continue;
 
-                string fullPath = Path.Combine(directoryPath.ToOsPath(), name.ToOsPath()).ToSmbPath();
+                PathString fullPath = Path.Combine(directoryPath, name);
 
                 if (IsDirectory(e) && recursive)
                     CollectFiles(fileStore, fullPath, true, pattern, mode, output, initialSourcePath, token);
@@ -472,7 +471,7 @@ internal static class SmbHandler
 
     private static bool TryOpenFileToRead(
         ISMBFileStore store,
-        string path,
+        PathString path,
         out object handle,
         bool isDirectory = false)
     {
@@ -494,7 +493,7 @@ internal static class SmbHandler
         return false;
     }
 
-    private static bool MatchesPattern(string fileName, string pattern, PatternMatchingMode mode)
+    private static bool MatchesPattern(PathString fileName, string pattern, PatternMatchingMode mode)
     {
         var regexPattern = mode switch
         {

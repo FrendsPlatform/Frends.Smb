@@ -31,6 +31,8 @@ public static class Smb
     {
         try
         {
+            PathString.Setup(connection.OperatingSystem);
+
             return ExecuteRenameAsync(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
@@ -59,7 +61,7 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(input.NewFileName))
             throw new ArgumentException("NewFileName cannot be empty.", nameof(input));
 
-        if (input.Path.StartsWith(@"\\"))
+        if (input.Path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -83,10 +85,9 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                string directory = Path.GetDirectoryName(input.Path)?.Replace('/', '\\')?.TrimStart('\\') ?? string.Empty;
-                string oldFileName = Path.GetFileName(input.Path);
+                PathString directory = Path.GetDirectoryName(input.Path)?.TrimStart(PathString.GetSeparatorChar()) ?? string.Empty;
 
-                string newFilePath = $"{directory}\\{input.NewFileName}".TrimStart('\\');
+                PathString newFilePath = $"{directory}{PathString.GetSeparatorChar()}{input.NewFileName}".TrimStart(PathString.GetSeparatorChar());
 
                 bool targetExists = FileExists(fileStore, newFilePath);
 
@@ -119,7 +120,7 @@ public static class Smb
 
                 NTStatus openStatus = fileStore.CreateFile(
                     out object fileHandle,
-                    out FileStatus fileStatus,
+                    out _,
                     input.Path,
                     AccessMask.SYNCHRONIZE | AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE | AccessMask.DELETE,
                     SMBLibrary.FileAttributes.Normal,
@@ -157,7 +158,7 @@ public static class Smb
                 {
                     Success = true,
                     Error = null,
-                    NewFilePath = newFilePath.TrimStart('\\'),
+                    NewFilePath = newFilePath.Value.TrimStart(PathString.GetSeparatorChar()),
                 };
 
                 return result;
@@ -177,7 +178,7 @@ public static class Smb
     {
         NTStatus status = fileStore.CreateFile(
            out object handle,
-           out FileStatus fileStatus,
+           out _,
            path,
            AccessMask.GENERIC_READ,
            SMBLibrary.FileAttributes.Normal,
@@ -195,17 +196,17 @@ public static class Smb
         return false;
     }
 
-    private static string GetNonConflictingFilePath(ISMBFileStore fileStore, string destPath)
+    private static PathString GetNonConflictingFilePath(ISMBFileStore fileStore, PathString destPath)
     {
-        string candidate = destPath;
+        PathString candidate = destPath;
         int count = 1;
-        string dir = Path.GetDirectoryName(destPath) ?? string.Empty;
-        string baseName = Path.GetFileNameWithoutExtension(destPath);
-        string ext = Path.GetExtension(destPath);
+        PathString dir = Path.GetDirectoryName(destPath) ?? string.Empty;
+        PathString baseName = Path.GetFileNameWithoutExtension(destPath);
+        PathString ext = Path.GetExtension(destPath);
 
         while (FileExists(fileStore, candidate))
         {
-            string newFileName = $"{baseName}({count++}){ext}";
+            PathString newFileName = $"{baseName}({count++}){ext}";
             candidate = Path.Combine(dir, newFileName);
         }
 

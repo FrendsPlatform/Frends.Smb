@@ -12,5 +12,5 @@ public class Input
     /// </summary>
     /// <example>files/temp</example>
     [DisplayFormat(DataFormatString = "Text")]
-    public string Directory { get; set; } = string.Empty;
+    public PathString Directory { get; set; } = string.Empty;
 }

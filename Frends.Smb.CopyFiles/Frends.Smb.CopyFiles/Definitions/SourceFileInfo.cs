@@ -1,49 +1,48 @@
 ﻿using System;
 using System.IO;
-using Frends.Smb.CopyFiles.Helpers;
 
 namespace Frends.Smb.CopyFiles.Definitions;
 
 internal class SourceFileInfo
 {
-    internal SourceFileInfo(string filePath, string initialPath)
+    internal SourceFileInfo(PathString filePath, PathString initialPath)
     {
-        FilePath = filePath.Trim('\\');
-        InitialPath = initialPath.TrimStart('\\');
+        FilePath = filePath.Value.Trim(PathString.GetSeparatorChar());
+        InitialPath = initialPath.Value.TrimStart(PathString.GetSeparatorChar());
         RelativeFilePath = GetRelativeFilePath();
     }
 
     /// <summary>
-    /// File path from root of a share
+    /// File path from the root of a share
     /// </summary>
-    internal string FilePath { get; }
+    internal PathString FilePath { get; }
 
     /// <summary>
     /// path to the file starting from InitialPath instead of share root
     /// </summary>
-    internal string RelativeFilePath { get; }
+    internal PathString RelativeFilePath { get; }
 
     /// <summary>
     /// Initial source path that was provided as an Input to the task
     /// </summary>
-    private string InitialPath { get; }
+    private PathString InitialPath { get; }
 
-    private string GetRelativeFilePath()
+    private PathString GetRelativeFilePath()
     {
         // Input.SourcePath is a file
         if (InitialPath == FilePath)
         {
-            return Path.GetFileName(FilePath.ToOsPath());
+            return Path.GetFileName(FilePath);
         }
 
         // Input.SourcePath == "" (root)
-        if (string.IsNullOrEmpty(InitialPath)) return FilePath.ToSmbPath();
+        if (string.IsNullOrEmpty(InitialPath)) return FilePath;
 
         // General case
-        if (!FilePath.StartsWith(InitialPath))
+        if (!FilePath.Value.StartsWith(InitialPath))
             throw new Exception($"File '{FilePath}' is not under source path '{InitialPath}'");
-        var lastDir = Path.GetFileName(InitialPath.ToOsPath());
-        string leftover = FilePath[InitialPath.Length..];
-        return $"{lastDir}\\{leftover.Trim('\\')}";
+        PathString lastDir = Path.GetFileName(InitialPath);
+        PathString leftover = FilePath.Value[InitialPath.Value.Length..];
+        return $"{lastDir}{PathString.GetSeparatorChar()}{leftover.Value.Trim(PathString.GetSeparatorChar())}";
     }
 }

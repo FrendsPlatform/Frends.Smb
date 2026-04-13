@@ -9,11 +9,6 @@ using NUnit.Framework;
 
 namespace Frends.Smb.RenameFile.Tests;
 
-// These SMB integration tests require Docker and a Linux-compatible environment (e.g. WSL2).
-// They will not run on Windows natively because SMB port 445 is reserved by the OS.
-// To execute the tests, run them inside WSL with Docker running:
-//    dotnet test
-// The tests will automatically start a temporary Samba container and mount test files for reading.
 [TestFixture]
 public class RenameFileTests
 {
@@ -150,7 +145,7 @@ public class RenameFileTests
 
         var result1 = Smb.RenameFile(input, connection, options, CancellationToken.None);
         Assert.That(result1.Success, Is.True);
-        Assert.That(result1.NewFilePath, Does.Contain("duplicate(1).txt"));
+        Assert.That(result1.NewFilePath.Value, Does.Contain("duplicate(1).txt"));
         Assert.That(File.Exists(LocalPath("duplicate(1).txt")), Is.True);
 
         File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
@@ -158,7 +153,7 @@ public class RenameFileTests
 
         var result2 = Smb.RenameFile(input, connection, options, CancellationToken.None);
         Assert.That(result2.Success, Is.True);
-        Assert.That(result2.NewFilePath, Does.Contain("duplicate(2).txt"));
+        Assert.That(result2.NewFilePath.Value, Does.Contain("duplicate(2).txt"));
         Assert.That(File.Exists(LocalPath("duplicate(2).txt")), Is.True);
 
         File.WriteAllText(LocalPath("duplicate.txt"), "Duplicate file");
@@ -166,7 +161,7 @@ public class RenameFileTests
 
         var result3 = Smb.RenameFile(input, connection, options, CancellationToken.None);
         Assert.That(result3.Success, Is.True);
-        Assert.That(result3.NewFilePath, Does.Contain("duplicate(3).txt"));
+        Assert.That(result3.NewFilePath.Value, Does.Contain("duplicate(3).txt"));
         Assert.That(File.Exists(LocalPath("duplicate(3).txt")), Is.True);
 
         Assert.That(File.Exists(LocalPath("duplicate(1).txt")), Is.True);

@@ -9,11 +9,6 @@ using NUnit.Framework;
 
 namespace Frends.Smb.MoveDirectory.Tests;
 
-// These SMB integration tests require Docker and a Linux-compatible environment (e.g., WSL2).
-// They will not run on Windows natively because the OS reserves SMB port 445.
-// To execute the tests, run them inside WSL with Docker running:
-//    dotnet test
-// The tests will automatically start a temporary Samba container and mount test files for reading.
 [TestFixture]
 public class MoveDirectoryTests
 {
@@ -121,8 +116,8 @@ public class MoveDirectoryTests
         var result = Smb.MoveDirectory(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
-        Assert.That(result.SourcePath, Is.EqualTo("source\\empty-dir"));
-        Assert.That(result.TargetPath, Is.EqualTo("target\\moved-empty"));
+        Assert.That(result.SourcePath, Is.EqualTo($"source{PathString.GetSeparatorChar()}empty-dir"));
+        Assert.That(result.TargetPath, Is.EqualTo($"target{PathString.GetSeparatorChar()}moved-empty"));
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "source", "empty-dir")), Is.False);
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "target", "moved-empty")), Is.True);
     }
@@ -244,7 +239,7 @@ public class MoveDirectoryTests
         var result = Smb.MoveDirectory(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
-        Assert.That(result.TargetPath, Does.Match(@"target\\rename-target\(\d+\)"));
+        Assert.That(result.TargetPath.Value, Does.Match($@"target{PathString.GetSeparatorChar()}rename-target\(\d+\)"));
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "source", "rename-source")), Is.False);
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "target", "rename-target")), Is.True);
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "target", "rename-target(1)")), Is.True);
@@ -270,7 +265,7 @@ public class MoveDirectoryTests
         var result = Smb.MoveDirectory(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
-        Assert.That(result.TargetPath, Is.EqualTo("target\\multi-target(3)"));
+        Assert.That(result.TargetPath, Is.EqualTo($"target{PathString.GetSeparatorChar()}multi-target(3)"));
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "target", "multi-target(3)")), Is.True);
     }
 
@@ -390,7 +385,7 @@ public class MoveDirectoryTests
         var result = Smb.MoveDirectory(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
-        Assert.That(result.TargetPath, Does.Contain("\\"));
+        Assert.That(result.TargetPath.Value, Does.Contain($"{PathString.GetSeparatorChar()}"));
         Assert.That(Directory.Exists(Path.Combine(testFilesPath, "target", "moved", "slash", "test")), Is.True);
     }
 

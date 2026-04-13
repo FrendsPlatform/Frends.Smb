@@ -20,7 +20,7 @@ internal static class SmbHandler
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
         if (string.IsNullOrWhiteSpace(input.DirectoryPath))
             throw new ArgumentException("Destination Path cannot be empty.", nameof(input));
-        if (input.DirectoryPath.StartsWith(@"\\"))
+        if (input.DirectoryPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
         if (string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));
@@ -51,26 +51,26 @@ internal static class SmbHandler
 
     internal static void CreateDirectory(
         ISMBFileStore fileStore,
-        [NotNull] string smbFullPath,
+        [NotNull] PathString smbFullPath,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
-        var parts = smbFullPath.Replace('\\', '/').Split(["/"], StringSplitOptions.RemoveEmptyEntries);
+        var parts = smbFullPath.Value.Split([PathString.GetSeparatorChar()], StringSplitOptions.RemoveEmptyEntries);
 
-        string current = string.Empty;
+        PathString current = string.Empty;
 
         foreach (var part in parts)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            current = string.IsNullOrEmpty(current) ? part : $"{current}/{part}";
+            current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
             var status = fileStore.CreateFile(
                 out _,
                 out _,
                 current,
                 SYNCHRONIZE | GENERIC_WRITE,
-                SMBLibrary.FileAttributes.Directory,
+                FileAttributes.Directory,
                 ShareAccess.Write,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,

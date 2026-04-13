@@ -35,6 +35,8 @@ public static class Smb
     {
         try
         {
+            PathString.Setup(connection.OperatingSystem);
+
             return await ExecuteDeleteAsync(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
@@ -59,7 +61,7 @@ public static class Smb
 
         input.Path ??= string.Empty;
 
-        if (input.Path.StartsWith(@"\\"))
+        if (input.Path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -69,14 +71,17 @@ public static class Smb
         try
         {
             bool connected = client.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
+
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
             NTStatus loginStatus = client.Login(domain, user, connection.Password);
+
             if (loginStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"SMB login failed: {loginStatus}");
 
             ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
+
             if (treeStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to connect to share '{connection.Share}': {treeStatus}");
 
@@ -96,6 +101,7 @@ public static class Smb
                 }
 
                 var deletedFiles = new List<FileItem>();
+
                 foreach (var filePath in filesToDelete)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -118,19 +124,21 @@ public static class Smb
 
                     try
                     {
-                        var deleteInfo = new FileDispositionInformation { DeletePending = true };
+                        var deleteInfo = new FileDispositionInformation
+                        {
+                            DeletePending = true,
+                        };
                         NTStatus deleteStatus = fileStore.SetFileInformation(fileHandle, deleteInfo);
 
                         if (deleteStatus == NTStatus.STATUS_SUCCESS)
                         {
-                            var normalizedFilePath = filePath.Replace('/', '\\').TrimStart('\\');
-                            var normalizedForOs = normalizedFilePath
-                                .Replace('\\', Path.DirectorySeparatorChar)
-                                .Replace('/', Path.DirectorySeparatorChar);
-
-                            var fileNameOnly = Path.GetFileName(normalizedForOs);
-
-                            deletedFiles.Add(new FileItem { Name = fileNameOnly, Path = normalizedFilePath, });
+                            PathString normalizedFilePath = filePath.Value.TrimStart(PathString.GetSeparatorChar());
+                            var fileNameOnly = Path.GetFileName(normalizedFilePath);
+                            deletedFiles.Add(new FileItem
+                            {
+                                Name = fileNameOnly,
+                                Path = normalizedFilePath,
+                            });
                         }
                         else
                         {
@@ -168,18 +176,19 @@ public static class Smb
         var pattern = options.Pattern;
         if (options.PatternMatchingMode == PatternMatchingMode.Wildcards)
             pattern = "^" + Regex.Escape(options.Pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
+
         return new Regex(pattern, RegexOptions.Compiled | RegexOptions.CultureInvariant);
     }
 
-    private static async Task<List<string>> FindMatchingFilesAsync(
+    private static async Task<List<PathString>> FindMatchingFilesAsync(
         ISMBFileStore fileStore,
-        string basePath,
+        PathString basePath,
         Options options,
         CancellationToken cancellationToken)
     {
-        var matchedFiles = new List<string>();
+        var matchedFiles = new List<PathString>();
 
-        basePath = basePath?.Trim('\\', '/') ?? string.Empty;
+        basePath = basePath.Value.Trim(PathString.GetSeparatorChar());
 
         if (!string.IsNullOrEmpty(basePath))
         {
@@ -198,6 +207,7 @@ public static class Smb
             {
                 fileStore.CloseFile(fileHandle);
                 matchedFiles.Add(basePath);
+
                 return matchedFiles;
             }
         }
@@ -205,29 +215,26 @@ public static class Smb
         var regex = PrepareRegex(options);
 
         matchedFiles = await Task.Run(
-            () =>
-            {
-                return EnumerateFiles(fileStore, basePath, regex, cancellationToken);
-            }, cancellationToken);
+            () => EnumerateFiles(fileStore, basePath, regex, cancellationToken), cancellationToken);
 
         return matchedFiles;
     }
 
-    private static List<string> EnumerateFiles(
+    private static List<PathString> EnumerateFiles(
         ISMBFileStore fileStore,
-        string directoryPath,
+        PathString directoryPath,
         Regex regex,
         CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
 
-        if (string.IsNullOrEmpty(directoryPath) || directoryPath == "\\" || directoryPath == "/")
+        if (string.IsNullOrEmpty(directoryPath) || directoryPath == PathString.GetSeparatorChar().ToString())
         {
             directoryPath = string.Empty;
         }
         else
         {
-            directoryPath = directoryPath.Trim('\\', '/');
+            directoryPath = directoryPath.Value.Trim(PathString.GetSeparatorChar());
         }
 
         NTStatus openStatus = fileStore.CreateFile(
@@ -244,7 +251,7 @@ public static class Smb
         if (openStatus != NTStatus.STATUS_SUCCESS)
             throw new Exception($"Failed to open directory '{directoryPath}': {openStatus}");
 
-        var files = new List<string>();
+        var files = new List<PathString>();
 
         try
         {
@@ -271,14 +278,16 @@ public static class Smb
                 {
                     token.ThrowIfCancellationRequested();
 
-                    string fileName = entry.FileName;
+                    PathString fileName = entry.FileName;
+
                     if (fileName == "." || fileName == "..")
                         continue;
 
                     bool isDir = (entry.FileAttributes & SMBLibrary.FileAttributes.Directory) != 0;
+
                     if (!isDir && regex.IsMatch(fileName))
                     {
-                        string fullPath = string.IsNullOrEmpty(directoryPath)
+                        PathString fullPath = string.IsNullOrEmpty(directoryPath)
                             ? fileName
                             : $"{directoryPath}\\{fileName}";
 
@@ -299,8 +308,10 @@ public static class Smb
     private static Tuple<string, string> GetDomainAndUsername(string username)
     {
         var domainAndUserName = username.Split('\\');
+
         if (domainAndUserName.Length != 2)
             throw new ArgumentException($@"UserName field must be of format domain\username was: {username}");
+
         return new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
     }
 }

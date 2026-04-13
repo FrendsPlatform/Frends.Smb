@@ -15,12 +15,12 @@ namespace Frends.Smb.MoveFiles.Definitions
         /// The original location of the file before it was moved.
         /// </summary>
         /// <example>reports\report.txt</example>
-        public string OriginalPath { get; set; }
+        public PathString OriginalPath { get; set; }
 
         /// <summary>
         /// The location where the file was stored as a backup for rollback purposes.
         /// </summary>
         /// <example>backup\report.txt.bak</example>
-        public string BackupPath { get; set; }
+        public PathString BackupPath { get; set; }
     }
 }

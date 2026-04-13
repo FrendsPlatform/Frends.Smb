@@ -10,11 +10,6 @@ using NUnit.Framework;
 
 namespace Frends.Smb.DeleteFiles.Tests;
 
-// These SMB integration tests require Docker and a Linux-compatible environment (e.g. WSL2).
-// They will not run on Windows natively because SMB port 445 is reserved by the OS.
-// To execute the tests, run them inside WSL with Docker running:
-//    dotnet test
-// The tests will automatically start a temporary Samba container and mount test files for reading.
 [TestFixture]
 public class DeleteFilesTests
 {

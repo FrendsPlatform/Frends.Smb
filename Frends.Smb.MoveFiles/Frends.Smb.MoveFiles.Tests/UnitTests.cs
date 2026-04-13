@@ -9,11 +9,6 @@ using NUnit.Framework;
 
 namespace Frends.Smb.MoveFiles.Tests;
 
-// These SMB integration tests require Docker and a Linux-compatible environment (e.g., WSL2).
-// They will not run on Windows natively because the OS reserves SMB port 445.
-// To execute the tests, run them inside WSL with Docker running:
-//    dotnet test
-// The tests will automatically start a temporary Samba container and mount test files for reading.
 [TestFixture]
 public class MoveFilesTests
 {
@@ -31,7 +26,7 @@ public class MoveFilesTests
     [OneTimeSetUp]
     public async Task GlobalSetup()
     {
-        testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "test-files-move");
+        testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, $"test-files-move-{Guid.NewGuid()}");
         Directory.CreateDirectory(testFilesPath);
 
         Directory.CreateDirectory(Path.Combine(testFilesPath, "source"));
@@ -78,7 +73,13 @@ public class MoveFilesTests
     [SetUp]
     public void Setup()
     {
-        connection = new Connection { Server = serverName, Share = shareName, Username = user, Password = password };
+        connection = new Connection
+        {
+            Server = serverName,
+            Share = shareName,
+            Username = user,
+            Password = password,
+        };
         options = new Options
         {
             ThrowErrorOnFailure = true,
@@ -114,8 +115,8 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].SourcePath, Is.EqualTo("source\\single.txt"));
-        Assert.That(result.Files[0].TargetPath, Is.EqualTo("target\\single.txt"));
+        Assert.That(result.Files[0].SourcePath, Is.EqualTo($"source{PathString.GetSeparatorChar()}single.txt"));
+        Assert.That(result.Files[0].TargetPath, Is.EqualTo($"target{PathString.GetSeparatorChar()}single.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "single.txt")), Is.False);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
     }
@@ -167,7 +168,7 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].SourcePath, Does.Contain("report_2024.txt"));
+        Assert.That(result.Files[0].SourcePath.Value, Does.Contain("report_2024.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "report_2024.txt")), Is.True);
     }
 
@@ -232,7 +233,7 @@ public class MoveFilesTests
         options.IfTargetFileExists = FileExistsAction.Throw;
 
         var ex = Assert.Throws<Exception>(() =>
-                Smb.MoveFiles(input, connection, options, CancellationToken.None));
+            Smb.MoveFiles(input, connection, options, CancellationToken.None));
 
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex.Message, Does.Contain("already exists"));
@@ -279,7 +280,7 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].TargetPath, Does.Match(@"target\\rename\(\d+\)\.txt"));
+        Assert.That(result.Files[0].TargetPath.Value, Does.Match($@"target{PathString.GetSeparatorChar()}rename\(\d+\)\.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "rename.txt")), Is.True);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "rename(1).txt")), Is.True);
     }
@@ -342,7 +343,7 @@ public class MoveFilesTests
         options.IfTargetFileExists = FileExistsAction.Throw;
 
         var ex = Assert.Throws<Exception>(() =>
-                 Smb.MoveFiles(input, connection, options, CancellationToken.None));
+            Smb.MoveFiles(input, connection, options, CancellationToken.None));
 
         Assert.That(ex, Is.Not.Null);
         Assert.That(ex.Message, Does.Contain("No files moved."));
@@ -496,9 +497,17 @@ public class MoveFilesTests
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Files.Count, Is.EqualTo(1));
-        Assert.That(result.Files[0].SourcePath, Does.Contain("root.txt"));
+        Assert.That(result.Files[0].SourcePath.Value, Does.Contain("root.txt"));
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "root.txt")), Is.True);
-        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "subdir", "nested.txt")), Is.True, "Nested file should remain");
+        Assert.That(
+            File.Exists(
+                Path.Combine(
+                    testFilesPath,
+                    "source",
+                    "subdir",
+                    "nested.txt")),
+            Is.True,
+            "Nested file should remain");
     }
 
     [Test]

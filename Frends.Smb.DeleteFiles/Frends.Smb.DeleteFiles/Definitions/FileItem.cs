@@ -15,6 +15,6 @@
         /// Full path of the deleted file.
         /// </summary>
         /// <example>Folder/SubFolder/document.txt</example>
-        public string Path { get; set; }
+        public PathString Path { get; set; }
     }
 }

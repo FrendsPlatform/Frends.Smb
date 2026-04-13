@@ -12,5 +12,5 @@ public class Input
     /// </summary>
     /// <example>folder\file.txt</example>
     [DisplayFormat(DataFormatString = "Text")]
-    public string Path { get; set; }
+    public PathString Path { get; set; }
 }

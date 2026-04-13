@@ -15,7 +15,7 @@ public class Result
     /// Full path of the deleted directory.
     /// </summary>
     /// <example>\\host\share\dir\newDir</example>
-    public string FullUncPath { get; set; }
+    public PathString FullUncPath { get; set; }
 
     /// <summary>
     /// Error that occurred during task execution.

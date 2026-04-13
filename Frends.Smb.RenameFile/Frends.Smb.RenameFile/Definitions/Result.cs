@@ -15,7 +15,7 @@ public class Result
     /// Full path of the file after the rename operation.
     /// </summary>
     /// <example>Folder/SubFolder/document.txt</example>
-    public string NewFilePath { get; set; }
+    public PathString NewFilePath { get; set; }
 
     /// <summary>
     /// Error that occurred during task execution.

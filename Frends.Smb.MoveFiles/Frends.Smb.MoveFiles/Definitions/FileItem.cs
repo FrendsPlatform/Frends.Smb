@@ -9,11 +9,11 @@ public class FileItem
     /// The original path of the file relative to the share before it was moved.
     /// </summary>
     /// <example>documents\reports\report.txt</example>
-    public string SourcePath { get; set; }
+    public PathString SourcePath { get; set; }
 
     /// <summary>
     /// The new path of the file relative to the share after it was moved.
     /// </summary>
     /// <example>backup\reports\report.txt</example>
-    public string TargetPath { get; set; }
+    public PathString TargetPath { get; set; }
 }

@@ -27,13 +27,15 @@ public static class Smb
     /// <param name="cancellationToken">A cancellation token provided by Frends Platform.</param>
     /// <returns>object { bool Success, string SourcePath, string TargetPath, object Error { string Message, Exception AdditionalInfo } }</returns>
     public static Result MoveDirectory(
-     [PropertyTab] Input input,
-     [PropertyTab] Connection connection,
-     [PropertyTab] Options options,
-     CancellationToken cancellationToken)
+        [PropertyTab] Input input,
+        [PropertyTab] Connection connection,
+        [PropertyTab] Options options,
+        CancellationToken cancellationToken)
     {
         try
         {
+            PathString.Setup(connection.OperatingSystem);
+
             return ExecuteMoveDirectory(input, connection, options, cancellationToken);
         }
         catch (Exception ex)
@@ -65,10 +67,10 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(input.TargetPath))
             throw new ArgumentException("TargetPath cannot be empty.", nameof(input));
 
-        if (input.SourcePath.StartsWith(@"\\"))
+        if (input.SourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
 
-        if (input.TargetPath.StartsWith(@"\\"))
+        if (input.TargetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -78,14 +80,17 @@ public static class Smb
         try
         {
             bool connected = client.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
+
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
             NTStatus loginStatus = client.Login(domain, user, connection.Password);
+
             if (loginStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"SMB login failed: {loginStatus}");
 
             ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
+
             if (treeStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to connect to share '{connection.Share}': {treeStatus}");
 
@@ -93,20 +98,24 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                string normalizedSourcePath = input.SourcePath.Replace('/', '\\').TrimStart('\\');
-                string normalizedTargetPath = input.TargetPath.Replace('/', '\\').TrimStart('\\');
+                PathString normalizedSourcePath = input.SourcePath.Value.TrimStart(PathString.GetSeparatorChar());
+                PathString normalizedTargetPath = input.TargetPath.Value.TrimStart(PathString.GetSeparatorChar());
 
                 if (!DirectoryExists(fileStore, normalizedSourcePath))
                     throw new Exception($"Source directory '{normalizedSourcePath}' does not exist.");
 
-                string finalTargetPath = normalizedTargetPath;
+                PathString finalTargetPath = normalizedTargetPath;
                 bool targetExists = DirectoryExists(fileStore, normalizedTargetPath);
 
                 switch (options.IfTargetDirectoryExists)
                 {
                     case DirectoryExistsAction.Throw:
                         if (targetExists)
-                            throw new IOException($"Target directory '{normalizedTargetPath}' already exists. No directory moved.");
+                        {
+                            throw new IOException(
+                                $"Target directory '{normalizedTargetPath}' already exists. No directory moved.");
+                        }
+
                         break;
 
                     case DirectoryExistsAction.Overwrite:
@@ -126,10 +135,12 @@ public static class Smb
                         break;
 
                     default:
-                        throw new ArgumentException($"Unknown DirectoryExistsAction: {options.IfTargetDirectoryExists}");
+                        throw new ArgumentException(
+                            $"Unknown DirectoryExistsAction: {options.IfTargetDirectoryExists}");
                 }
 
-                string targetParentDir = GetDirectoryPath(finalTargetPath);
+                PathString targetParentDir = GetDirectoryPath(finalTargetPath);
+
                 if (!string.IsNullOrEmpty(targetParentDir) && !DirectoryExists(fileStore, targetParentDir))
                 {
                     EnsureDirectoryExists(fileStore, targetParentDir);
@@ -147,7 +158,10 @@ public static class Smb
                     null);
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"Failed to open source directory '{normalizedSourcePath}' for move: {openStatus}");
+                {
+                    throw new Exception(
+                        $"Failed to open source directory '{normalizedSourcePath}' for move: {openStatus}");
+                }
 
                 try
                 {
@@ -159,8 +173,12 @@ public static class Smb
                     };
 
                     NTStatus renameStatus = fileStore.SetFileInformation(dirHandle, renameInfo);
+
                     if (renameStatus != NTStatus.STATUS_SUCCESS)
-                        throw new Exception($"Failed to move directory '{normalizedSourcePath}' to '{finalTargetPath}': {renameStatus}");
+                    {
+                        throw new Exception(
+                            $"Failed to move directory '{normalizedSourcePath}' to '{finalTargetPath}': {renameStatus}");
+                    }
                 }
                 finally
                 {
@@ -186,7 +204,7 @@ public static class Smb
         }
     }
 
-    private static bool DirectoryExists(ISMBFileStore fileStore, string path)
+    private static bool DirectoryExists(ISMBFileStore fileStore, PathString path)
     {
         NTStatus status = fileStore.CreateFile(
             out object handle,
@@ -202,51 +220,56 @@ public static class Smb
         if (status == NTStatus.STATUS_SUCCESS)
         {
             fileStore.CloseFile(handle);
+
             return true;
         }
 
         return false;
     }
 
-    private static string GetNonConflictingDirectoryPath(ISMBFileStore fileStore, string destPath)
+    private static PathString GetNonConflictingDirectoryPath(ISMBFileStore fileStore, PathString destPath)
     {
-        string candidate = destPath;
+        PathString candidate = destPath;
         int count = 1;
-        string parentDir = GetDirectoryPath(destPath);
-        string dirName = GetDirectoryName(destPath);
+        PathString parentDir = GetDirectoryPath(destPath);
+        PathString dirName = GetDirectoryName(destPath);
 
         while (DirectoryExists(fileStore, candidate))
         {
-            string newDirName = $"{dirName}({count++})";
+            PathString newDirName = $"{dirName}({count++})";
             candidate = string.IsNullOrEmpty(parentDir)
                 ? newDirName
-                : $"{parentDir}\\{newDirName}";
+                : $"{parentDir}{PathString.GetSeparatorChar()}{newDirName}";
         }
 
         return candidate;
     }
 
-    private static string GetDirectoryName(string path)
+    private static PathString GetDirectoryName(PathString path)
     {
         if (string.IsNullOrEmpty(path))
             return path;
 
-        string normalized = path.Replace('/', '\\').TrimEnd('\\');
-        int lastSlash = normalized.LastIndexOf('\\');
-        return lastSlash >= 0 ? normalized.Substring(lastSlash + 1) : normalized;
+        PathString normalized = path.Value.TrimEnd(PathString.GetSeparatorChar());
+        int lastSlash = normalized.Value.LastIndexOf(PathString.GetSeparatorChar());
+
+        return lastSlash >= 0 ? normalized.Value.Substring(lastSlash + 1) : normalized;
     }
 
-    private static void DeleteDirectoryRecursive(ISMBFileStore fileStore, string directoryPath, CancellationToken cancellationToken)
+    private static void DeleteDirectoryRecursive(
+        ISMBFileStore fileStore,
+        PathString directoryPath,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.IsNullOrEmpty(directoryPath) || directoryPath == "\\" || directoryPath == "/")
+        if (string.IsNullOrEmpty(directoryPath) || directoryPath == PathString.GetSeparatorChar().ToString())
         {
             directoryPath = string.Empty;
         }
         else
         {
-            directoryPath = directoryPath.Trim('\\', '/');
+            directoryPath = directoryPath.Value.Trim(PathString.GetSeparatorChar());
         }
 
         NTStatus openStatus = fileStore.CreateFile(
@@ -288,13 +311,14 @@ public static class Smb
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    string fileName = entry.FileName;
+                    PathString fileName = entry.FileName;
+
                     if (fileName == "." || fileName == "..")
                         continue;
 
-                    string fullPath = string.IsNullOrEmpty(directoryPath)
+                    PathString fullPath = string.IsNullOrEmpty(directoryPath)
                         ? fileName
-                        : $"{directoryPath}\\{fileName}";
+                        : $"{directoryPath}{PathString.GetSeparatorChar()}{fileName}";
 
                     bool isDir = (entry.FileAttributes & SMBLibrary.FileAttributes.Directory) != 0;
 
@@ -318,7 +342,7 @@ public static class Smb
         DeleteEmptyDirectory(fileStore, directoryPath);
     }
 
-    private static void DeleteEmptyDirectory(ISMBFileStore fileStore, string directoryPath)
+    private static void DeleteEmptyDirectory(ISMBFileStore fileStore, PathString directoryPath)
     {
         NTStatus openStatus = fileStore.CreateFile(
             out object dirHandle,
@@ -336,7 +360,10 @@ public static class Smb
 
         try
         {
-            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+            var deleteInfo = new FileDispositionInformation
+            {
+                DeletePending = true,
+            };
             NTStatus deleteStatus = fileStore.SetFileInformation(dirHandle, deleteInfo);
 
             if (deleteStatus != NTStatus.STATUS_SUCCESS)
@@ -348,11 +375,12 @@ public static class Smb
         }
     }
 
-    private static string GetDirectoryPath(string filePath)
+    private static PathString GetDirectoryPath(PathString filePath)
     {
-        string normalized = filePath.Replace('/', '\\').TrimEnd('\\');
-        int lastSlash = normalized.LastIndexOf('\\');
-        return lastSlash > 0 ? normalized.Substring(0, lastSlash) : string.Empty;
+        PathString normalized = filePath.Value.TrimEnd(PathString.GetSeparatorChar());
+        int lastSlash = normalized.Value.LastIndexOf(PathString.GetSeparatorChar());
+
+        return lastSlash > 0 ? normalized.Value.Substring(0, lastSlash) : string.Empty;
     }
 
     private static (string domain, string user) GetDomainAndUsername(string username)
@@ -361,15 +389,17 @@ public static class Smb
             return (string.Empty, string.Empty);
 
         var parts = username.Split('\\');
+
         if (parts.Length == 2)
             return (parts[0], parts[1]);
 
         throw new ArgumentException($@"Username field must be of format domain\username was: {username}");
     }
 
-    private static void EnsureDirectoryExists(ISMBFileStore fileStore, string directoryPath)
+    private static void EnsureDirectoryExists(ISMBFileStore fileStore, PathString directoryPath)
     {
-        directoryPath = directoryPath.Trim('\\', '/');
+        directoryPath = directoryPath.Value.Trim(PathString.GetSeparatorChar());
+
         if (string.IsNullOrEmpty(directoryPath))
             return;
 
@@ -387,10 +417,12 @@ public static class Smb
         if (checkStatus == NTStatus.STATUS_SUCCESS)
         {
             fileStore.CloseFile(checkHandle);
+
             return;
         }
 
-        string parentDir = GetDirectoryPath(directoryPath);
+        PathString parentDir = GetDirectoryPath(directoryPath);
+
         if (!string.IsNullOrEmpty(parentDir))
         {
             EnsureDirectoryExists(fileStore, parentDir);
@@ -417,7 +449,7 @@ public static class Smb
         }
     }
 
-    private static void DeleteFile(ISMBFileStore fileStore, string filePath)
+    private static void DeleteFile(ISMBFileStore fileStore, PathString filePath)
     {
         NTStatus openStatus = fileStore.CreateFile(
             out object fileHandle,
@@ -435,7 +467,10 @@ public static class Smb
 
         try
         {
-            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+            var deleteInfo = new FileDispositionInformation
+            {
+                DeletePending = true,
+            };
             NTStatus deleteStatus = fileStore.SetFileInformation(fileHandle, deleteInfo);
 
             if (deleteStatus != NTStatus.STATUS_SUCCESS)

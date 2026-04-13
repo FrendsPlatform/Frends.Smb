@@ -11,13 +11,13 @@ public class FileItem
     /// Name of the file.
     /// </summary>
     /// <example>document.txt</example>
-    public string Name { get; set; } = string.Empty;
+    public PathString Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Full path of the file.
     /// </summary>
     /// <example>Folder/SubFolder/document.txt</example>
-    public string Path { get; set; } = string.Empty;
+    public PathString Path { get; set; } = string.Empty;
 
     /// <summary>
     /// Size of the file in megabytes.
