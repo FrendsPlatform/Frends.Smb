@@ -12,5 +12,5 @@ public class Input
     /// </summary>
     /// <example>root\folder\newFolder</example>
     [DisplayFormat(DataFormatString = "Text")]
-    public PathString DirectoryPath { get; set; }
+    public string DirectoryPath { get; set; }
 }

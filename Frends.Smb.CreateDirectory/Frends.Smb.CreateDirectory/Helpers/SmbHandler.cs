@@ -12,15 +12,15 @@ namespace Frends.Smb.CreateDirectory.Helpers;
 
 internal static class SmbHandler
 {
-    internal static void ValidateParameters(Input input, Connection connection)
+    internal static void ValidateParameters(PathString directoryPath, Connection connection)
     {
         if (string.IsNullOrWhiteSpace(connection.Server))
             throw new ArgumentException("Server cannot be empty.", nameof(connection));
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
-        if (string.IsNullOrWhiteSpace(input.DirectoryPath))
-            throw new ArgumentException("Destination Path cannot be empty.", nameof(input));
-        if (input.DirectoryPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            throw new ArgumentException("Destination Path cannot be empty.", nameof(directoryPath));
+        if (directoryPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
         if (string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));

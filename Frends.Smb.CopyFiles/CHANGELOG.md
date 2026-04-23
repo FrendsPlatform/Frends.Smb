@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.1.0] - 2026-04-23
+
+### Fixed
+
+- Input parameters treated as normal string instead of PathString type.
+
 ## [2.0.0] - 2026-04-08
 
 ### Added

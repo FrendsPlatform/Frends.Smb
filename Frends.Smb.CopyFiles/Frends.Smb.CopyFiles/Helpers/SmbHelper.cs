@@ -14,17 +14,17 @@ namespace Frends.Smb.CopyFiles.Helpers;
 
 internal static class SmbHandler
 {
-    internal static void ValidateParameters(Input input, Connection connection)
+    internal static void ValidateParameters(PathString sourcePath, PathString targetPath, Connection connection)
     {
-        if (input.SourcePath == input.TargetPath)
-            throw new ArgumentException("Destination and source cannot be the same", nameof(input));
+        if (sourcePath == targetPath)
+            throw new ArgumentException("Destination and source cannot be the same");
         if (string.IsNullOrWhiteSpace(connection.Server))
             throw new ArgumentException("Server cannot be empty.", nameof(connection));
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
-        if (input.SourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (sourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
-        if (input.TargetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (targetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
         if (string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));
@@ -59,7 +59,8 @@ internal static class SmbHandler
     internal static List<FileItem> CopyFiles(
         ISMBFileStore dstFileStore,
         ISMBFileStore srcFileStore,
-        Input input,
+        PathString sourcePath,
+        PathString targetPath,
         Options options,
         int maxChunkSize,
         CancellationToken cancellationToken)
@@ -67,7 +68,7 @@ internal static class SmbHandler
         var result = new List<FileItem>();
         var sources = GetSourceFiles(
             srcFileStore,
-            input.SourcePath,
+            sourcePath,
             options.Recursive,
             options.Pattern,
             options.PatternMatchingMode,
@@ -79,7 +80,7 @@ internal static class SmbHandler
         {
             foreach (var source in sources)
             {
-                var dstPath = PrepareDestinationPath(source, input.TargetPath, options.PreserveDirectoryStructure);
+                var dstPath = PrepareDestinationPath(source, targetPath, options.PreserveDirectoryStructure);
                 var finalDstPath = PrepareForCopy(
                     dstPath,
                     dstFileStore,

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,8 +34,9 @@ public static class Smb
         try
         {
             PathString.Setup(connection.OperatingSystem);
+            PathString path = input.Path;
 
-            return await ExecuteReadAsync(input, connection, options, cancellationToken);
+            return await ExecuteReadAsync(path, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -45,7 +45,7 @@ public static class Smb
     }
 
     private static async Task<Result> ExecuteReadAsync(
-        Input input,
+        PathString path,
         Connection connection,
         Options options,
         CancellationToken cancellationToken)
@@ -58,10 +58,10 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
 
-        if (string.IsNullOrWhiteSpace(input.Path))
-            throw new ArgumentException("Path cannot be empty.", nameof(input));
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Path cannot be empty.", nameof(path));
 
-        if (input.Path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
         Encoding encoding = GetEncoding(options.FileEncoding, options.EnableBom, options.EncodingInString);
@@ -96,7 +96,7 @@ public static class Smb
                 NTStatus openStatus = fileStore.CreateFile(
                     out object fileHandle,
                     out FileStatus fileStatus,
-                    input.Path,
+                    path,
                     AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
                     SMBLibrary.FileAttributes.Normal,
                     ShareAccess.Read,
@@ -105,7 +105,7 @@ public static class Smb
                     null);
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception($"Failed to open file '{input.Path}': {openStatus}, file status: {fileStatus}");
+                    throw new Exception($"Failed to open file '{path}': {openStatus}, file status: {fileStatus}");
 
                 try
                 {
@@ -193,7 +193,7 @@ public static class Smb
                         Success = true,
                         Content = contentBytes,
                         TextContent = decodedText,
-                        Path = input.Path,
+                        Path = path,
                         SizeInMegaBytes = sizeInMb,
                         CreationTime = creationTime,
                         LastWriteTime = lastWriteTime,

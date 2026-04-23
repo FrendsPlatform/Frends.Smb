@@ -36,7 +36,10 @@ public static class Smb
         try
         {
             PathString.Setup(connection.OperatingSystem);
-            SmbHandler.ValidateParameters(input, connection);
+            PathString sourcePath = input.SourcePath;
+            PathString targetPath = input.TargetPath;
+
+            SmbHandler.ValidateParameters(sourcePath, targetPath, connection);
             SmbHandler.PrepareSmbConnection(out dstClient, out dstFileStore, connection);
             SmbHandler.PrepareSmbConnection(out srcClient, out srcFileStore, connection);
             int maxChunkSize;
@@ -54,7 +57,8 @@ public static class Smb
             var copiedFiles = SmbHandler.CopyFiles(
                 dstFileStore,
                 srcFileStore,
-                input,
+                sourcePath,
+                targetPath,
                 options,
                 maxChunkSize,
                 cancellationToken);

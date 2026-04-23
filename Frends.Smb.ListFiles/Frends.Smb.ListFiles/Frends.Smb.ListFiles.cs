@@ -33,6 +33,7 @@ public static class Smb
         CancellationToken cancellationToken)
     {
         PathString.Setup(connection.OperatingSystem);
+        PathString directory = input.Directory;
 
         var client = new SMB2Client();
         ISMBFileStore? fileStore = null;
@@ -45,9 +46,9 @@ public static class Smb
                 throw new ArgumentException("Server cannot be empty.", nameof(connection));
             if (string.IsNullOrWhiteSpace(connection.Share))
                 throw new ArgumentException("Share cannot be empty.", nameof(connection));
-            if (string.IsNullOrWhiteSpace(input.Directory))
+            if (string.IsNullOrWhiteSpace(directory))
                 throw new ArgumentException("Directory cannot be empty.", nameof(input));
-            if (input.Directory.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+            if (directory.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
                 throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
             var (domain, username) = GetDomainAndUsername(connection.Username);
@@ -67,7 +68,7 @@ public static class Smb
             if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
 
             // Normalize the base directory to SMB path format (forward slashes)
-            PathString baseDir = input.Directory.Value.Trim(PathString.GetSeparatorChar());
+            PathString baseDir = directory.Value.Trim(PathString.GetSeparatorChar());
 
             Regex? regex = PrepareRegex(options);
             var files = new List<FileItem>();

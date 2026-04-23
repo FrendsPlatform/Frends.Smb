@@ -32,8 +32,10 @@ public static class Smb
         try
         {
             PathString.Setup(connection.OperatingSystem);
+            PathString path = input.Path;
+            PathString newFileName = input.NewFileName;
 
-            return ExecuteRenameAsync(input, connection, options, cancellationToken);
+            return ExecuteRenameAsync(path, newFileName, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -42,7 +44,8 @@ public static class Smb
     }
 
     private static Result ExecuteRenameAsync(
-        Input input,
+        PathString path,
+        PathString newFileName,
         Connection connection,
         Options options,
         CancellationToken cancellationToken)
@@ -55,13 +58,13 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
 
-        if (string.IsNullOrWhiteSpace(input.Path))
-            throw new ArgumentException("Path cannot be empty.", nameof(input));
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Path cannot be empty.", nameof(path));
 
-        if (string.IsNullOrWhiteSpace(input.NewFileName))
-            throw new ArgumentException("NewFileName cannot be empty.", nameof(input));
+        if (string.IsNullOrWhiteSpace(newFileName))
+            throw new ArgumentException("NewFileName cannot be empty.", nameof(newFileName));
 
-        if (input.Path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -85,9 +88,9 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                PathString directory = Path.GetDirectoryName(input.Path)?.TrimStart(PathString.GetSeparatorChar()) ?? string.Empty;
+                PathString directory = Path.GetDirectoryName(path)?.TrimStart(PathString.GetSeparatorChar()) ?? string.Empty;
 
-                PathString newFilePath = $"{directory}{PathString.GetSeparatorChar()}{input.NewFileName}".TrimStart(PathString.GetSeparatorChar());
+                PathString newFilePath = $"{directory}{PathString.GetSeparatorChar()}{newFileName}".TrimStart(PathString.GetSeparatorChar());
 
                 bool targetExists = FileExists(fileStore, newFilePath);
 
@@ -121,7 +124,7 @@ public static class Smb
                 NTStatus openStatus = fileStore.CreateFile(
                     out object fileHandle,
                     out _,
-                    input.Path,
+                    path,
                     AccessMask.SYNCHRONIZE | AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE | AccessMask.DELETE,
                     SMBLibrary.FileAttributes.Normal,
                     ShareAccess.Read | ShareAccess.Write,
@@ -131,7 +134,7 @@ public static class Smb
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
                 {
-                    throw new Exception($"Failed to open file '{input.Path}' for rename: {openStatus}");
+                    throw new Exception($"Failed to open file '{path}' for rename: {openStatus}");
                 }
 
                 try
@@ -146,7 +149,7 @@ public static class Smb
                     NTStatus renameStatus = fileStore.SetFileInformation(fileHandle, renameInfo);
                     if (renameStatus != NTStatus.STATUS_SUCCESS)
                     {
-                        throw new Exception($"Failed to rename file '{input.Path}' to '{newFilePath}': {renameStatus}");
+                        throw new Exception($"Failed to rename file '{path}' to '{newFilePath}': {renameStatus}");
                     }
                 }
                 finally
