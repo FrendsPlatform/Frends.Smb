@@ -86,7 +86,8 @@ public class CopyFilesTests : SmbTestBase
     public void RollbackTmpFilesWhenErrorOccurred()
     {
         Options.IfTargetFileExists = FileExistsAction.Overwrite;
-        Input.SourcePath = "src/error";
+        PathString path = "src/error";
+        Input.SourcePath = path.Value;
         Options.Recursive = true;
         Options.CreateTargetDirectories = false;
 
@@ -103,7 +104,8 @@ public class CopyFilesTests : SmbTestBase
     public void RemoveTmpFilesWhenFinishOverwriting()
     {
         Options.IfTargetFileExists = FileExistsAction.Overwrite;
-        Input.SourcePath = "src/error";
+        PathString path = "src/error";
+        Input.SourcePath = path.Value;
         Options.CreateTargetDirectories = false;
         Options.Recursive = false;
 
