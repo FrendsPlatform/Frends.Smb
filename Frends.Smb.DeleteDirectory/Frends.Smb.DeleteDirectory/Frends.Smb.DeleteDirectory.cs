@@ -29,20 +29,21 @@ public static class Smb
         CancellationToken cancellationToken)
     {
         PathString.Setup(connection.OperatingSystem);
+        PathString directoryPath = input.DirectoryPath;
         SMB2Client client = null;
         ISMBFileStore fileStore = null;
 
         try
         {
-            SmbHandler.ValidateParameters(input, connection);
+            SmbHandler.ValidateParameters(directoryPath, connection);
             SmbHandler.PrepareSmbConnection(out client, out fileStore, connection);
-            SmbHandler.DeleteDirectory(fileStore, input.DirectoryPath, options.DeleteRecursively, cancellationToken);
+            SmbHandler.DeleteDirectory(fileStore, directoryPath, options.DeleteRecursively, cancellationToken);
 
             return new Result
             {
                 Success = true,
                 FullUncPath =
-                    $@"\\{connection.Server}\{connection.Share}\{input.DirectoryPath}",
+                    $@"\\{connection.Server}\{connection.Share}\{directoryPath}",
                 Error = null,
             };
         }

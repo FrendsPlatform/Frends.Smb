@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Frends.Smb.MoveDirectory.Definitions;
 using Frends.Smb.MoveDirectory.Helpers;
@@ -35,8 +34,10 @@ public static class Smb
         try
         {
             PathString.Setup(connection.OperatingSystem);
+            PathString sourcePath = input.SourcePath;
+            PathString targetPath = input.TargetPath;
 
-            return ExecuteMoveDirectory(input, connection, options, cancellationToken);
+            return ExecuteMoveDirectory(sourcePath, targetPath, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -45,7 +46,8 @@ public static class Smb
     }
 
     private static Result ExecuteMoveDirectory(
-        Input input,
+        PathString sourcePath,
+        PathString targetPath,
         Connection connection,
         Options options,
         CancellationToken cancellationToken)
@@ -58,19 +60,16 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
 
-        input.SourcePath ??= string.Empty;
-        input.TargetPath ??= string.Empty;
+        if (string.IsNullOrWhiteSpace(sourcePath))
+            throw new ArgumentException("SourcePath cannot be empty.", nameof(sourcePath));
 
-        if (string.IsNullOrWhiteSpace(input.SourcePath))
-            throw new ArgumentException("SourcePath cannot be empty.", nameof(input));
+        if (string.IsNullOrWhiteSpace(targetPath))
+            throw new ArgumentException("TargetPath cannot be empty.", nameof(targetPath));
 
-        if (string.IsNullOrWhiteSpace(input.TargetPath))
-            throw new ArgumentException("TargetPath cannot be empty.", nameof(input));
-
-        if (input.SourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (sourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
 
-        if (input.TargetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (targetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -98,8 +97,8 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                PathString normalizedSourcePath = input.SourcePath.Value.TrimStart(PathString.GetSeparatorChar());
-                PathString normalizedTargetPath = input.TargetPath.Value.TrimStart(PathString.GetSeparatorChar());
+                PathString normalizedSourcePath = sourcePath.Value.TrimStart(PathString.GetSeparatorChar());
+                PathString normalizedTargetPath = targetPath.Value.TrimStart(PathString.GetSeparatorChar());
 
                 if (!DirectoryExists(fileStore, normalizedSourcePath))
                     throw new Exception($"Source directory '{normalizedSourcePath}' does not exist.");
@@ -148,7 +147,7 @@ public static class Smb
 
                 NTStatus openStatus = fileStore.CreateFile(
                     out object dirHandle,
-                    out FileStatus fileStatus,
+                    out _,
                     normalizedSourcePath,
                     AccessMask.SYNCHRONIZE | AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE | AccessMask.DELETE,
                     SMBLibrary.FileAttributes.Directory,
@@ -208,7 +207,7 @@ public static class Smb
     {
         NTStatus status = fileStore.CreateFile(
             out object handle,
-            out FileStatus fileStatus,
+            out _,
             path,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
@@ -274,7 +273,7 @@ public static class Smb
 
         NTStatus openStatus = fileStore.CreateFile(
             out object dirHandle,
-            out FileStatus fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Directory,
@@ -289,14 +288,13 @@ public static class Smb
         try
         {
             NTStatus status;
-            List<QueryDirectoryFileInformation> entries;
 
             do
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 status = fileStore.QueryDirectory(
-                    out entries,
+                    out var entries,
                     dirHandle,
                     "*",
                     FileInformationClass.FileDirectoryInformation);
@@ -346,7 +344,7 @@ public static class Smb
     {
         NTStatus openStatus = fileStore.CreateFile(
             out object dirHandle,
-            out FileStatus fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Directory,
@@ -405,7 +403,7 @@ public static class Smb
 
         NTStatus checkStatus = fileStore.CreateFile(
             out object checkHandle,
-            out FileStatus fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
@@ -430,7 +428,7 @@ public static class Smb
 
         NTStatus createStatus = fileStore.CreateFile(
             out object dirHandle,
-            out fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Directory,
@@ -453,7 +451,7 @@ public static class Smb
     {
         NTStatus openStatus = fileStore.CreateFile(
             out object fileHandle,
-            out FileStatus fileStatus,
+            out _,
             filePath,
             AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Normal,

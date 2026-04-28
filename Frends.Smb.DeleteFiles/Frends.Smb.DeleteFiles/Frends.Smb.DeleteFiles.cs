@@ -36,8 +36,9 @@ public static class Smb
         try
         {
             PathString.Setup(connection.OperatingSystem);
+            PathString path = input.Path;
 
-            return await ExecuteDeleteAsync(input, connection, options, cancellationToken);
+            return await ExecuteDeleteAsync(path, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -46,7 +47,7 @@ public static class Smb
     }
 
     private static async Task<Result> ExecuteDeleteAsync(
-        Input input,
+        PathString path,
         Connection connection,
         Options options,
         CancellationToken cancellationToken)
@@ -59,9 +60,9 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
 
-        input.Path ??= string.Empty;
+        path ??= string.Empty;
 
-        if (input.Path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (path.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -90,11 +91,11 @@ public static class Smb
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var filesToDelete =
-                    await FindMatchingFilesAsync(fileStore, input.Path, options, cancellationToken);
+                    await FindMatchingFilesAsync(fileStore, path, options, cancellationToken);
 
                 if (filesToDelete.Count == 0)
                 {
-                    throw new Exception($"No files found matching path '{input.Path}'" +
+                    throw new Exception($"No files found matching path '{path}'" +
                                         (string.IsNullOrWhiteSpace(options.Pattern)
                                             ? string.Empty
                                             : $" with pattern '{options.Pattern}'"));
@@ -108,7 +109,7 @@ public static class Smb
 
                     NTStatus openStatus = fileStore.CreateFile(
                         out object fileHandle,
-                        out FileStatus fileStatus,
+                        out _,
                         filePath,
                         AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
                         SMBLibrary.FileAttributes.Normal,
@@ -194,7 +195,7 @@ public static class Smb
         {
             NTStatus fileCheckStatus = fileStore.CreateFile(
                 out object fileHandle,
-                out FileStatus fileStatus,
+                out _,
                 basePath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
@@ -239,7 +240,7 @@ public static class Smb
 
         NTStatus openStatus = fileStore.CreateFile(
             out object dirHandle,
-            out FileStatus fileStatus,
+            out _,
             directoryPath,
             AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             SMBLibrary.FileAttributes.Directory,
@@ -256,14 +257,13 @@ public static class Smb
         try
         {
             NTStatus status;
-            List<QueryDirectoryFileInformation> entries;
 
             do
             {
                 token.ThrowIfCancellationRequested();
 
                 status = fileStore.QueryDirectory(
-                    out entries,
+                    out var entries,
                     dirHandle,
                     "*",
                     FileInformationClass.FileDirectoryInformation);

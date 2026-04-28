@@ -15,5 +15,5 @@ public class Input
     /// </summary>
     /// <example>folder/subfolder/</example>
     [DisplayFormat(DataFormatString = "Text")]
-    public PathString Path { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
 }

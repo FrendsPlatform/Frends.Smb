@@ -13,12 +13,12 @@ public class Input
     /// </summary>
     /// <example>folder\oldfile.txt</example>
     [DisplayFormat(DataFormatString = "Text")]
-    public PathString Path { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
 
     /// <summary>
     /// The new filename including extension.
     /// </summary>
     /// <example>newfile.txt</example>
     [DefaultValue("")]
-    public PathString NewFileName { get; set; } = string.Empty;
+    public string NewFileName { get; set; } = string.Empty;
 }

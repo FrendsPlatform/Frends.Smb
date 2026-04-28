@@ -34,6 +34,7 @@ public static class Smb
         CancellationToken cancellationToken)
     {
         PathString.Setup(connection.OperatingSystem);
+        PathString destinationPath = input.DestinationPath;
         var client = new SMB2Client();
         ISMBFileStore fileStore = null;
 
@@ -43,9 +44,9 @@ public static class Smb
                 throw new ArgumentException("Server cannot be empty.", nameof(connection));
             if (string.IsNullOrWhiteSpace(connection.Share))
                 throw new ArgumentException("Share cannot be empty.", nameof(connection));
-            if (string.IsNullOrWhiteSpace(input.DestinationPath))
+            if (string.IsNullOrWhiteSpace(destinationPath))
                 throw new ArgumentException("Destination Path cannot be empty.", nameof(input));
-            if (input.DestinationPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+            if (destinationPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
                 throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
 
             var (domain, username) = GetDomainAndUsername(connection.Username);
@@ -68,11 +69,11 @@ public static class Smb
             long writeOffset = 0;
             var disposition = options.Overwrite ? CreateDisposition.FILE_OVERWRITE_IF : CreateDisposition.FILE_CREATE;
 
-            EnsureDirectoriesExist(fileStore, input.DestinationPath);
+            EnsureDirectoriesExist(fileStore, destinationPath);
             status = fileStore.CreateFile(
                 out var fileHandle,
                 out var fileStatus,
-                input.DestinationPath,
+                destinationPath,
                 SYNCHRONIZE | GENERIC_WRITE,
                 FileAttributes.Normal,
                 ShareAccess.Read | ShareAccess.Write,
@@ -107,7 +108,7 @@ public static class Smb
             return new Result
             {
                 Success = true,
-                Path = string.Join(PathString.GetSeparatorChar(), PathString.GetSeparatorChar(), connection.Server, connection.Share, input.DestinationPath),
+                Path = string.Join(PathString.GetSeparatorChar(), PathString.GetSeparatorChar(), connection.Server, connection.Share, destinationPath),
                 SizeInMegaBytes = Math.Ceiling(writeOffset / 1024.0 / 1024.0),
             };
         }

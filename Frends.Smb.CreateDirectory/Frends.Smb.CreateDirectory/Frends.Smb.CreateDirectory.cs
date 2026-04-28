@@ -29,14 +29,15 @@ public static class Smb
         CancellationToken cancellationToken)
     {
         PathString.Setup(connection.OperatingSystem);
+        PathString directoryPath = input.DirectoryPath;
         SMB2Client client = null;
         ISMBFileStore fileStore = null;
 
         try
         {
-            SmbHandler.ValidateParameters(input, connection);
+            SmbHandler.ValidateParameters(directoryPath, connection);
             SmbHandler.PrepareSmbConnection(out client, out fileStore, connection);
-            SmbHandler.CreateDirectory(fileStore, input.DirectoryPath, cancellationToken);
+            SmbHandler.CreateDirectory(fileStore, directoryPath, cancellationToken);
 
             return new Result
             {
@@ -46,7 +47,7 @@ public static class Smb
                     $"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}",
                     connection.Server,
                     connection.Share,
-                    input.DirectoryPath),
+                    directoryPath),
                 Error = null,
             };
         }

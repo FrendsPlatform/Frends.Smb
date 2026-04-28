@@ -35,8 +35,10 @@ public static class Smb
         try
         {
             PathString.Setup(connection.OperatingSystem);
+            PathString sourcePath = input.SourcePath ?? string.Empty;
+            PathString targetPath = input.TargetPath ?? string.Empty;
 
-            return ExecuteMove(input, connection, options, cancellationToken);
+            return ExecuteMove(sourcePath, targetPath, connection, options, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -45,7 +47,8 @@ public static class Smb
     }
 
     private static Result ExecuteMove(
-        Input input,
+        PathString sourcePath,
+        PathString targetPath,
         Connection connection,
         Options options,
         CancellationToken cancellationToken)
@@ -58,16 +61,13 @@ public static class Smb
         if (string.IsNullOrWhiteSpace(connection.Share))
             throw new ArgumentException("Share cannot be empty.", nameof(connection));
 
-        input.SourcePath ??= string.Empty;
-        input.TargetPath ??= string.Empty;
+        if (string.IsNullOrWhiteSpace(targetPath))
+            throw new ArgumentException("TargetPath cannot be empty.", nameof(targetPath));
 
-        if (string.IsNullOrWhiteSpace(input.TargetPath))
-            throw new ArgumentException("TargetPath cannot be empty.", nameof(input));
-
-        if (input.SourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (sourcePath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
 
-        if (input.TargetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
+        if (targetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
 
         var (domain, user) = GetDomainAndUsername(connection.Username);
@@ -95,11 +95,11 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var filesToMove = FindMatchingFiles(fileStore, input.SourcePath, options, cancellationToken);
+                var filesToMove = FindMatchingFiles(fileStore, sourcePath, options, cancellationToken);
 
                 if (filesToMove.Count == 0)
                 {
-                    throw new Exception($"No files found matching path '{input.SourcePath}'" +
+                    throw new Exception($"No files found matching path '{sourcePath}'" +
                                         (string.IsNullOrWhiteSpace(options.Pattern)
                                             ? string.Empty
                                             : $" with pattern '{options.Pattern}'"));
@@ -107,8 +107,8 @@ public static class Smb
 
                 var fileTransferEntries = BuildFileTransferEntries(
                     filesToMove,
-                    input.SourcePath,
-                    input.TargetPath,
+                    sourcePath,
+                    targetPath,
                     options.PreserveDirectoryStructure);
 
                 var movedFiles = new List<FileItem>();
