@@ -228,6 +228,7 @@ public class CopyFilesTests : SmbTestBase
         Options.ThrowErrorOnFailure = false;
         Options.IfTargetFileExists = FileExistsAction.Throw;
         Options.PreserveDirectoryStructure = false;
+        Options.Recursive = false;
 
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
