@@ -248,7 +248,7 @@ internal static class SmbHandler
             dstFileStore.CloseFile(handle);
         }
 
-        return (result, new List<FileFailure>());
+        return (result, failures);
     }
 
     private static void SafeCopy(
