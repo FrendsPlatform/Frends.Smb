@@ -166,7 +166,14 @@ public static class Smb
                             var orphanBackup = backups.FirstOrDefault(b => b.OriginalPath == targetFilePath);
                             if (orphanBackup != null)
                             {
-                                try { DeleteFile(fileStore, orphanBackup.BackupPath); } catch { }
+                                try
+                                {
+                                    DeleteFile(fileStore, orphanBackup.BackupPath);
+                                }
+                                catch
+                                {
+                                }
+
                                 backups.Remove(orphanBackup);
                             }
                         }

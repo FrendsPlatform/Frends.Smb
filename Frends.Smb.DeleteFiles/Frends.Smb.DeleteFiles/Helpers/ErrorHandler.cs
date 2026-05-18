@@ -1,6 +1,7 @@
+using Frends.Smb.DeleteFiles.Definitions;
 using System;
 using System.Collections.Generic;
-using Frends.Smb.DeleteFiles.Definitions;
+using System.Linq;
 
 namespace Frends.Smb.DeleteFiles.Helpers;
 
@@ -34,6 +35,25 @@ internal static class ErrorHandler
             Error = error,
             FilesDeleted = new List<FileItem>(),
             TotalFilesDeleted = 0,
+        };
+    }
+
+    internal static Result HandlePartialSuccess(
+    List<FileFailure> fileFailures,
+    List<FileItem> deletedFiles,
+    int totalFiles)
+    {
+        return new Result
+        {
+            Success = true,
+            FilesDeleted = deletedFiles,
+            TotalFilesDeleted = deletedFiles.Count,
+            Error = new Error
+            {
+                Message = $"{fileFailures.Count} of {totalFiles} file(s) failed to delete. {deletedFiles.Count} succeeded.",
+                AdditionalInfo = new AggregateException(fileFailures.Select(f => f.AdditionalInfo)),
+                FileFailures = fileFailures,
+            },
         };
     }
 }
