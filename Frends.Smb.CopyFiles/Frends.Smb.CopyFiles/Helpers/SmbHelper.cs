@@ -97,11 +97,12 @@ internal static class SmbHandler
                         ref perFileNewFiles,
                         ref perFileTempFiles);
 
-                    SafeCopy(source.FilePath, srcFileStore, finalDstPath, dstFileStore, maxChunkSize);
-                    result.Add(new FileItem { SourcePath = source.FilePath, TargetPath = finalDstPath });
 
                     newlyCreatedFiles.AddRange(perFileNewFiles);
                     tempFiles.AddRange(perFileTempFiles);
+
+                    SafeCopy(source.FilePath, srcFileStore, finalDstPath, dstFileStore, maxChunkSize);
+                    result.Add(new FileItem { SourcePath = source.FilePath, TargetPath = finalDstPath });
                 }
                 catch (Exception ex) when (options.ContinueOnFailure)
                 {
@@ -129,6 +130,7 @@ internal static class SmbHandler
                                 null);
                             dstFileStore.SetFileInformation(h, new FileDispositionInformation { DeletePending = true });
                             dstFileStore.CloseFile(h);
+                            newlyCreatedFiles.Remove(newFile);
                         }
                         catch
                         {
@@ -151,6 +153,7 @@ internal static class SmbHandler
                                 null);
                             dstFileStore.SetFileInformation(h, new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile });
                             dstFileStore.CloseFile(h);
+                            tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
                         }
                         catch
                         {
