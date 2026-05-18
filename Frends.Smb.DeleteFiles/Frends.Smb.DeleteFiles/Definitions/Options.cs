@@ -24,8 +24,8 @@ public class Options
     public string Pattern { get; set; } = string.Empty;
 
     /// <summary>
-    /// When enabled, the task continues moving remaining files even if individual file operations fail.
-    /// Successfully moved files are returned in Files with Success = true. Failed files
+    /// When enabled, the task continues deleting remaining files even if individual file operations fail.
+    /// Successfully deleted files are returned in Files with Success = true. Failed files
     /// are reported in Error.FileFailures with the reason for each failure.
     /// Even if some files fail, the task will not throw regardless of the ThrowErrorOnFailure setting.
     /// </summary>
@@ -36,7 +36,7 @@ public class Options
     /// <summary>
     /// Whether to throw an error on failure.
     /// </summary>
-    /// <example>false</example>
+    /// <example>true</example>
     [DefaultValue(true)]
     public bool ThrowErrorOnFailure { get; set; } = true;
 

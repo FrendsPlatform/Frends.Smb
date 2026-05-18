@@ -56,7 +56,7 @@ internal static class SmbHandler
         if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
     }
 
-    internal static List<FileItem> CopyFiles(
+    internal static (List<FileItem> copied, List<FileFailure> failures) CopyFiles(
         ISMBFileStore dstFileStore,
         ISMBFileStore srcFileStore,
         PathString sourcePath,
@@ -66,6 +66,7 @@ internal static class SmbHandler
         CancellationToken cancellationToken)
     {
         var result = new List<FileItem>();
+        var failures = new List<FileFailure>();
         var sources = GetSourceFiles(
             srcFileStore,
             sourcePath,
@@ -80,18 +81,82 @@ internal static class SmbHandler
         {
             foreach (var source in sources)
             {
-                var dstPath = PrepareDestinationPath(source, targetPath, options.PreserveDirectoryStructure);
-                var finalDstPath = PrepareForCopy(
-                    dstPath,
-                    dstFileStore,
-                    options.IfTargetFileExists,
-                    options.CreateTargetDirectories,
-                    ref newlyCreatedFiles,
-                    ref tempFiles);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                // simple copy should work now as all is prepared without exceptions
-                SafeCopy(source.FilePath, srcFileStore, finalDstPath, dstFileStore, maxChunkSize);
-                result.Add(new FileItem { SourcePath = source.FilePath, TargetPath = finalDstPath });
+                var perFileNewFiles = new List<PathString>();
+                var perFileTempFiles = new List<Tuple<PathString, PathString>>();
+
+                try
+                {
+                    var dstPath = PrepareDestinationPath(source, targetPath, options.PreserveDirectoryStructure);
+                    var finalDstPath = PrepareForCopy(
+                        dstPath,
+                        dstFileStore,
+                        options.IfTargetFileExists,
+                        options.CreateTargetDirectories,
+                        ref perFileNewFiles,
+                        ref perFileTempFiles);
+
+                    SafeCopy(source.FilePath, srcFileStore, finalDstPath, dstFileStore, maxChunkSize);
+                    result.Add(new FileItem { SourcePath = source.FilePath, TargetPath = finalDstPath });
+
+                    newlyCreatedFiles.AddRange(perFileNewFiles);
+                    tempFiles.AddRange(perFileTempFiles);
+                }
+                catch (Exception ex) when (options.ContinueOnFailure)
+                {
+                    failures.Add(new FileFailure
+                    {
+                        SourcePath = source.FilePath,
+                        TargetPath = PrepareDestinationPath(source, targetPath, options.PreserveDirectoryStructure),
+                        Reason = ex.Message,
+                        AdditionalInfo = ex,
+                    });
+
+                    foreach (var newFile in perFileNewFiles)
+                    {
+                        try
+                        {
+                            dstFileStore.CreateFile(
+                                out var h,
+                                out _,
+                                newFile,
+                                AccessMask.DELETE,
+                                FileAttributes.Normal,
+                                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                                CreateDisposition.FILE_OPEN,
+                                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                                null);
+                            dstFileStore.SetFileInformation(h, new FileDispositionInformation { DeletePending = true });
+                            dstFileStore.CloseFile(h);
+                        }
+                        catch
+                        {
+                        }
+                    }
+
+                    foreach (var (tmpFile, orgFile) in perFileTempFiles)
+                    {
+                        try
+                        {
+                            dstFileStore.CreateFile(
+                                out var h,
+                                out _,
+                                tmpFile,
+                                AccessMask.GENERIC_WRITE,
+                                FileAttributes.Normal,
+                                ShareAccess.Read | ShareAccess.Write,
+                                CreateDisposition.FILE_OPEN,
+                                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                                null);
+                            dstFileStore.SetFileInformation(h, new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile });
+                            dstFileStore.CloseFile(h);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
             }
         }
         catch
@@ -155,7 +220,7 @@ internal static class SmbHandler
             dstFileStore.CloseFile(handle);
         }
 
-        return result;
+        return (result, failures);
     }
 
     private static void SafeCopy(

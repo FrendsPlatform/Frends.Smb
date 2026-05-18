@@ -28,7 +28,7 @@ public class Error
     /// [
     ///   {
     ///     "SourcePath": "source/file.txt",
-    ///     "Reason": "File 'target/file.txt' already exists. No files moved.",
+    ///     "Reason": "File 'target/file.txt' already exists. No files deleted.",
     ///     "AdditionalInfo": { ... }
     ///   }
     /// ]

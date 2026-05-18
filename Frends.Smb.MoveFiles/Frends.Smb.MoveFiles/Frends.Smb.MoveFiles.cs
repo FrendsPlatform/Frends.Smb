@@ -168,13 +168,15 @@ public static class Smb
                             {
                                 try
                                 {
+                                    if (FileExists(fileStore, orphanBackup.OriginalPath))
+                                        DeleteFile(fileStore, orphanBackup.OriginalPath);
+                                    CopyFile(fileStore, orphanBackup.BackupPath, orphanBackup.OriginalPath, cancellationToken);
                                     DeleteFile(fileStore, orphanBackup.BackupPath);
+                                    backups.Remove(orphanBackup);
                                 }
                                 catch
                                 {
                                 }
-
-                                backups.Remove(orphanBackup);
                             }
                         }
                     }
