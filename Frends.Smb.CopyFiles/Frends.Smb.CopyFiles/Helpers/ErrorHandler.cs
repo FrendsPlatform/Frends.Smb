@@ -40,7 +40,7 @@ internal static class ErrorHandler
             Files = movedFiles,
             Error = new Error
             {
-                Message = $"{fileFailures.Count} of {totalFiles} file(s) failed to move. {movedFiles.Count} succeeded.",
+                Message = $"{fileFailures.Count} of {totalFiles} file(s) failed to copy. {movedFiles.Count} succeeded.",
                 AdditionalInfo = aggregated,
                 FileFailures = fileFailures,
             },

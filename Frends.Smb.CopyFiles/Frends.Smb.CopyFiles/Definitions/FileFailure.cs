@@ -3,7 +3,7 @@
 namespace Frends.Smb.CopyFiles.Definitions;
 
 /// <summary>
-/// Represents a single file that failed to move when ContinueOnFailure is enabled.
+/// Represents a single file that failed to copy when ContinueOnFailure is enabled.
 /// </summary>
 public class FileFailure
 {

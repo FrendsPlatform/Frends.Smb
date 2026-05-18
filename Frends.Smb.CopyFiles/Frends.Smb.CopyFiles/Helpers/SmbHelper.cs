@@ -97,7 +97,6 @@ internal static class SmbHandler
                         ref perFileNewFiles,
                         ref perFileTempFiles);
 
-
                     newlyCreatedFiles.AddRange(perFileNewFiles);
                     tempFiles.AddRange(perFileTempFiles);
 
@@ -118,7 +117,7 @@ internal static class SmbHandler
                     {
                         try
                         {
-                            dstFileStore.CreateFile(
+                            var openStatus = dstFileStore.CreateFile(
                                 out var h,
                                 out _,
                                 newFile,
@@ -128,9 +127,22 @@ internal static class SmbHandler
                                 CreateDisposition.FILE_OPEN,
                                 CreateOptions.FILE_NON_DIRECTORY_FILE,
                                 null);
-                            dstFileStore.SetFileInformation(h, new FileDispositionInformation { DeletePending = true });
-                            dstFileStore.CloseFile(h);
-                            newlyCreatedFiles.Remove(newFile);
+
+                            if (openStatus != NTStatus.STATUS_SUCCESS)
+                                throw new Exception($"Rollback open failed for '{newFile}'. Status: {openStatus}");
+
+                            try
+                            {
+                                var deleteStatus = dstFileStore.SetFileInformation(h, new FileDispositionInformation { DeletePending = true });
+                                if (deleteStatus != NTStatus.STATUS_SUCCESS)
+                                    throw new Exception($"Rollback delete failed for '{newFile}'. Status: {deleteStatus}");
+
+                                newlyCreatedFiles.Remove(newFile);
+                            }
+                            finally
+                            {
+                                dstFileStore.CloseFile(h);
+                            }
                         }
                         catch
                         {
@@ -141,7 +153,7 @@ internal static class SmbHandler
                     {
                         try
                         {
-                            dstFileStore.CreateFile(
+                            var openStatus = dstFileStore.CreateFile(
                                 out var h,
                                 out _,
                                 tmpFile,
@@ -151,9 +163,22 @@ internal static class SmbHandler
                                 CreateDisposition.FILE_OPEN,
                                 CreateOptions.FILE_NON_DIRECTORY_FILE,
                                 null);
-                            dstFileStore.SetFileInformation(h, new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile });
-                            dstFileStore.CloseFile(h);
-                            tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
+
+                            if (openStatus != NTStatus.STATUS_SUCCESS)
+                                throw new Exception($"Rollback open failed for '{tmpFile}'. Status: {openStatus}");
+
+                            try
+                            {
+                                var renameStatus = dstFileStore.SetFileInformation(h, new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile });
+                                if (renameStatus != NTStatus.STATUS_SUCCESS)
+                                    throw new Exception($"Rollback rename failed from '{tmpFile}' to '{orgFile}'. Status: {renameStatus}");
+
+                                tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
+                            }
+                            finally
+                            {
+                                dstFileStore.CloseFile(h);
+                            }
                         }
                         catch
                         {
