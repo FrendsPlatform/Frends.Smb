@@ -104,7 +104,6 @@ public static class Smb
                 var deletedFiles = new List<FileItem>();
                 var fileFailures = new List<FileFailure>();
 
-
                 foreach (var filePath in filesToDelete)
                 {
                     cancellationToken.ThrowIfCancellationRequested();

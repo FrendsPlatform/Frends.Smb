@@ -177,7 +177,6 @@ public static class Smb
                                 backups.Remove(orphanBackup);
                             }
                         }
-
                     }
 
                     DeleteExistingFiles(fileStore, backups.Select(b => b.BackupPath).ToList());

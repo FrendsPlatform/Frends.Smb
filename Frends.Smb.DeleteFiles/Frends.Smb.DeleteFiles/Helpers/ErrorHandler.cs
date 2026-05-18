@@ -1,7 +1,7 @@
-using Frends.Smb.DeleteFiles.Definitions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Frends.Smb.DeleteFiles.Definitions;
 
 namespace Frends.Smb.DeleteFiles.Helpers;
 
