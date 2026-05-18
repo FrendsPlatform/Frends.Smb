@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Frends.Smb.MoveFiles.Definitions;
 
 namespace Frends.Smb.MoveFiles.Helpers;
@@ -26,5 +28,26 @@ internal static class ErrorHandler
         };
 
         return new Result { Success = false, Error = error };
+    }
+
+    internal static Result HandlePartialSuccess(
+    List<FileFailure> fileFailures,
+    List<FileItem> movedFiles,
+    int totalFiles)
+    {
+        var aggregated = new AggregateException(
+            fileFailures.Select(f => f.AdditionalInfo));
+
+        return new Result
+        {
+            Success = true,
+            Files = movedFiles,
+            Error = new Error
+            {
+                Message = $"{fileFailures.Count} of {totalFiles} file(s) failed to move. {movedFiles.Count} succeeded.",
+                AdditionalInfo = aggregated,
+                FileFailures = fileFailures,
+            },
+        };
     }
 }
