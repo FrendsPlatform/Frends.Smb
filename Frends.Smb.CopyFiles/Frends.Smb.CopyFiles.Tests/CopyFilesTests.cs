@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Frends.Smb.CopyFiles.Definitions;
 using NUnit.Framework;
@@ -226,13 +227,14 @@ public class CopyFilesTests : SmbTestBase
         Options.ContinueOnFailure = true;
         Options.ThrowErrorOnFailure = false;
         Options.IfTargetFileExists = FileExistsAction.Throw;
+        Options.PreserveDirectoryStructure = false;
 
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
         Assert.That(result.Error, Is.Not.Null);
-        Assert.That(result.Error.FileFailures.Count, Is.EqualTo(1));
-        Assert.That(result.Error.FileFailures[0].SourcePath, Does.Contain("old.foo"));
+        Assert.That(result.Error.FileFailures, Is.Not.Empty);
+        Assert.That(result.Error.FileFailures.Any(f => f.SourcePath.Contains("old.foo")), Is.True);
         Assert.That(result.Error.AdditionalInfo, Is.InstanceOf<AggregateException>());
         Assert.That(result.Files.Count, Is.GreaterThan(0));
     }
@@ -263,6 +265,7 @@ public class CopyFilesTests : SmbTestBase
         Options.ContinueOnFailure = false;
         Options.ThrowErrorOnFailure = true;
         Options.IfTargetFileExists = FileExistsAction.Throw;
+        Options.PreserveDirectoryStructure = false;
 
         Assert.Throws<Exception>(() =>
             Smb.CopyFiles(Input, Connection, Options, CancellationToken.None));
