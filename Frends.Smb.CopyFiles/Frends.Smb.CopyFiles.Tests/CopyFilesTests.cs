@@ -100,14 +100,11 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.That(result.Success, Is.False);
 
-        await Task.Delay(2000);
+        // Wait a bit for operations to complete
+        await Task.Delay(500);
 
-        // Verify file exists
-        var filePath = Path.Combine(TestDirPath, "dst", "error", "old.foo");
-        Assert.That(File.Exists(filePath), Is.True, $"File should exist: {filePath}");
-
-        // Read file content with retry to handle SMB sync delays
-        var content = await ReadFileWithRetryAsync(filePath, expectedContent: "old test content");
+        // Verify through SMB instead of local filesystem to avoid sync issues
+        var content = ReadFileThroughSmb("dst/error/old.foo");
         Assert.That(content, Is.EqualTo("old test content"));
     }
 
@@ -139,17 +136,15 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.That(result.Success, Is.False);
 
-        // CRITICAL: Wait for cleanup operations and Docker bind mount sync
-        await Task.Delay(2000);
+        // Wait a bit for operations to complete
+        await Task.Delay(500);
 
-        // Verify original file still exists
-        var originalFile = Path.Combine(TestDirPath, "dst", "error", "old.foo");
-        Assert.That(File.Exists(originalFile), Is.True, $"Original file should exist: {originalFile}");
+        // Verify through SMB instead of local filesystem
+        var originalFileExists = FileExistsThroughSmb("dst/error/old.foo");
+        Assert.That(originalFileExists, Is.True, "Original file should exist");
 
-        // Check that renamed file was cleaned up with retry
-        var renamedFile = Path.Combine(TestDirPath, "dst", "error", "old(1).foo");
-        var renamedFileExists = await CheckFileExistsWithRetryAsync(renamedFile, shouldExist: false);
-        Assert.That(renamedFileExists, Is.False);
+        var renamedFileExists = FileExistsThroughSmb("dst/error/old(1).foo");
+        Assert.That(renamedFileExists, Is.False, "Renamed file should be cleaned up");
     }
 
     [Test]
@@ -291,76 +286,169 @@ public class CopyFilesTests : SmbTestBase
             Smb.CopyFiles(Input, Connection, Options, CancellationToken.None));
     }
 
-    private static async Task<string> ReadFileWithRetryAsync(
-       string path,
-       int maxRetries = 15,
-       string expectedContent = null)
+    private static (string domain, string username) GetDomainAndUsername(string usernameWithDomain)
     {
-        string lastContent = string.Empty;
-
-        for (int i = 0; i < maxRetries; i++)
-        {
-            try
-            {
-                if (File.Exists(path))
-                {
-                    // Force re-read from disk by opening file directly
-                    await using var fs = new FileStream(
-                        path,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.ReadWrite | FileShare.Delete,
-                        bufferSize: 4096,
-                        useAsync: true);
-                    using var sr = new StreamReader(fs);
-                    lastContent = await sr.ReadToEndAsync();
-
-                    // If we got the expected content, return it
-                    if (expectedContent == null || lastContent == expectedContent)
-                        return lastContent;
-                }
-            }
-            catch (IOException)
-            {
-                // File might be locked or not yet synced, retry
-            }
-
-            await Task.Delay(500); // Longer delay between retries
-        }
-
-        // Last attempt without retry
-        return File.Exists(path) ? await File.ReadAllTextAsync(path) : lastContent;
+        var parts = usernameWithDomain.Split('\\');
+        if (parts.Length == 2)
+            return (parts[0], parts[1]);
+        return (string.Empty, usernameWithDomain);
     }
 
-    private static async Task<bool> CheckFileExistsWithRetryAsync(
-        string path,
-        bool shouldExist,
-        int maxRetries = 15)
+    private string ReadFileThroughSmb(string path)
     {
-        for (int i = 0; i < maxRetries; i++)
+        SMB2Client client = null;
+        ISMBFileStore fileStore = null;
+
+        try
         {
-            // Force directory refresh by enumerating files
-            var directory = Path.GetDirectoryName(path);
-            if (Directory.Exists(directory))
+            client = new SMB2Client();
+            var (domain, username) = GetDomainAndUsername(Connection.Username);
+
+            if (!System.Net.IPAddress.TryParse(Connection.Server, out var serverAddress))
+                throw new Exception($"Could not parse server address: {Connection.Server}");
+
+            if (!client.Connect(serverAddress, SMBTransportType.DirectTCPTransport))
+                throw new Exception("Failed to connect to SMB server");
+
+            var status = client.Login(domain, username, Connection.Password);
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"SMB login failed: {status}");
+
+            fileStore = client.TreeConnect(Connection.Share, out status);
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to connect to share: {status}");
+
+            // Open file
+            status = fileStore.CreateFile(
+                out var handle,
+                out _,
+                path,
+                AccessMask.GENERIC_READ,
+                SMBLibrary.FileAttributes.Normal,
+                ShareAccess.Read,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                null);
+
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to open file: {status}");
+
+            try
+            {
+                // Read file content
+                var content = string.Empty;
+                long bytesRead = 0;
+
+                while (true)
+                {
+                    status = fileStore.ReadFile(out var data, handle, bytesRead, 64 * 1024);
+
+                    if (status != NTStatus.STATUS_SUCCESS && status != NTStatus.STATUS_END_OF_FILE)
+                        throw new Exception($"Failed to read file: {status}");
+
+                    if (status == NTStatus.STATUS_END_OF_FILE || data.Length == 0)
+                        break;
+
+                    content += System.Text.Encoding.UTF8.GetString(data);
+                    bytesRead += data.Length;
+                }
+
+                return content;
+            }
+            finally
+            {
+                fileStore.CloseFile(handle);
+            }
+        }
+        finally
+        {
+            fileStore?.Disconnect();
+
+            if (client != null)
             {
                 try
                 {
-                    // This forces filesystem cache refresh
-                    _ = Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly);
+                    client.ListShares(out var logoffStatus);
+                    if (logoffStatus == NTStatus.STATUS_SUCCESS)
+                        client.Logoff();
                 }
                 catch
                 {
-                    // Ignore errors
+                    // Ignore
                 }
+
+                client.Disconnect();
+            }
+        }
+    }
+
+    private bool FileExistsThroughSmb(string path)
+    {
+        SMB2Client client = null;
+        ISMBFileStore fileStore = null;
+
+        try
+        {
+            client = new SMB2Client();
+            var (domain, username) = GetDomainAndUsername(Connection.Username);
+
+            if (!System.Net.IPAddress.TryParse(Connection.Server, out var serverAddress))
+                return false;
+
+            if (!client.Connect(serverAddress, SMBTransportType.DirectTCPTransport))
+                return false;
+
+            var status = client.Login(domain, username, Connection.Password);
+            if (status != NTStatus.STATUS_SUCCESS)
+                return false;
+
+            fileStore = client.TreeConnect(Connection.Share, out status);
+            if (status != NTStatus.STATUS_SUCCESS)
+                return false;
+
+            // Try to open file
+            status = fileStore.CreateFile(
+                out var handle,
+                out _,
+                path,
+                AccessMask.GENERIC_READ,
+                SMBLibrary.FileAttributes.Normal,
+                ShareAccess.Read,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                null);
+
+            if (status == NTStatus.STATUS_SUCCESS)
+            {
+                fileStore.CloseFile(handle);
+                return true;
             }
 
-            var exists = File.Exists(path);
-            if (exists == shouldExist)
-                return exists;
-
-            await Task.Delay(500); // Longer delay between retries
+            return false;
         }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            fileStore?.Disconnect();
 
-        return File.Exists(path);
+            if (client != null)
+            {
+                try
+                {
+                    client.ListShares(out var logoffStatus);
+                    if (logoffStatus == NTStatus.STATUS_SUCCESS)
+                        client.Logoff();
+                }
+                catch
+                {
+                    // Ignore
+                }
+
+                client.Disconnect();
+            }
+        }
     }
 }
