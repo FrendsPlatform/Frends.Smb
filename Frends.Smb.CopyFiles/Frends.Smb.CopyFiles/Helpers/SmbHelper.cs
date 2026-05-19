@@ -189,63 +189,119 @@ internal static class SmbHandler
         }
         catch
         {
-            // remove newly created files
+            // Global rollback when ContinueOnFailure=false or unhandled exceptions
+            // Remove newly created files
             foreach (var newFile in newlyCreatedFiles)
             {
-                dstFileStore.CreateFile(
+                try
+                {
+                    var openStatus = dstFileStore.CreateFile(
+                        out var handle,
+                        out _,
+                        newFile,
+                        AccessMask.DELETE,
+                        FileAttributes.Normal,
+                        ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                        CreateDisposition.FILE_OPEN,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE,
+                        null);
+
+                    if (openStatus == NTStatus.STATUS_SUCCESS)
+                    {
+                        try
+                        {
+                            FileDispositionInformation fileDispositionInformation =
+                                new FileDispositionInformation { DeletePending = true };
+                            dstFileStore.SetFileInformation(handle, fileDispositionInformation);
+                        }
+                        finally
+                        {
+                            dstFileStore.CloseFile(handle);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore individual file rollback errors
+                }
+            }
+
+            // Roll back temp files
+            foreach (var (tmpFile, orgFile) in tempFiles)
+            {
+                try
+                {
+                    var openStatus = dstFileStore.CreateFile(
+                        out var dstHandle,
+                        out _,
+                        tmpFile,
+                        AccessMask.GENERIC_WRITE,
+                        FileAttributes.Normal,
+                        ShareAccess.Read | ShareAccess.Write,
+                        CreateDisposition.FILE_OPEN,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE,
+                        null);
+
+                    if (openStatus == NTStatus.STATUS_SUCCESS)
+                    {
+                        try
+                        {
+                            var rename = new FileRenameInformationType2
+                            {
+                                ReplaceIfExists = true,
+                                FileName = orgFile,
+                            };
+                            dstFileStore.SetFileInformation(dstHandle, rename);
+                        }
+                        finally
+                        {
+                            dstFileStore.CloseFile(dstHandle);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore individual file rollback errors
+                }
+            }
+
+            throw;
+        }
+
+        // Remove temporary files after successful completion
+        foreach (var (tmpFile, _) in tempFiles)
+        {
+            try
+            {
+                var openStatus = dstFileStore.CreateFile(
                     out var handle,
                     out _,
-                    newFile,
+                    tmpFile,
                     AccessMask.DELETE,
                     FileAttributes.Normal,
                     ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                     CreateDisposition.FILE_OPEN,
                     CreateOptions.FILE_NON_DIRECTORY_FILE,
                     null);
-                FileDispositionInformation fileDispositionInformation =
-                    new FileDispositionInformation { DeletePending = true };
-                dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-                dstFileStore.CloseFile(handle);
-            }
 
-            // roll back temp files
-            foreach (var (tmpFile, orgFile) in tempFiles)
+                if (openStatus == NTStatus.STATUS_SUCCESS)
+                {
+                    try
+                    {
+                        FileDispositionInformation fileDispositionInformation =
+                            new FileDispositionInformation { DeletePending = true };
+                        dstFileStore.SetFileInformation(handle, fileDispositionInformation);
+                    }
+                    finally
+                    {
+                        dstFileStore.CloseFile(handle);
+                    }
+                }
+            }
+            catch
             {
-                dstFileStore.CreateFile(
-                    out var dstHandle,
-                    out _,
-                    tmpFile,
-                    AccessMask.GENERIC_WRITE,
-                    FileAttributes.Normal,
-                    ShareAccess.Read | ShareAccess.Write,
-                    CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE,
-                    null);
-                var rename = new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile };
-                dstFileStore.SetFileInformation(dstHandle, rename);
-                dstFileStore.CloseFile(dstHandle);
+                // Ignore cleanup errors
             }
-
-            throw;
-        }
-
-        // remove temporary files
-        foreach (var (tmpFile, _) in tempFiles)
-        {
-            dstFileStore.CreateFile(
-                out var handle,
-                out _,
-                tmpFile,
-                AccessMask.DELETE,
-                FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                CreateDisposition.FILE_OPEN,
-                CreateOptions.FILE_NON_DIRECTORY_FILE,
-                null);
-            FileDispositionInformation fileDispositionInformation =
-                new FileDispositionInformation { DeletePending = true };
-            dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-            dstFileStore.CloseFile(handle);
         }
 
         return (result, failures);
