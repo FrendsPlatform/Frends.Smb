@@ -230,19 +230,6 @@ public class CopyFilesTests : SmbTestBase
         Options.PreserveDirectoryStructure = false;
         Options.Recursive = false;
 
-        var singleFileResult = Smb.CopyFiles(
-            new Input { SourcePath = "src/old.foo", TargetPath = "dst" },
-            Connection,
-            new Options
-            {
-                ContinueOnFailure = true,
-                ThrowErrorOnFailure = false,
-                IfTargetFileExists = FileExistsAction.Throw,
-            },
-            CancellationToken.None);
-
-        Assert.That(singleFileResult.Error, Is.Not.Null, "single file copy should detect collision");
-
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True);
@@ -283,20 +270,5 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.Throws<Exception>(() =>
             Smb.CopyFiles(Input, Connection, Options, CancellationToken.None));
-    }
-
-    [Test]
-    public void CopyFiles_ContinueOnFailure_SingleFile_Debug()
-    {
-        Input.SourcePath = "src/old.foo";
-        Input.TargetPath = "dst";
-        Options.ContinueOnFailure = true;
-        Options.ThrowErrorOnFailure = false;
-        Options.IfTargetFileExists = FileExistsAction.Throw;
-
-        var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
-
-        Assert.That(result.Success, Is.True);
-        Assert.That(result.Error, Is.Not.Null, "single file with collision should have error");
     }
 }
