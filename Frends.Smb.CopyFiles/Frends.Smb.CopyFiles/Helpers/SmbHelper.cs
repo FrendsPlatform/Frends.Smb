@@ -121,11 +121,11 @@ internal static class SmbHandler
                                 out var h,
                                 out _,
                                 newFile,
-                                AccessMask.DELETE,
+                                AccessMask.DELETE | AccessMask.SYNCHRONIZE,
                                 FileAttributes.Normal,
                                 ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                                 CreateDisposition.FILE_OPEN,
-                                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                                 null);
 
                             if (openStatus != NTStatus.STATUS_SUCCESS)
@@ -157,7 +157,7 @@ internal static class SmbHandler
                                 out var h,
                                 out _,
                                 tmpFile,
-                                AccessMask.GENERIC_WRITE,
+                                AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE,
                                 FileAttributes.Normal,
                                 ShareAccess.Read | ShareAccess.Write,
                                 CreateDisposition.FILE_OPEN,
@@ -196,11 +196,11 @@ internal static class SmbHandler
                     out var handle,
                     out _,
                     newFile,
-                    AccessMask.DELETE,
+                    AccessMask.DELETE | AccessMask.SYNCHRONIZE,
                     FileAttributes.Normal,
                     ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                     CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE,
+                    CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                     null);
                 FileDispositionInformation fileDispositionInformation =
                     new FileDispositionInformation { DeletePending = true };
@@ -215,7 +215,7 @@ internal static class SmbHandler
                     out var dstHandle,
                     out _,
                     tmpFile,
-                    AccessMask.GENERIC_WRITE,
+                    AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE,
                     FileAttributes.Normal,
                     ShareAccess.Read | ShareAccess.Write,
                     CreateDisposition.FILE_OPEN,
