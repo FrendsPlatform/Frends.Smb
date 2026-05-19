@@ -70,6 +70,12 @@ public abstract class SmbTestBase
 
             await sambaContainer.StartAsync();
 
+            // Wait for SMB service to be fully ready
+            await Task.Delay(2000);
+
+            // Ensure permissions are set before any tests run
+            await SetPermissionsAsync();
+
             lock (Lock)
             {
                 isInitialized = true;
@@ -125,8 +131,11 @@ public abstract class SmbTestBase
         Directory.CreateDirectory(Path.Combine(dstPath, "error"));
         await File.WriteAllTextAsync(Path.Join(dstPath, "error", "old.foo"), "old test content");
 
-        if (sambaContainer is not null)
-            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+        // Ensure permissions are set after creating new files
+        await SetPermissionsAsync();
+
+        // Wait for filesystem to sync
+        await Task.Delay(100);
     }
 
     private static async Task PrepareSrcDirectory()
@@ -156,5 +165,28 @@ public abstract class SmbTestBase
         await File.WriteAllTextAsync(Path.Join(srcPath, "error", "old.foo"), "test content");
         Directory.CreateDirectory(Path.Combine(srcPath, "error", "errorSubDir"));
         await File.WriteAllTextAsync(Path.Join(srcPath, "error", "errorSubDir", "old.foo"), "test content");
+    }
+
+    private static async Task SetPermissionsAsync()
+    {
+        if (sambaContainer is null) return;
+
+        try
+        {
+            // Set permissions with retries
+            for (int i = 0; i < 3; i++)
+            {
+                var result = await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+                if (result.ExitCode == 0) break;
+                await Task.Delay(500);
+            }
+
+            // Also ensure ownership is correct
+            await sambaContainer.ExecAsync(["chown", "-R", "root:root", "/share"]);
+        }
+        catch
+        {
+            // Ignore permission errors on local dev machines
+        }
     }
 }
