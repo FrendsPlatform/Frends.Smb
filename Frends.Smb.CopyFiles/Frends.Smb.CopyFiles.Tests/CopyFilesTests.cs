@@ -100,11 +100,7 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.That(result.Success, Is.False);
 
-        // Wait for SMB operations to complete and sync to filesystem
-        await Task.Delay(1000);
-
-        // Force filesystem flush
-        await FlushSmbCacheAsync();
+        await Task.Delay(2000);
 
         // Verify file exists
         var filePath = Path.Combine(TestDirPath, "dst", "error", "old.foo");
@@ -143,11 +139,8 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.That(result.Success, Is.False);
 
-        // Wait for cleanup operations and SMB sync
-        await Task.Delay(1000);
-
-        // Force filesystem flush
-        await FlushSmbCacheAsync();
+        // CRITICAL: Wait for cleanup operations and Docker bind mount sync
+        await Task.Delay(2000);
 
         // Verify original file still exists
         var originalFile = Path.Combine(TestDirPath, "dst", "error", "old.foo");
@@ -299,9 +292,9 @@ public class CopyFilesTests : SmbTestBase
     }
 
     private static async Task<string> ReadFileWithRetryAsync(
-        string path,
-        int maxRetries = 10,
-        string expectedContent = null)
+       string path,
+       int maxRetries = 15,
+       string expectedContent = null)
     {
         string lastContent = string.Empty;
 
@@ -311,8 +304,14 @@ public class CopyFilesTests : SmbTestBase
             {
                 if (File.Exists(path))
                 {
-                    // Force re-read from disk, not cache
-                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.None);
+                    // Force re-read from disk by opening file directly
+                    await using var fs = new FileStream(
+                        path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete,
+                        bufferSize: 4096,
+                        useAsync: true);
                     using var sr = new StreamReader(fs);
                     lastContent = await sr.ReadToEndAsync();
 
@@ -323,48 +322,45 @@ public class CopyFilesTests : SmbTestBase
             }
             catch (IOException)
             {
-                // File might be locked, retry
+                // File might be locked or not yet synced, retry
             }
 
-            await Task.Delay(300);
+            await Task.Delay(500); // Longer delay between retries
         }
 
-        return lastContent;
+        // Last attempt without retry
+        return File.Exists(path) ? await File.ReadAllTextAsync(path) : lastContent;
     }
 
     private static async Task<bool> CheckFileExistsWithRetryAsync(
         string path,
         bool shouldExist,
-        int maxRetries = 10)
+        int maxRetries = 15)
     {
         for (int i = 0; i < maxRetries; i++)
         {
-            // Force directory re-read
+            // Force directory refresh by enumerating files
             var directory = Path.GetDirectoryName(path);
             if (Directory.Exists(directory))
             {
-                // This forces filesystem to refresh
-                _ = Directory.GetFiles(directory);
+                try
+                {
+                    // This forces filesystem cache refresh
+                    _ = Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly);
+                }
+                catch
+                {
+                    // Ignore errors
+                }
             }
 
             var exists = File.Exists(path);
             if (exists == shouldExist)
                 return exists;
 
-            await Task.Delay(300);
+            await Task.Delay(500); // Longer delay between retries
         }
 
         return File.Exists(path);
-    }
-
-    private static async Task FlushSmbCacheAsync()
-    {
-        // Force directory enumeration to flush cache
-        if (Directory.Exists(Path.Combine(TestDirPath, "dst", "error")))
-        {
-            _ = Directory.GetFiles(Path.Combine(TestDirPath, "dst", "error"), "*", SearchOption.AllDirectories);
-        }
-
-        await Task.Delay(100);
     }
 }

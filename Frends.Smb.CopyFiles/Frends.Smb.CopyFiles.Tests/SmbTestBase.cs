@@ -118,6 +118,8 @@ public abstract class SmbTestBase
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
         Input = new Input { SourcePath = string.Empty, TargetPath = "dst" };
         await PrepareDstDirectory();
+
+        await SyncFilesystemAsync();
     }
 
     private static async Task PrepareDstDirectory()
@@ -131,14 +133,9 @@ public abstract class SmbTestBase
         Directory.CreateDirectory(Path.Combine(dstPath, "error"));
         await File.WriteAllTextAsync(Path.Join(dstPath, "error", "old.foo"), "old test content");
 
-        // Ensure permissions are set after creating new files
+        // Ensure permissions and sync
         await SetPermissionsAsync();
-
-        // Wait for filesystem to sync
-        await Task.Delay(500);
-
-        // Force flush to disk
-        FlushDirectory(dstPath);
+        await SyncFilesystemAsync();
     }
 
     private static async Task PrepareSrcDirectory()
@@ -188,13 +185,31 @@ public abstract class SmbTestBase
 
             // Also ensure ownership is correct
             await sambaContainer.ExecAsync(["chown", "-R", "root:root", "/share"]);
-
-            // Sync filesystem
-            await sambaContainer.ExecAsync(["sync"]);
         }
         catch
         {
             // Ignore permission errors on local dev machines
+        }
+    }
+
+    private static async Task SyncFilesystemAsync()
+    {
+        if (sambaContainer is null) return;
+
+        try
+        {
+            // Force filesystem sync in container
+            await sambaContainer.ExecAsync(["sync"]);
+
+            // Wait for sync to complete and propagate to bind mount
+            await Task.Delay(500);
+
+            // Force local filesystem cache refresh
+            FlushDirectory(TestDirPath);
+        }
+        catch
+        {
+            // Ignore sync errors
         }
     }
 
@@ -203,7 +218,8 @@ public abstract class SmbTestBase
         try
         {
             // Force directory enumeration to flush filesystem cache
-            _ = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+            if (Directory.Exists(path))
+                _ = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
         }
         catch
         {
