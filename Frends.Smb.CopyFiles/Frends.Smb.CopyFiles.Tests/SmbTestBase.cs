@@ -71,7 +71,7 @@ public abstract class SmbTestBase
             await sambaContainer.StartAsync();
 
             // Wait for SMB service to be fully ready
-            await Task.Delay(2000);
+            await Task.Delay(3000);
 
             // Ensure permissions are set before any tests run
             await SetPermissionsAsync();
@@ -135,7 +135,10 @@ public abstract class SmbTestBase
         await SetPermissionsAsync();
 
         // Wait for filesystem to sync
-        await Task.Delay(100);
+        await Task.Delay(500);
+
+        // Force flush to disk
+        FlushDirectory(dstPath);
     }
 
     private static async Task PrepareSrcDirectory()
@@ -165,6 +168,8 @@ public abstract class SmbTestBase
         await File.WriteAllTextAsync(Path.Join(srcPath, "error", "old.foo"), "test content");
         Directory.CreateDirectory(Path.Combine(srcPath, "error", "errorSubDir"));
         await File.WriteAllTextAsync(Path.Join(srcPath, "error", "errorSubDir", "old.foo"), "test content");
+
+        FlushDirectory(srcPath);
     }
 
     private static async Task SetPermissionsAsync()
@@ -174,7 +179,7 @@ public abstract class SmbTestBase
         try
         {
             // Set permissions with retries
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 5; i++)
             {
                 var result = await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
                 if (result.ExitCode == 0) break;
@@ -183,10 +188,26 @@ public abstract class SmbTestBase
 
             // Also ensure ownership is correct
             await sambaContainer.ExecAsync(["chown", "-R", "root:root", "/share"]);
+
+            // Sync filesystem
+            await sambaContainer.ExecAsync(["sync"]);
         }
         catch
         {
             // Ignore permission errors on local dev machines
+        }
+    }
+
+    private static void FlushDirectory(string path)
+    {
+        try
+        {
+            // Force directory enumeration to flush filesystem cache
+            _ = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
+        }
+        catch
+        {
+            // Ignore errors
         }
     }
 }

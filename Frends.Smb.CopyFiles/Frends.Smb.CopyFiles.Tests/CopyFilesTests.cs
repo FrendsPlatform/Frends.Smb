@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Frends.Smb.CopyFiles.Definitions;
 using NUnit.Framework;
+using SMBLibrary;
+using SMBLibrary.Client;
 
 namespace Frends.Smb.CopyFiles.Tests;
 
@@ -96,14 +98,20 @@ public class CopyFilesTests : SmbTestBase
 
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
-        // Wait for file operations to complete and propagate
-        await Task.Delay(500);
-
         Assert.That(result.Success, Is.False);
-        Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
+
+        // Wait for SMB operations to complete and sync to filesystem
+        await Task.Delay(1000);
+
+        // Force filesystem flush
+        await FlushSmbCacheAsync();
+
+        // Verify file exists
+        var filePath = Path.Combine(TestDirPath, "dst", "error", "old.foo");
+        Assert.That(File.Exists(filePath), Is.True, $"File should exist: {filePath}");
 
         // Read file content with retry to handle SMB sync delays
-        var content = await ReadFileWithRetryAsync(Path.Combine(TestDirPath, "dst", "error", "old.foo"));
+        var content = await ReadFileWithRetryAsync(filePath, expectedContent: "old test content");
         Assert.That(content, Is.EqualTo("old test content"));
     }
 
@@ -133,16 +141,21 @@ public class CopyFilesTests : SmbTestBase
 
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
-        // Wait for cleanup operations to complete
-        await Task.Delay(500);
-
         Assert.That(result.Success, Is.False);
-        Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
+
+        // Wait for cleanup operations and SMB sync
+        await Task.Delay(1000);
+
+        // Force filesystem flush
+        await FlushSmbCacheAsync();
+
+        // Verify original file still exists
+        var originalFile = Path.Combine(TestDirPath, "dst", "error", "old.foo");
+        Assert.That(File.Exists(originalFile), Is.True, $"Original file should exist: {originalFile}");
 
         // Check that renamed file was cleaned up with retry
-        var renamedFileExists = await CheckFileExistsWithRetryAsync(
-            Path.Combine(TestDirPath, "dst", "error", "old(1).foo"),
-            shouldExist: false);
+        var renamedFile = Path.Combine(TestDirPath, "dst", "error", "old(1).foo");
+        var renamedFileExists = await CheckFileExistsWithRetryAsync(renamedFile, shouldExist: false);
         Assert.That(renamedFileExists, Is.False);
     }
 
@@ -285,19 +298,27 @@ public class CopyFilesTests : SmbTestBase
             Smb.CopyFiles(Input, Connection, Options, CancellationToken.None));
     }
 
-    private static async Task<string> ReadFileWithRetryAsync(string path, int maxRetries = 5)
+    private static async Task<string> ReadFileWithRetryAsync(
+        string path,
+        int maxRetries = 10,
+        string expectedContent = null)
     {
+        string lastContent = string.Empty;
+
         for (int i = 0; i < maxRetries; i++)
         {
             try
             {
                 if (File.Exists(path))
                 {
-                    var content = await File.ReadAllTextAsync(path);
+                    // Force re-read from disk, not cache
+                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, FileOptions.None);
+                    using var sr = new StreamReader(fs);
+                    lastContent = await sr.ReadToEndAsync();
 
-                    // Ensure we got the full content
-                    if (!string.IsNullOrEmpty(content))
-                        return content;
+                    // If we got the expected content, return it
+                    if (expectedContent == null || lastContent == expectedContent)
+                        return lastContent;
                 }
             }
             catch (IOException)
@@ -305,22 +326,45 @@ public class CopyFilesTests : SmbTestBase
                 // File might be locked, retry
             }
 
-            await Task.Delay(200);
+            await Task.Delay(300);
         }
 
-        return File.Exists(path) ? await File.ReadAllTextAsync(path) : string.Empty;
+        return lastContent;
     }
 
-    private static async Task<bool> CheckFileExistsWithRetryAsync(string path, bool shouldExist, int maxRetries = 5)
+    private static async Task<bool> CheckFileExistsWithRetryAsync(
+        string path,
+        bool shouldExist,
+        int maxRetries = 10)
     {
         for (int i = 0; i < maxRetries; i++)
         {
+            // Force directory re-read
+            var directory = Path.GetDirectoryName(path);
+            if (Directory.Exists(directory))
+            {
+                // This forces filesystem to refresh
+                _ = Directory.GetFiles(directory);
+            }
+
             var exists = File.Exists(path);
             if (exists == shouldExist)
                 return exists;
-            await Task.Delay(200);
+
+            await Task.Delay(300);
         }
 
         return File.Exists(path);
+    }
+
+    private static async Task FlushSmbCacheAsync()
+    {
+        // Force directory enumeration to flush cache
+        if (Directory.Exists(Path.Combine(TestDirPath, "dst", "error")))
+        {
+            _ = Directory.GetFiles(Path.Combine(TestDirPath, "dst", "error"), "*", SearchOption.AllDirectories);
+        }
+
+        await Task.Delay(100);
     }
 }
