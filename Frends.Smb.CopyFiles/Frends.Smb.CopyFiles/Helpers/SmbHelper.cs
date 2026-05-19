@@ -321,14 +321,15 @@ internal static class SmbHandler
     }
 
     private static PathString PrepareForCopy(
-        PathString dstPath,
-        ISMBFileStore dstStore,
-        FileExistsAction fileExistsAction,
-        bool createTargetDirectories,
-        ref List<PathString> newlyCreatedFiles,
-        ref List<Tuple<PathString, PathString>> tempFiles)
+    PathString dstPath,
+    ISMBFileStore dstStore,
+    FileExistsAction fileExistsAction,
+    bool createTargetDirectories,
+    ref List<PathString> newlyCreatedFiles,
+    ref List<Tuple<PathString, PathString>> tempFiles)
     {
         PathString finalDstPath = dstPath;
+
         NTStatus status = dstStore.CreateFile(
             out var dstHandle,
             out _,
@@ -345,15 +346,36 @@ internal static class SmbHandler
             switch (fileExistsAction)
             {
                 case FileExistsAction.Overwrite:
+                    dstStore.CloseFile(dstHandle);
+
+                    var reOpenStatus = dstStore.CreateFile(
+                        out dstHandle,
+                        out _,
+                        dstPath,
+                        AccessMask.DELETE | AccessMask.GENERIC_WRITE,
+                        FileAttributes.Normal,
+                        ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                        CreateDisposition.FILE_OPEN,
+                        CreateOptions.FILE_NON_DIRECTORY_FILE,
+                        null);
+
+                    if (reOpenStatus != NTStatus.STATUS_SUCCESS)
+                    {
+                        throw new Exception($"Failed to open existing file {dstPath} with DELETE privileges. Status: {reOpenStatus}");
+                    }
+
                     PathString dstFileName = Path.GetFileName(dstPath);
                     PathString tempName = Path.Combine(
                         Path.GetDirectoryName(dstPath) ?? string.Empty,
                         $"temp-{Guid.NewGuid().ToString()}-{dstFileName}");
-                    var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = tempName };
+
+                    string rawTempPath = tempName.Value.Replace('/', '\\');
+                    var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = rawTempPath };
                     status = dstStore.SetFileInformation(dstHandle, rename);
 
                     if (status != NTStatus.STATUS_SUCCESS)
                     {
+                        dstStore.CloseFile(dstHandle);
                         throw new Exception(
                             $"Failed to rename existing file {dstPath} to temporary name {tempName} before overwriting. Status: {status}");
                     }
@@ -362,19 +384,20 @@ internal static class SmbHandler
                     tempFiles.Add(new Tuple<PathString, PathString>(tempName, dstPath));
 
                     break;
+
                 case FileExistsAction.Rename:
                     dstStore.CloseFile(dstHandle);
                     finalDstPath = GenerateUniqueFilePath(dstStore, dstPath);
                     newlyCreatedFiles.Add(finalDstPath);
 
                     break;
+
                 case FileExistsAction.Throw:
                     dstStore.CloseFile(dstHandle);
-
                     throw new Exception($"File {dstPath} already exists.");
+
                 default:
                     dstStore.CloseFile(dstHandle);
-
                     throw new ArgumentOutOfRangeException(
                         nameof(fileExistsAction),
                         "Unknown IfTargetFileExists value.");
