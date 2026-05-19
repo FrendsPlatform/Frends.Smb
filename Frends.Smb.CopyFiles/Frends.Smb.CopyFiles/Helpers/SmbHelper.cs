@@ -57,13 +57,13 @@ internal static class SmbHandler
     }
 
     internal static (List<FileItem> copied, List<FileFailure> failures) CopyFiles(
-    ISMBFileStore dstFileStore,
-    ISMBFileStore srcFileStore,
-    PathString sourcePath,
-    PathString targetPath,
-    Options options,
-    int maxChunkSize,
-    CancellationToken cancellationToken)
+        ISMBFileStore dstFileStore,
+        ISMBFileStore srcFileStore,
+        PathString sourcePath,
+        PathString targetPath,
+        Options options,
+        int maxChunkSize,
+        CancellationToken cancellationToken)
     {
         var result = new List<FileItem>();
         var failures = new List<FileFailure>();
@@ -128,20 +128,20 @@ internal static class SmbHandler
                                 CreateOptions.FILE_NON_DIRECTORY_FILE,
                                 null);
 
-                            if (openStatus == NTStatus.STATUS_SUCCESS)
+                            if (openStatus != NTStatus.STATUS_SUCCESS)
+                                throw new Exception($"Rollback open failed for '{newFile}'. Status: {openStatus}");
+
+                            try
                             {
-                                try
-                                {
-                                    var deleteStatus = dstFileStore.SetFileInformation(h, new FileDispositionInformation { DeletePending = true });
-                                    if (deleteStatus == NTStatus.STATUS_SUCCESS)
-                                    {
-                                        newlyCreatedFiles.Remove(newFile);
-                                    }
-                                }
-                                finally
-                                {
-                                    dstFileStore.CloseFile(h);
-                                }
+                                var deleteStatus = dstFileStore.SetFileInformation(h, new FileDispositionInformation { DeletePending = true });
+                                if (deleteStatus != NTStatus.STATUS_SUCCESS)
+                                    throw new Exception($"Rollback delete failed for '{newFile}'. Status: {deleteStatus}");
+
+                                newlyCreatedFiles.Remove(newFile);
+                            }
+                            finally
+                            {
+                                dstFileStore.CloseFile(h);
                             }
                         }
                         catch
@@ -157,27 +157,27 @@ internal static class SmbHandler
                                 out var h,
                                 out _,
                                 tmpFile,
-                                AccessMask.DELETE | AccessMask.GENERIC_WRITE,
+                                AccessMask.GENERIC_WRITE,
                                 FileAttributes.Normal,
-                                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                                ShareAccess.Read | ShareAccess.Write,
                                 CreateDisposition.FILE_OPEN,
                                 CreateOptions.FILE_NON_DIRECTORY_FILE,
                                 null);
 
-                            if (openStatus == NTStatus.STATUS_SUCCESS)
+                            if (openStatus != NTStatus.STATUS_SUCCESS)
+                                throw new Exception($"Rollback open failed for '{tmpFile}'. Status: {openStatus}");
+
+                            try
                             {
-                                try
-                                {
-                                    var renameStatus = dstFileStore.SetFileInformation(h, new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile });
-                                    if (renameStatus == NTStatus.STATUS_SUCCESS)
-                                    {
-                                        tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
-                                    }
-                                }
-                                finally
-                                {
-                                    dstFileStore.CloseFile(h);
-                                }
+                                var renameStatus = dstFileStore.SetFileInformation(h, new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile });
+                                if (renameStatus != NTStatus.STATUS_SUCCESS)
+                                    throw new Exception($"Rollback rename failed from '{tmpFile}' to '{orgFile}'. Status: {renameStatus}");
+
+                                tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
+                            }
+                            finally
+                            {
+                                dstFileStore.CloseFile(h);
                             }
                         }
                         catch
@@ -192,7 +192,7 @@ internal static class SmbHandler
             // remove newly created files
             foreach (var newFile in newlyCreatedFiles)
             {
-                var status = dstFileStore.CreateFile(
+                dstFileStore.CreateFile(
                     out var handle,
                     out _,
                     newFile,
@@ -202,36 +202,28 @@ internal static class SmbHandler
                     CreateDisposition.FILE_OPEN,
                     CreateOptions.FILE_NON_DIRECTORY_FILE,
                     null);
-
-                if (status == NTStatus.STATUS_SUCCESS)
-                {
-                    FileDispositionInformation fileDispositionInformation =
-                        new FileDispositionInformation { DeletePending = true };
-                    dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-                    dstFileStore.CloseFile(handle);
-                }
+                FileDispositionInformation fileDispositionInformation =
+                    new FileDispositionInformation { DeletePending = true };
+                dstFileStore.SetFileInformation(handle, fileDispositionInformation);
+                dstFileStore.CloseFile(handle);
             }
 
             // roll back temp files
             foreach (var (tmpFile, orgFile) in tempFiles)
             {
-                var status = dstFileStore.CreateFile(
+                dstFileStore.CreateFile(
                     out var dstHandle,
                     out _,
                     tmpFile,
-                    AccessMask.DELETE | AccessMask.GENERIC_WRITE,
+                    AccessMask.GENERIC_WRITE,
                     FileAttributes.Normal,
-                    ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                    ShareAccess.Read | ShareAccess.Write,
                     CreateDisposition.FILE_OPEN,
                     CreateOptions.FILE_NON_DIRECTORY_FILE,
                     null);
-
-                if (status == NTStatus.STATUS_SUCCESS)
-                {
-                    var rename = new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile };
-                    dstFileStore.SetFileInformation(dstHandle, rename);
-                    dstFileStore.CloseFile(dstHandle);
-                }
+                var rename = new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile };
+                dstFileStore.SetFileInformation(dstHandle, rename);
+                dstFileStore.CloseFile(dstHandle);
             }
 
             throw;
@@ -240,7 +232,7 @@ internal static class SmbHandler
         // remove temporary files
         foreach (var (tmpFile, _) in tempFiles)
         {
-            var status = dstFileStore.CreateFile(
+            dstFileStore.CreateFile(
                 out var handle,
                 out _,
                 tmpFile,
@@ -250,14 +242,10 @@ internal static class SmbHandler
                 CreateDisposition.FILE_OPEN,
                 CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
-
-            if (status == NTStatus.STATUS_SUCCESS)
-            {
-                FileDispositionInformation fileDispositionInformation =
-                    new FileDispositionInformation { DeletePending = true };
-                dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-                dstFileStore.CloseFile(handle);
-            }
+            FileDispositionInformation fileDispositionInformation =
+                new FileDispositionInformation { DeletePending = true };
+            dstFileStore.SetFileInformation(handle, fileDispositionInformation);
+            dstFileStore.CloseFile(handle);
         }
 
         return (result, failures);
@@ -321,15 +309,14 @@ internal static class SmbHandler
     }
 
     private static PathString PrepareForCopy(
-    PathString dstPath,
-    ISMBFileStore dstStore,
-    FileExistsAction fileExistsAction,
-    bool createTargetDirectories,
-    ref List<PathString> newlyCreatedFiles,
-    ref List<Tuple<PathString, PathString>> tempFiles)
+        PathString dstPath,
+        ISMBFileStore dstStore,
+        FileExistsAction fileExistsAction,
+        bool createTargetDirectories,
+        ref List<PathString> newlyCreatedFiles,
+        ref List<Tuple<PathString, PathString>> tempFiles)
     {
         PathString finalDstPath = dstPath;
-
         NTStatus status = dstStore.CreateFile(
             out var dstHandle,
             out _,
@@ -346,36 +333,15 @@ internal static class SmbHandler
             switch (fileExistsAction)
             {
                 case FileExistsAction.Overwrite:
-                    dstStore.CloseFile(dstHandle);
-
-                    var reOpenStatus = dstStore.CreateFile(
-                        out dstHandle,
-                        out _,
-                        dstPath,
-                        AccessMask.DELETE | AccessMask.GENERIC_WRITE,
-                        FileAttributes.Normal,
-                        ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                        CreateDisposition.FILE_OPEN,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE,
-                        null);
-
-                    if (reOpenStatus != NTStatus.STATUS_SUCCESS)
-                    {
-                        throw new Exception($"Failed to open existing file {dstPath} with DELETE privileges. Status: {reOpenStatus}");
-                    }
-
                     PathString dstFileName = Path.GetFileName(dstPath);
                     PathString tempName = Path.Combine(
                         Path.GetDirectoryName(dstPath) ?? string.Empty,
                         $"temp-{Guid.NewGuid().ToString()}-{dstFileName}");
-
-                    string rawTempPath = tempName.Value.Replace('/', '\\');
-                    var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = rawTempPath };
+                    var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = tempName };
                     status = dstStore.SetFileInformation(dstHandle, rename);
 
                     if (status != NTStatus.STATUS_SUCCESS)
                     {
-                        dstStore.CloseFile(dstHandle);
                         throw new Exception(
                             $"Failed to rename existing file {dstPath} to temporary name {tempName} before overwriting. Status: {status}");
                     }
@@ -384,20 +350,19 @@ internal static class SmbHandler
                     tempFiles.Add(new Tuple<PathString, PathString>(tempName, dstPath));
 
                     break;
-
                 case FileExistsAction.Rename:
                     dstStore.CloseFile(dstHandle);
                     finalDstPath = GenerateUniqueFilePath(dstStore, dstPath);
                     newlyCreatedFiles.Add(finalDstPath);
 
                     break;
-
                 case FileExistsAction.Throw:
                     dstStore.CloseFile(dstHandle);
-                    throw new Exception($"File {dstPath} already exists.");
 
+                    throw new Exception($"File {dstPath} already exists.");
                 default:
                     dstStore.CloseFile(dstHandle);
+
                     throw new ArgumentOutOfRangeException(
                         nameof(fileExistsAction),
                         "Unknown IfTargetFileExists value.");
