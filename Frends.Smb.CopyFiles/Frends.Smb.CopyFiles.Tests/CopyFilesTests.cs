@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -96,15 +97,28 @@ public class CopyFilesTests : SmbTestBase
         Options.Recursive = true;
         Options.CreateTargetDirectories = false;
 
+        TestContext.WriteLine("Before CopyFiles");
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
+        TestContext.WriteLine($"After CopyFiles - Success: {result.Success}, Error: {result.Error?.Message}");
 
         Assert.That(result.Success, Is.False);
 
         // Wait a bit for operations to complete
         await Task.Delay(500);
 
+        // Check what files exist through SMB
+        TestContext.WriteLine("Checking file existence through SMB...");
+        var originalExists = FileExistsThroughSmb("dst/error/old.foo");
+        TestContext.WriteLine($"dst/error/old.foo exists: {originalExists}");
+
+        // Check for temp files that might not have been rolled back
+        var tempFilePattern = await ListFilesThroughSmbAsync("dst/error");
+        TestContext.WriteLine($"Files in dst/error: {string.Join(", ", tempFilePattern)}");
+
         // Verify through SMB instead of local filesystem to avoid sync issues
         var content = ReadFileThroughSmb("dst/error/old.foo");
+        TestContext.WriteLine($"Content of dst/error/old.foo: '{content}' (length: {content.Length})");
+
         Assert.That(content, Is.EqualTo("old test content"));
     }
 
@@ -132,18 +146,27 @@ public class CopyFilesTests : SmbTestBase
         Options.Recursive = true;
         Options.CreateTargetDirectories = false;
 
+        TestContext.WriteLine("Before CopyFiles");
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
+        TestContext.WriteLine($"After CopyFiles - Success: {result.Success}, Error: {result.Error?.Message}");
 
         Assert.That(result.Success, Is.False);
 
         // Wait a bit for operations to complete
         await Task.Delay(500);
 
+        // Check what files exist
+        TestContext.WriteLine("Checking file existence through SMB...");
+        var files = await ListFilesThroughSmbAsync("dst/error");
+        TestContext.WriteLine($"Files in dst/error: {string.Join(", ", files)}");
+
         // Verify through SMB instead of local filesystem
         var originalFileExists = FileExistsThroughSmb("dst/error/old.foo");
+        TestContext.WriteLine($"dst/error/old.foo exists: {originalFileExists}");
         Assert.That(originalFileExists, Is.True, "Original file should exist");
 
         var renamedFileExists = FileExistsThroughSmb("dst/error/old(1).foo");
+        TestContext.WriteLine($"dst/error/old(1).foo exists: {renamedFileExists}");
         Assert.That(renamedFileExists, Is.False, "Renamed file should be cleaned up");
     }
 
@@ -429,6 +452,97 @@ public class CopyFilesTests : SmbTestBase
         catch
         {
             return false;
+        }
+        finally
+        {
+            fileStore?.Disconnect();
+
+            if (client != null)
+            {
+                try
+                {
+                    client.ListShares(out var logoffStatus);
+                    if (logoffStatus == NTStatus.STATUS_SUCCESS)
+                        client.Logoff();
+                }
+                catch
+                {
+                    // Ignore
+                }
+
+                client.Disconnect();
+            }
+        }
+    }
+
+    private Task<List<string>> ListFilesThroughSmbAsync(string path)
+    {
+        var files = new List<string>();
+        SMB2Client client = null;
+        ISMBFileStore fileStore = null;
+
+        try
+        {
+            client = new SMB2Client();
+            var (domain, username) = GetDomainAndUsername(Connection.Username);
+
+            if (!System.Net.IPAddress.TryParse(Connection.Server, out var serverAddress))
+                return Task.FromResult(files);
+
+            if (!client.Connect(serverAddress, SMBTransportType.DirectTCPTransport))
+                return Task.FromResult(files);
+
+            var status = client.Login(domain, username, Connection.Password);
+            if (status != NTStatus.STATUS_SUCCESS)
+                return Task.FromResult(files);
+
+            fileStore = client.TreeConnect(Connection.Share, out status);
+            if (status != NTStatus.STATUS_SUCCESS)
+                return Task.FromResult(files);
+
+            // Open directory
+            status = fileStore.CreateFile(
+                out var handle,
+                out _,
+                path,
+                AccessMask.GENERIC_READ,
+                SMBLibrary.FileAttributes.Directory,
+                ShareAccess.Read | ShareAccess.Write,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_DIRECTORY_FILE,
+                null);
+
+            if (status != NTStatus.STATUS_SUCCESS)
+                return Task.FromResult(files);
+
+            try
+            {
+                status = fileStore.QueryDirectory(
+                    out List<QueryDirectoryFileInformation> fileList,
+                    handle,
+                    "*",
+                    FileInformationClass.FileDirectoryInformation);
+
+                if (status == NTStatus.STATUS_SUCCESS || status == NTStatus.STATUS_NO_MORE_FILES)
+                {
+                    foreach (var file in fileList.Cast<FileDirectoryInformation>())
+                    {
+                        if (file.FileName != "." && file.FileName != "..")
+                            files.Add(file.FileName);
+                    }
+                }
+            }
+            finally
+            {
+                fileStore.CloseFile(handle);
+            }
+
+            return Task.FromResult(files);
+        }
+        catch (Exception ex)
+        {
+            TestContext.WriteLine($"Error listing files: {ex.Message}");
+            return Task.FromResult(files);
         }
         finally
         {
