@@ -76,6 +76,7 @@ internal static class SmbHandler
             cancellationToken);
         var newlyCreatedFiles = new List<PathString>();
         var tempFiles = new List<Tuple<PathString, PathString>>();
+        bool rollbackNeeded = false;
 
         try
         {
@@ -113,39 +114,17 @@ internal static class SmbHandler
                         AdditionalInfo = ex,
                     });
 
+                    // Rollback per-file changes
                     foreach (var newFile in perFileNewFiles)
                     {
                         try
                         {
-                            var openStatus = dstFileStore.CreateFile(
-                                out var h,
-                                out _,
-                                newFile,
-                                AccessMask.DELETE,
-                                FileAttributes.Normal,
-                                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                                CreateDisposition.FILE_OPEN,
-                                CreateOptions.FILE_NON_DIRECTORY_FILE,
-                                null);
-
-                            if (openStatus != NTStatus.STATUS_SUCCESS)
-                                throw new Exception($"Rollback open failed for '{newFile}'. Status: {openStatus}");
-
-                            try
-                            {
-                                var deleteStatus = dstFileStore.SetFileInformation(h, new FileDispositionInformation { DeletePending = true });
-                                if (deleteStatus != NTStatus.STATUS_SUCCESS)
-                                    throw new Exception($"Rollback delete failed for '{newFile}'. Status: {deleteStatus}");
-
-                                newlyCreatedFiles.Remove(newFile);
-                            }
-                            finally
-                            {
-                                dstFileStore.CloseFile(h);
-                            }
+                            DeleteFileWithStatus(dstFileStore, newFile);
+                            newlyCreatedFiles.Remove(newFile);
                         }
                         catch
                         {
+                            // Ignore rollback errors in ContinueOnFailure mode
                         }
                     }
 
@@ -153,86 +132,73 @@ internal static class SmbHandler
                     {
                         try
                         {
-                            var openStatus = dstFileStore.CreateFile(
-                                out var h,
-                                out _,
-                                tmpFile,
-                                AccessMask.GENERIC_WRITE,
-                                FileAttributes.Normal,
-                                ShareAccess.Read | ShareAccess.Write,
-                                CreateDisposition.FILE_OPEN,
-                                CreateOptions.FILE_NON_DIRECTORY_FILE,
-                                null);
-
-                            if (openStatus != NTStatus.STATUS_SUCCESS)
-                                throw new Exception($"Rollback open failed for '{tmpFile}'. Status: {openStatus}");
-
-                            try
-                            {
-                                var renameStatus = dstFileStore.SetFileInformation(h, new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile });
-                                if (renameStatus != NTStatus.STATUS_SUCCESS)
-                                    throw new Exception($"Rollback rename failed from '{tmpFile}' to '{orgFile}'. Status: {renameStatus}");
-
-                                tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
-                            }
-                            finally
-                            {
-                                dstFileStore.CloseFile(h);
-                            }
+                            CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
+                            DeleteFileWithStatus(dstFileStore, tmpFile);
+                            tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
                         }
                         catch
                         {
+                            // Ignore rollback errors in ContinueOnFailure mode
                         }
                     }
                 }
             }
         }
-        catch
+        catch (Exception)
         {
-            // Global rollback when ContinueOnFailure=false or unhandled exceptions
-            // Remove newly created files
-            foreach (var newFile in newlyCreatedFiles)
-            {
-                try
-                {
-                    DeleteFileWithStatus(dstFileStore, newFile);
-                }
-                catch
-                {
-                    // Ignore individual file rollback errors
-                }
-            }
-
-            // Roll back temp files by copying them back and deleting temp
-            foreach (var (tmpFile, orgFile) in tempFiles)
-            {
-                try
-                {
-                    // Copy temp file back to original location
-                    CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
-
-                    // Delete the temp file
-                    DeleteFileWithStatus(dstFileStore, tmpFile);
-                }
-                catch
-                {
-                    // Ignore individual file rollback errors
-                }
-            }
-
+            // Mark that rollback is needed
+            rollbackNeeded = true;
             throw;
         }
-
-        // Remove temporary files after successful completion
-        foreach (var (tmpFile, _) in tempFiles)
+        finally
         {
-            try
+            // Perform rollback if needed (error occurred and ContinueOnFailure=false)
+            if (rollbackNeeded)
             {
-                DeleteFileWithStatus(dstFileStore, tmpFile);
+                // Remove newly created files
+                foreach (var newFile in newlyCreatedFiles)
+                {
+                    try
+                    {
+                        DeleteFileWithStatus(dstFileStore, newFile);
+                    }
+                    catch
+                    {
+                        // Ignore individual file rollback errors
+                    }
+                }
+
+                // Roll back temp files by copying them back and deleting temp
+                foreach (var (tmpFile, orgFile) in tempFiles)
+                {
+                    try
+                    {
+                        // Copy temp file back to original location
+                        CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
+
+                        // Delete the temp file
+                        DeleteFileWithStatus(dstFileStore, tmpFile);
+                    }
+                    catch
+                    {
+                        // Ignore individual file rollback errors
+                    }
+                }
             }
-            catch
+            else
             {
-                // Ignore cleanup errors
+                // Remove temporary files after successful completion
+                foreach (var (tmpFile, _) in tempFiles)
+                {
+                    try
+                    {
+                        DeleteFileWithStatus(dstFileStore, tmpFile);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
+                }
             }
         }
 
