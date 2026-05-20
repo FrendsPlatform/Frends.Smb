@@ -101,12 +101,9 @@ public class CopyFilesTests : SmbTestBase
 
         Assert.That(result.Success, Is.False);
 
-        // Wait a bit for operations to complete
-        //Check what files exist through SMB
         var originalExists = FileExistsThroughSmb("dst/error/old.foo");
         Assert.That(originalExists, Is.True, "Original file should exist");
 
-        // Check for temp files that might not have been rolled back
         var tempFilePattern = ListFilesThroughSmb("dst/error");
         Assert.That(tempFilePattern.Count(), Is.EqualTo(0), "Temp files should be rolled back");
     }
