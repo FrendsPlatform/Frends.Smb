@@ -251,7 +251,7 @@ internal static class SmbHandler
             dstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ADD Delete!
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -300,7 +300,7 @@ internal static class SmbHandler
             dstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ADD Delete!
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -359,7 +359,7 @@ internal static class SmbHandler
             finalDstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ADD Delete!
             CreateDisposition.FILE_OPEN_IF,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -594,36 +594,6 @@ internal static class SmbHandler
             : new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
     }
 
-    private static void DeleteFileWithStatus(ISMBFileStore fileStore, PathString filePath)
-    {
-        var openStatus = fileStore.CreateFile(
-            out var handle,
-            out _,
-            filePath,
-            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
-            FileAttributes.Normal,
-            ShareAccess.Delete,
-            CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-            null);
-
-        if (openStatus != NTStatus.STATUS_SUCCESS)
-            throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
-
-        try
-        {
-            var deleteInfo = new FileDispositionInformation { DeletePending = true };
-            var deleteStatus = fileStore.SetFileInformation(handle, deleteInfo);
-
-            if (deleteStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
-        }
-        finally
-        {
-            fileStore.CloseFile(handle);
-        }
-    }
-
     private static void CopyFileForRollback(
         ISMBFileStore fileStore,
         PathString sourceFilePath,
@@ -636,7 +606,7 @@ internal static class SmbHandler
             sourceFilePath,
             AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             FileAttributes.Normal,
-            ShareAccess.Read,
+            ShareAccess.Read | ShareAccess.Delete, // Allow delete while reading
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
@@ -650,10 +620,10 @@ internal static class SmbHandler
                 out var targetHandle,
                 out _,
                 targetFilePath,
-                AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+                AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE | AccessMask.DELETE,
                 FileAttributes.Normal,
-                ShareAccess.Delete,
-                CreateDisposition.FILE_OVERWRITE_IF,
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // Allow sharing
+                CreateDisposition.FILE_SUPERSEDE, // SUPERSEDE instead of OVERWRITE_IF - forces overwrite
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
 
@@ -696,6 +666,36 @@ internal static class SmbHandler
         finally
         {
             fileStore.CloseFile(sourceHandle);
+        }
+    }
+
+    private static void DeleteFileWithStatus(ISMBFileStore fileStore, PathString filePath)
+    {
+        var openStatus = fileStore.CreateFile(
+            out var handle,
+            out _,
+            filePath,
+            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            FileAttributes.Normal,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // Allow sharing
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT | CreateOptions.FILE_DELETE_ON_CLOSE, // DELETE_ON_CLOSE!
+            null);
+
+        if (openStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
+
+        try
+        {
+            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+            var deleteStatus = fileStore.SetFileInformation(handle, deleteInfo);
+
+            if (deleteStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
+        }
+        finally
+        {
+            fileStore.CloseFile(handle);
         }
     }
 }
