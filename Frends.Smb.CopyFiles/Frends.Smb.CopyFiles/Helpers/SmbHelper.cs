@@ -195,30 +195,7 @@ internal static class SmbHandler
             {
                 try
                 {
-                    var openStatus = dstFileStore.CreateFile(
-                        out var handle,
-                        out _,
-                        newFile,
-                        AccessMask.DELETE,
-                        FileAttributes.Normal,
-                        ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                        CreateDisposition.FILE_OPEN,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE,
-                        null);
-
-                    if (openStatus == NTStatus.STATUS_SUCCESS)
-                    {
-                        try
-                        {
-                            FileDispositionInformation fileDispositionInformation =
-                                new FileDispositionInformation { DeletePending = true };
-                            dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-                        }
-                        finally
-                        {
-                            dstFileStore.CloseFile(handle);
-                        }
-                    }
+                    DeleteFileWithStatus(dstFileStore, newFile);
                 }
                 catch
                 {
@@ -226,38 +203,16 @@ internal static class SmbHandler
                 }
             }
 
-            // Roll back temp files
+            // Roll back temp files by copying them back and deleting temp
             foreach (var (tmpFile, orgFile) in tempFiles)
             {
                 try
                 {
-                    var openStatus = dstFileStore.CreateFile(
-                        out var dstHandle,
-                        out _,
-                        tmpFile,
-                        AccessMask.GENERIC_WRITE,
-                        FileAttributes.Normal,
-                        ShareAccess.Read | ShareAccess.Write,
-                        CreateDisposition.FILE_OPEN,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE,
-                        null);
+                    // Copy temp file back to original location
+                    CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
 
-                    if (openStatus == NTStatus.STATUS_SUCCESS)
-                    {
-                        try
-                        {
-                            var rename = new FileRenameInformationType2
-                            {
-                                ReplaceIfExists = true,
-                                FileName = orgFile,
-                            };
-                            dstFileStore.SetFileInformation(dstHandle, rename);
-                        }
-                        finally
-                        {
-                            dstFileStore.CloseFile(dstHandle);
-                        }
-                    }
+                    // Delete the temp file
+                    DeleteFileWithStatus(dstFileStore, tmpFile);
                 }
                 catch
                 {
@@ -273,30 +228,7 @@ internal static class SmbHandler
         {
             try
             {
-                var openStatus = dstFileStore.CreateFile(
-                    out var handle,
-                    out _,
-                    tmpFile,
-                    AccessMask.DELETE,
-                    FileAttributes.Normal,
-                    ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                    CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE,
-                    null);
-
-                if (openStatus == NTStatus.STATUS_SUCCESS)
-                {
-                    try
-                    {
-                        FileDispositionInformation fileDispositionInformation =
-                            new FileDispositionInformation { DeletePending = true };
-                        dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-                    }
-                    finally
-                    {
-                        dstFileStore.CloseFile(handle);
-                    }
-                }
+                DeleteFileWithStatus(dstFileStore, tmpFile);
             }
             catch
             {
@@ -671,5 +603,110 @@ internal static class SmbHandler
         return domainAndUserName.Length != 2
             ? throw new ArgumentException($@"Username field must be of format domain\username was: {username}")
             : new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
+    }
+
+    private static void DeleteFileWithStatus(ISMBFileStore fileStore, PathString filePath)
+    {
+        var openStatus = fileStore.CreateFile(
+            out var handle,
+            out _,
+            filePath,
+            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            FileAttributes.Normal,
+            ShareAccess.Delete,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (openStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
+
+        try
+        {
+            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+            var deleteStatus = fileStore.SetFileInformation(handle, deleteInfo);
+
+            if (deleteStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
+        }
+        finally
+        {
+            fileStore.CloseFile(handle);
+        }
+    }
+
+    private static void CopyFileForRollback(
+        ISMBFileStore fileStore,
+        PathString sourceFilePath,
+        PathString targetFilePath,
+        CancellationToken cancellationToken)
+    {
+        var openSourceStatus = fileStore.CreateFile(
+            out var sourceHandle,
+            out _,
+            sourceFilePath,
+            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            FileAttributes.Normal,
+            ShareAccess.Read,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (openSourceStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open source file '{sourceFilePath}': {openSourceStatus}");
+
+        try
+        {
+            var openTargetStatus = fileStore.CreateFile(
+                out var targetHandle,
+                out _,
+                targetFilePath,
+                AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+                FileAttributes.Normal,
+                ShareAccess.Delete,
+                CreateDisposition.FILE_OVERWRITE_IF,
+                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                null);
+
+            if (openTargetStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to create target file '{targetFilePath}': {openTargetStatus}");
+
+            try
+            {
+                long bytesRead = 0;
+                const int bufferSize = 65536;
+
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var readStatus = fileStore.ReadFile(out var data, sourceHandle, bytesRead, bufferSize);
+
+                    if (readStatus != NTStatus.STATUS_SUCCESS && readStatus != NTStatus.STATUS_END_OF_FILE)
+                        throw new Exception($"Failed to read from file '{sourceFilePath}': {readStatus}");
+
+                    if (data == null || data.Length == 0 || readStatus == NTStatus.STATUS_END_OF_FILE)
+                        break;
+
+                    var writeStatus = fileStore.WriteFile(out var bytesWritten, targetHandle, bytesRead, data);
+
+                    if (writeStatus != NTStatus.STATUS_SUCCESS)
+                        throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
+
+                    if (bytesWritten != data.Length)
+                        throw new Exception($"Partial write detected for '{targetFilePath}': wrote {bytesWritten} of {data.Length} bytes.");
+
+                    bytesRead += data.Length;
+                }
+            }
+            finally
+            {
+                fileStore.CloseFile(targetHandle);
+            }
+        }
+        finally
+        {
+            fileStore.CloseFile(sourceHandle);
+        }
     }
 }
