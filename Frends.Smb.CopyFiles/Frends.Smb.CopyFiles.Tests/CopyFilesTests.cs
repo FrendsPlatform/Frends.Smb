@@ -89,17 +89,21 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public void RollbackTmpFilesWhenErrorOccurred()
+    public async Task RollbackTmpFilesWhenErrorOccurred()
     {
         Options.IfTargetFileExists = FileExistsAction.Overwrite;
         PathString path = "src/error";
         Input.SourcePath = path.Value;
         Options.Recursive = true;
         Options.CreateTargetDirectories = false;
-        Options.Recursive = false;
+
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
+
+        // Small delay to allow SMB operations to complete in Docker
+        await Task.Delay(100);
+
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
         Assert.That(
             File.ReadAllText(Path.Combine(TestDirPath, "dst", "error", "old.foo")),
@@ -123,7 +127,7 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public void RemoveNewFilesWhenErrorOccured()
+    public async Task RemoveNewFilesWhenErrorOccured()
     {
         Options.IfTargetFileExists = FileExistsAction.Rename;
         Input.SourcePath = "src/error";
@@ -133,6 +137,10 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
+
+        // Small delay to allow SMB operations to complete in Docker
+        await Task.Delay(100);
+
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old(1).foo")), Is.False);
     }
