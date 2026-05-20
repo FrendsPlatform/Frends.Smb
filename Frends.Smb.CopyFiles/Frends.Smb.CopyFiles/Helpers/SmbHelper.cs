@@ -155,15 +155,21 @@ internal static class SmbHandler
             // Perform rollback if needed (error occurred and ContinueOnFailure=false)
             if (rollbackNeeded)
             {
+                Console.WriteLine($"[ROLLBACK] Starting rollback. NewFiles: {newlyCreatedFiles.Count}, TempFiles: {tempFiles.Count}");
+
                 // Remove newly created files
                 foreach (var newFile in newlyCreatedFiles)
                 {
                     try
                     {
+                        Console.WriteLine($"[ROLLBACK] Deleting new file: {newFile}");
                         DeleteFileWithStatus(dstFileStore, newFile);
+                        Console.WriteLine($"[ROLLBACK] Successfully deleted: {newFile}");
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Console.WriteLine($"[ROLLBACK] Failed to delete {newFile}: {ex.Message}");
+
                         // Ignore individual file rollback errors
                     }
                 }
@@ -173,32 +179,49 @@ internal static class SmbHandler
                 {
                     try
                     {
+                        Console.WriteLine($"[ROLLBACK] Restoring temp file {tmpFile} to {orgFile}");
+
                         // Copy temp file back to original location
                         CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
+                        Console.WriteLine($"[ROLLBACK] Successfully copied back");
 
                         // Delete the temp file
+                        Console.WriteLine($"[ROLLBACK] Deleting temp file: {tmpFile}");
                         DeleteFileWithStatus(dstFileStore, tmpFile);
+                        Console.WriteLine($"[ROLLBACK] Successfully deleted temp file");
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Console.WriteLine($"[ROLLBACK] Failed to rollback {tmpFile}: {ex.Message}");
+
                         // Ignore individual file rollback errors
                     }
                 }
+
+                Console.WriteLine($"[ROLLBACK] Rollback completed");
             }
             else
             {
+                Console.WriteLine($"[CLEANUP] Starting cleanup. TempFiles: {tempFiles.Count}");
+
                 // Remove temporary files after successful completion
                 foreach (var (tmpFile, _) in tempFiles)
                 {
                     try
                     {
+                        Console.WriteLine($"[CLEANUP] Deleting temp file: {tmpFile}");
                         DeleteFileWithStatus(dstFileStore, tmpFile);
+                        Console.WriteLine($"[CLEANUP] Successfully deleted: {tmpFile}");
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        Console.WriteLine($"[CLEANUP] Failed to delete {tmpFile}: {ex.Message}");
+
                         // Ignore cleanup errors
                     }
                 }
+
+                Console.WriteLine($"[CLEANUP] Cleanup completed");
             }
         }
 
