@@ -253,6 +253,78 @@ public class DeleteFilesTests
         Assert.That(result.FilesDeleted.Single().Name, Is.EqualTo("foo_123.txt"));
     }
 
+    [Test]
+    public async Task DeleteFiles_ContinueOnFailure_PartialSuccess_ReturnsSuccessWithFailures()
+    {
+        await CreateTestFileAsync("pattern-test/file1.txt", "content 1");
+        await CreateTestFileAsync("pattern-test/file2.txt", "content 2");
+        await CreateTestFileAsync("pattern-test/file3.txt", "content 3");
+
+        await sambaContainer.ExecAsync(["sh", "-c", "chmod 000 /share/pattern-test/file2.txt"]);
+
+        input = new Input { Path = "pattern-test" };
+        options.ThrowErrorOnFailure = false;
+        options.ContinueOnFailure = true;
+        options.Pattern = "*.txt";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+
+        var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.TotalFilesDeleted, Is.EqualTo(2));
+        Assert.That(result.Error, Is.Not.Null);
+        Assert.That(result.Error.FileFailures.Count, Is.EqualTo(1));
+        Assert.That(result.Error.FileFailures[0].SourcePath, Does.Contain("file2.txt"));
+        Assert.That(result.Error.FileFailures[0].Reason, Is.Not.Null.And.Not.Empty);
+        Assert.That(result.Error.AdditionalInfo, Is.InstanceOf<AggregateException>());
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", "file1.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", "file3.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", "file2.txt")), Is.True);
+    }
+
+    [Test]
+    public async Task DeleteFiles_ContinueOnFailure_AllSucceed_ErrorIsNull()
+    {
+        await CreateTestFileAsync("pattern-test/a.txt", "aaa");
+        await CreateTestFileAsync("pattern-test/b.txt", "bbb");
+
+        input = new Input { Path = "pattern-test" };
+        options.ThrowErrorOnFailure = false;
+        options.ContinueOnFailure = true;
+        options.Pattern = "*.txt";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+
+        var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.TotalFilesDeleted, Is.EqualTo(2));
+        Assert.That(result.Error, Is.Null);
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", "a.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", "b.txt")), Is.False);
+    }
+
+    [Test]
+    public async Task DeleteFiles_ContinueOnFailure_False_ThrowsOnFirstFailure()
+    {
+        await CreateTestFileAsync("pattern-test/file1.txt", "content 1");
+        await CreateTestFileAsync("pattern-test/file2.txt", "content 2");
+
+        await sambaContainer.ExecAsync(["sh", "-c", "chmod 000 /share/pattern-test/file1.txt"]);
+
+        input = new Input { Path = "pattern-test" };
+        options.ThrowErrorOnFailure = true;
+        options.ContinueOnFailure = false;
+        options.Pattern = "*.txt";
+        options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+
+        Assert.ThrowsAsync<Exception>(() =>
+            Smb.DeleteFiles(input, connection, options, CancellationToken.None));
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", "file1.txt")), Is.True);
+    }
+
     private async Task CreateTestFileAsync(string relativePath, string content)
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);

@@ -418,3 +418,5 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+/Frends.Smb.CopyFiles/Frends.Smb.CopyFiles/Properties/launchSettings.json
+/Frends.Smb.CopyFiles/testEnvironments.json

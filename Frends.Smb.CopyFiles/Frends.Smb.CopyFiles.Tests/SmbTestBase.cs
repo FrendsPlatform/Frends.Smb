@@ -70,6 +70,9 @@ public abstract class SmbTestBase
 
             await sambaContainer.StartAsync();
 
+            if (sambaContainer is not null)
+                await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+
             lock (Lock)
             {
                 isInitialized = true;
@@ -116,15 +119,17 @@ public abstract class SmbTestBase
 
     private static async Task PrepareDstDirectory()
     {
-        if (sambaContainer is not null) await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
         var dstPath = Path.Join(TestDirPath, "dst");
         if (Directory.Exists(dstPath))
             Directory.Delete(dstPath, true);
+
         Directory.CreateDirectory(Path.Combine(dstPath, "oldSub"));
         await File.WriteAllTextAsync(Path.Join(dstPath, "old.foo"), "old test content");
         Directory.CreateDirectory(Path.Combine(dstPath, "error"));
         await File.WriteAllTextAsync(Path.Join(dstPath, "error", "old.foo"), "old test content");
-        if (sambaContainer is not null) await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
+
+        if (sambaContainer is not null)
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
     }
 
     private static async Task PrepareSrcDirectory()

@@ -54,7 +54,7 @@ public static class Smb
                 maxChunkSize = 64 * 1024; // 64KB
             }
 
-            var copiedFiles = SmbHandler.CopyFiles(
+            var (copiedFiles, fileFailures) = SmbHandler.CopyFiles(
                 dstFileStore,
                 srcFileStore,
                 sourcePath,
@@ -62,6 +62,9 @@ public static class Smb
                 options,
                 maxChunkSize,
                 cancellationToken);
+
+            if (fileFailures.Count > 0)
+                return ErrorHandler.HandlePartialSuccess(fileFailures, copiedFiles, copiedFiles.Count + fileFailures.Count);
 
             return new Result { Success = true, Files = copiedFiles, Error = null, };
         }
