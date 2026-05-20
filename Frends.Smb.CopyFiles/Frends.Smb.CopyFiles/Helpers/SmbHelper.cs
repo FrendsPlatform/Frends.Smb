@@ -114,7 +114,6 @@ internal static class SmbHandler
                         AdditionalInfo = ex,
                     });
 
-                    // Rollback per-file changes
                     foreach (var newFile in perFileNewFiles)
                     {
                         try
@@ -146,82 +145,53 @@ internal static class SmbHandler
         }
         catch (Exception)
         {
-            // Mark that rollback is needed
             rollbackNeeded = true;
             throw;
         }
         finally
         {
-            // Perform rollback if needed (error occurred and ContinueOnFailure=false)
             if (rollbackNeeded)
             {
-                Console.WriteLine($"[ROLLBACK] Starting rollback. NewFiles: {newlyCreatedFiles.Count}, TempFiles: {tempFiles.Count}");
-
-                // Remove newly created files
+                // Global rollback when ContinueOnFailure=false
                 foreach (var newFile in newlyCreatedFiles)
                 {
                     try
                     {
-                        Console.WriteLine($"[ROLLBACK] Deleting new file: {newFile}");
                         DeleteFileWithStatus(dstFileStore, newFile);
-                        Console.WriteLine($"[ROLLBACK] Successfully deleted: {newFile}");
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine($"[ROLLBACK] Failed to delete {newFile}: {ex.Message}");
-
                         // Ignore individual file rollback errors
                     }
                 }
 
-                // Roll back temp files by copying them back and deleting temp
                 foreach (var (tmpFile, orgFile) in tempFiles)
                 {
                     try
                     {
-                        Console.WriteLine($"[ROLLBACK] Restoring temp file {tmpFile} to {orgFile}");
-
-                        // Copy temp file back to original location
                         CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
-                        Console.WriteLine($"[ROLLBACK] Successfully copied back");
-
-                        // Delete the temp file
-                        Console.WriteLine($"[ROLLBACK] Deleting temp file: {tmpFile}");
                         DeleteFileWithStatus(dstFileStore, tmpFile);
-                        Console.WriteLine($"[ROLLBACK] Successfully deleted temp file");
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine($"[ROLLBACK] Failed to rollback {tmpFile}: {ex.Message}");
-
                         // Ignore individual file rollback errors
                     }
                 }
-
-                Console.WriteLine($"[ROLLBACK] Rollback completed");
             }
             else
             {
-                Console.WriteLine($"[CLEANUP] Starting cleanup. TempFiles: {tempFiles.Count}");
-
                 // Remove temporary files after successful completion
                 foreach (var (tmpFile, _) in tempFiles)
                 {
                     try
                     {
-                        Console.WriteLine($"[CLEANUP] Deleting temp file: {tmpFile}");
                         DeleteFileWithStatus(dstFileStore, tmpFile);
-                        Console.WriteLine($"[CLEANUP] Successfully deleted: {tmpFile}");
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine($"[CLEANUP] Failed to delete {tmpFile}: {ex.Message}");
-
                         // Ignore cleanup errors
                     }
                 }
-
-                Console.WriteLine($"[CLEANUP] Cleanup completed");
             }
         }
 
@@ -251,7 +221,7 @@ internal static class SmbHandler
             dstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ADD Delete!
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -300,7 +270,7 @@ internal static class SmbHandler
             dstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ADD Delete!
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -359,7 +329,7 @@ internal static class SmbHandler
             finalDstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ADD Delete!
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN_IF,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -606,7 +576,7 @@ internal static class SmbHandler
             sourceFilePath,
             AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Delete, // Allow delete while reading
+            ShareAccess.Read | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
@@ -622,8 +592,8 @@ internal static class SmbHandler
                 targetFilePath,
                 AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE | AccessMask.DELETE,
                 FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // Allow sharing
-                CreateDisposition.FILE_SUPERSEDE, // SUPERSEDE instead of OVERWRITE_IF - forces overwrite
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                CreateDisposition.FILE_SUPERSEDE,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
 
@@ -677,9 +647,9 @@ internal static class SmbHandler
             filePath,
             AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // Allow sharing
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT | CreateOptions.FILE_DELETE_ON_CLOSE, // DELETE_ON_CLOSE!
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
 
         if (openStatus != NTStatus.STATUS_SUCCESS)

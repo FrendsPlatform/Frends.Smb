@@ -89,7 +89,7 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public async Task RollbackTmpFilesWhenErrorOccurred()
+    public void RollbackTmpFilesWhenErrorOccurred()
     {
         Options.IfTargetFileExists = FileExistsAction.Overwrite;
         PathString path = "src/error";
@@ -97,29 +97,18 @@ public class CopyFilesTests : SmbTestBase
         Options.Recursive = true;
         Options.CreateTargetDirectories = false;
 
-        TestContext.WriteLine("Before CopyFiles");
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
-        TestContext.WriteLine($"After CopyFiles - Success: {result.Success}, Error: {result.Error?.Message}");
 
         Assert.That(result.Success, Is.False);
 
         // Wait a bit for operations to complete
-        await Task.Delay(500);
-
-        // Check what files exist through SMB
-        TestContext.WriteLine("Checking file existence through SMB...");
+        //Check what files exist through SMB
         var originalExists = FileExistsThroughSmb("dst/error/old.foo");
-        TestContext.WriteLine($"dst/error/old.foo exists: {originalExists}");
+        Assert.That(originalExists, Is.True, "Original file should exist");
 
         // Check for temp files that might not have been rolled back
-        var tempFilePattern = await ListFilesThroughSmbAsync("dst/error");
-        TestContext.WriteLine($"Files in dst/error: {string.Join(", ", tempFilePattern)}");
-
-        // Verify through SMB instead of local filesystem to avoid sync issues
-        var content = ReadFileThroughSmb("dst/error/old.foo");
-        TestContext.WriteLine($"Content of dst/error/old.foo: '{content}' (length: {content.Length})");
-
-        Assert.That(content, Is.EqualTo("old test content"));
+        var tempFilePattern = ListFilesThroughSmb("dst/error");
+        Assert.That(tempFilePattern.Count(), Is.EqualTo(0), "Temp files should be rolled back");
     }
 
     [Test]
@@ -139,35 +128,18 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public async Task RemoveNewFilesWhenErrorOccured()
+    public void RemoveNewFilesWhenErrorOccured()
     {
         Options.IfTargetFileExists = FileExistsAction.Rename;
         Input.SourcePath = "src/error";
         Options.Recursive = true;
         Options.CreateTargetDirectories = false;
 
-        TestContext.WriteLine("Before CopyFiles");
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
-        TestContext.WriteLine($"After CopyFiles - Success: {result.Success}, Error: {result.Error?.Message}");
 
         Assert.That(result.Success, Is.False);
-
-        // Wait a bit for operations to complete
-        await Task.Delay(500);
-
-        // Check what files exist
-        TestContext.WriteLine("Checking file existence through SMB...");
-        var files = await ListFilesThroughSmbAsync("dst/error");
-        TestContext.WriteLine($"Files in dst/error: {string.Join(", ", files)}");
-
-        // Verify through SMB instead of local filesystem
-        var originalFileExists = FileExistsThroughSmb("dst/error/old.foo");
-        TestContext.WriteLine($"dst/error/old.foo exists: {originalFileExists}");
-        Assert.That(originalFileExists, Is.True, "Original file should exist");
-
-        var renamedFileExists = FileExistsThroughSmb("dst/error/old(1).foo");
-        TestContext.WriteLine($"dst/error/old(1).foo exists: {renamedFileExists}");
-        Assert.That(renamedFileExists, Is.False, "Renamed file should be cleaned up");
+        Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
+        Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old(1).foo")), Is.False);
     }
 
     [Test]
@@ -475,7 +447,7 @@ public class CopyFilesTests : SmbTestBase
         }
     }
 
-    private Task<List<string>> ListFilesThroughSmbAsync(string path)
+    private IEnumerable<string> ListFilesThroughSmb(string path)
     {
         var files = new List<string>();
         SMB2Client client = null;
@@ -487,18 +459,18 @@ public class CopyFilesTests : SmbTestBase
             var (domain, username) = GetDomainAndUsername(Connection.Username);
 
             if (!System.Net.IPAddress.TryParse(Connection.Server, out var serverAddress))
-                return Task.FromResult(files);
+                return files;
 
             if (!client.Connect(serverAddress, SMBTransportType.DirectTCPTransport))
-                return Task.FromResult(files);
+                return files;
 
             var status = client.Login(domain, username, Connection.Password);
             if (status != NTStatus.STATUS_SUCCESS)
-                return Task.FromResult(files);
+                return files;
 
             fileStore = client.TreeConnect(Connection.Share, out status);
             if (status != NTStatus.STATUS_SUCCESS)
-                return Task.FromResult(files);
+                return files;
 
             // Open directory
             status = fileStore.CreateFile(
@@ -513,7 +485,7 @@ public class CopyFilesTests : SmbTestBase
                 null);
 
             if (status != NTStatus.STATUS_SUCCESS)
-                return Task.FromResult(files);
+                return files;
 
             try
             {
@@ -537,12 +509,12 @@ public class CopyFilesTests : SmbTestBase
                 fileStore.CloseFile(handle);
             }
 
-            return Task.FromResult(files);
+            return files;
         }
         catch (Exception ex)
         {
             TestContext.WriteLine($"Error listing files: {ex.Message}");
-            return Task.FromResult(files);
+            return files;
         }
         finally
         {

@@ -70,11 +70,8 @@ public abstract class SmbTestBase
 
             await sambaContainer.StartAsync();
 
-            // Wait for SMB service to be fully ready
-            await Task.Delay(3000);
-
-            // Ensure permissions are set before any tests run
-            await SetPermissionsAsync();
+            if (sambaContainer is not null)
+                await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
 
             lock (Lock)
             {
@@ -118,8 +115,6 @@ public abstract class SmbTestBase
         Options = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
         Input = new Input { SourcePath = string.Empty, TargetPath = "dst" };
         await PrepareDstDirectory();
-
-        await SyncFilesystemAsync();
     }
 
     private static async Task PrepareDstDirectory()
@@ -133,9 +128,8 @@ public abstract class SmbTestBase
         Directory.CreateDirectory(Path.Combine(dstPath, "error"));
         await File.WriteAllTextAsync(Path.Join(dstPath, "error", "old.foo"), "old test content");
 
-        // Ensure permissions and sync
-        await SetPermissionsAsync();
-        await SyncFilesystemAsync();
+        if (sambaContainer is not null)
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
     }
 
     private static async Task PrepareSrcDirectory()
@@ -165,65 +159,5 @@ public abstract class SmbTestBase
         await File.WriteAllTextAsync(Path.Join(srcPath, "error", "old.foo"), "test content");
         Directory.CreateDirectory(Path.Combine(srcPath, "error", "errorSubDir"));
         await File.WriteAllTextAsync(Path.Join(srcPath, "error", "errorSubDir", "old.foo"), "test content");
-
-        FlushDirectory(srcPath);
-    }
-
-    private static async Task SetPermissionsAsync()
-    {
-        if (sambaContainer is null) return;
-
-        try
-        {
-            // Set permissions with retries
-            for (int i = 0; i < 5; i++)
-            {
-                var result = await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share"]);
-                if (result.ExitCode == 0) break;
-                await Task.Delay(500);
-            }
-
-            // Also ensure ownership is correct
-            await sambaContainer.ExecAsync(["chown", "-R", "root:root", "/share"]);
-        }
-        catch
-        {
-            // Ignore permission errors on local dev machines
-        }
-    }
-
-    private static async Task SyncFilesystemAsync()
-    {
-        if (sambaContainer is null) return;
-
-        try
-        {
-            // Force filesystem sync in container
-            await sambaContainer.ExecAsync(["sync"]);
-
-            // Wait for sync to complete and propagate to bind mount
-            await Task.Delay(500);
-
-            // Force local filesystem cache refresh
-            FlushDirectory(TestDirPath);
-        }
-        catch
-        {
-            // Ignore sync errors
-        }
-    }
-
-    private static void FlushDirectory(string path)
-    {
-        try
-        {
-            // Force directory enumeration to flush filesystem cache
-            if (Directory.Exists(path))
-                _ = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
-        }
-        catch
-        {
-            // Ignore errors
-        }
     }
 }
