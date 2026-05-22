@@ -1,7 +1,13 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Frends.Smb.CopyFiles.Definitions;
 using NUnit.Framework;
+using SMBLibrary;
+using SMBLibrary.Client;
 
 namespace Frends.Smb.CopyFiles.Tests;
 
@@ -83,7 +89,7 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public void RollbackTmpFilesWhenErrorOccurred()
+    public async Task RollbackTmpFilesWhenErrorOccurred()
     {
         Options.IfTargetFileExists = FileExistsAction.Overwrite;
         PathString path = "src/error";
@@ -94,6 +100,10 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
+
+        // Small delay to allow SMB operations to complete in Docker
+        await Task.Delay(100);
+
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
         Assert.That(
             File.ReadAllText(Path.Combine(TestDirPath, "dst", "error", "old.foo")),
@@ -117,7 +127,7 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public void RemoveNewFilesWhenErrorOccured()
+    public async Task RemoveNewFilesWhenErrorOccured()
     {
         Options.IfTargetFileExists = FileExistsAction.Rename;
         Input.SourcePath = "src/error";
@@ -127,6 +137,10 @@ public class CopyFilesTests : SmbTestBase
         var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
+
+        // Small delay to allow SMB operations to complete in Docker
+        await Task.Delay(100);
+
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old.foo")), Is.True);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "error", "old(1).foo")), Is.False);
     }
@@ -215,5 +229,58 @@ public class CopyFilesTests : SmbTestBase
         Assert.That(result.Success, Is.True, result.Error?.Message);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "sub.foo")), Is.True);
         Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", "subDir", "subSubDir", "sub.foo")), Is.False);
+    }
+
+    [Test]
+    public void CopyFiles_ContinueOnFailure_PartialSuccess_ReturnsSuccessWithFailures()
+    {
+        Input.SourcePath = "src";
+        Input.TargetPath = "dst";
+        Options.ContinueOnFailure = true;
+        Options.ThrowErrorOnFailure = false;
+        Options.IfTargetFileExists = FileExistsAction.Throw;
+        Options.PreserveDirectoryStructure = false;
+        Options.Recursive = false;
+
+        var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Error, Is.Not.Null);
+        Assert.That(result.Error.FileFailures, Is.Not.Empty);
+        Assert.That(result.Error.FileFailures.Any(f => f.SourcePath.Contains("old.foo")), Is.True);
+        Assert.That(result.Error.AdditionalInfo, Is.InstanceOf<AggregateException>());
+        Assert.That(result.Files.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void CopyFiles_ContinueOnFailure_AllSucceed_ErrorIsNull()
+    {
+        Input.SourcePath = "src";
+        Input.TargetPath = "dst";
+        Options.ContinueOnFailure = true;
+        Options.ThrowErrorOnFailure = false;
+        Options.IfTargetFileExists = FileExistsAction.Throw;
+        Options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+        Options.Pattern = "*.txt";
+
+        var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Error, Is.Null);
+        Assert.That(result.Files.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void CopyFiles_ContinueOnFailure_False_ThrowsOnFirstFailure()
+    {
+        Input.SourcePath = "src";
+        Input.TargetPath = "dst";
+        Options.ContinueOnFailure = false;
+        Options.ThrowErrorOnFailure = true;
+        Options.IfTargetFileExists = FileExistsAction.Throw;
+        Options.PreserveDirectoryStructure = false;
+
+        Assert.Throws<Exception>(() =>
+            Smb.CopyFiles(Input, Connection, Options, CancellationToken.None));
     }
 }

@@ -56,7 +56,7 @@ internal static class SmbHandler
         if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
     }
 
-    internal static List<FileItem> CopyFiles(
+    internal static (List<FileItem> copied, List<FileFailure> failures) CopyFiles(
         ISMBFileStore dstFileStore,
         ISMBFileStore srcFileStore,
         PathString sourcePath,
@@ -66,6 +66,7 @@ internal static class SmbHandler
         CancellationToken cancellationToken)
     {
         var result = new List<FileItem>();
+        var failures = new List<FileFailure>();
         var sources = GetSourceFiles(
             srcFileStore,
             sourcePath,
@@ -75,87 +76,126 @@ internal static class SmbHandler
             cancellationToken);
         var newlyCreatedFiles = new List<PathString>();
         var tempFiles = new List<Tuple<PathString, PathString>>();
+        bool rollbackNeeded = false;
 
         try
         {
             foreach (var source in sources)
             {
-                var dstPath = PrepareDestinationPath(source, targetPath, options.PreserveDirectoryStructure);
-                var finalDstPath = PrepareForCopy(
-                    dstPath,
-                    dstFileStore,
-                    options.IfTargetFileExists,
-                    options.CreateTargetDirectories,
-                    ref newlyCreatedFiles,
-                    ref tempFiles);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                // simple copy should work now as all is prepared without exceptions
-                SafeCopy(source.FilePath, srcFileStore, finalDstPath, dstFileStore, maxChunkSize);
-                result.Add(new FileItem { SourcePath = source.FilePath, TargetPath = finalDstPath });
+                var perFileNewFiles = new List<PathString>();
+                var perFileTempFiles = new List<Tuple<PathString, PathString>>();
+
+                try
+                {
+                    var dstPath = PrepareDestinationPath(source, targetPath, options.PreserveDirectoryStructure);
+                    var finalDstPath = PrepareForCopy(
+                        dstPath,
+                        dstFileStore,
+                        options.IfTargetFileExists,
+                        options.CreateTargetDirectories,
+                        ref perFileNewFiles,
+                        ref perFileTempFiles);
+
+                    newlyCreatedFiles.AddRange(perFileNewFiles);
+                    tempFiles.AddRange(perFileTempFiles);
+
+                    SafeCopy(source.FilePath, srcFileStore, finalDstPath, dstFileStore, maxChunkSize);
+                    result.Add(new FileItem { SourcePath = source.FilePath, TargetPath = finalDstPath });
+                }
+                catch (Exception ex) when (options.ContinueOnFailure)
+                {
+                    failures.Add(new FileFailure
+                    {
+                        SourcePath = source.FilePath,
+                        TargetPath = PrepareDestinationPath(source, targetPath, options.PreserveDirectoryStructure),
+                        Reason = ex.Message,
+                        AdditionalInfo = ex,
+                    });
+
+                    foreach (var newFile in perFileNewFiles)
+                    {
+                        try
+                        {
+                            DeleteFileWithStatus(dstFileStore, newFile);
+                            newlyCreatedFiles.Remove(newFile);
+                        }
+                        catch
+                        {
+                            // Ignore rollback errors in ContinueOnFailure mode
+                        }
+                    }
+
+                    foreach (var (tmpFile, orgFile) in perFileTempFiles)
+                    {
+                        try
+                        {
+                            CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
+                            DeleteFileWithStatus(dstFileStore, tmpFile);
+                            tempFiles.Remove(Tuple.Create(tmpFile, orgFile));
+                        }
+                        catch
+                        {
+                            // Ignore rollback errors in ContinueOnFailure mode
+                        }
+                    }
+                }
             }
         }
-        catch
+        catch (Exception)
         {
-            // remove newly created files
-            foreach (var newFile in newlyCreatedFiles)
-            {
-                dstFileStore.CreateFile(
-                    out var handle,
-                    out _,
-                    newFile,
-                    AccessMask.DELETE,
-                    FileAttributes.Normal,
-                    ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                    CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE,
-                    null);
-                FileDispositionInformation fileDispositionInformation =
-                    new FileDispositionInformation { DeletePending = true };
-                dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-                dstFileStore.CloseFile(handle);
-            }
-
-            // roll back temp files
-            foreach (var (tmpFile, orgFile) in tempFiles)
-            {
-                dstFileStore.CreateFile(
-                    out var dstHandle,
-                    out _,
-                    tmpFile,
-                    AccessMask.GENERIC_WRITE,
-                    FileAttributes.Normal,
-                    ShareAccess.Read | ShareAccess.Write,
-                    CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE,
-                    null);
-                var rename = new FileRenameInformationType2 { ReplaceIfExists = true, FileName = orgFile };
-                dstFileStore.SetFileInformation(dstHandle, rename);
-                dstFileStore.CloseFile(dstHandle);
-            }
-
+            rollbackNeeded = true;
             throw;
         }
-
-        // remove temporary files
-        foreach (var (tmpFile, _) in tempFiles)
+        finally
         {
-            dstFileStore.CreateFile(
-                out var handle,
-                out _,
-                tmpFile,
-                AccessMask.DELETE,
-                FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                CreateDisposition.FILE_OPEN,
-                CreateOptions.FILE_NON_DIRECTORY_FILE,
-                null);
-            FileDispositionInformation fileDispositionInformation =
-                new FileDispositionInformation { DeletePending = true };
-            dstFileStore.SetFileInformation(handle, fileDispositionInformation);
-            dstFileStore.CloseFile(handle);
+            if (rollbackNeeded)
+            {
+                // Global rollback when ContinueOnFailure=false
+                foreach (var newFile in newlyCreatedFiles)
+                {
+                    try
+                    {
+                        DeleteFileWithStatus(dstFileStore, newFile);
+                    }
+                    catch
+                    {
+                        // Ignore individual file rollback errors
+                    }
+                }
+
+                foreach (var (tmpFile, orgFile) in tempFiles)
+                {
+                    try
+                    {
+                        CopyFileForRollback(dstFileStore, tmpFile, orgFile, cancellationToken);
+                        DeleteFileWithStatus(dstFileStore, tmpFile);
+                    }
+                    catch
+                    {
+                        // Ignore individual file rollback errors
+                    }
+                }
+            }
+            else
+            {
+                // Remove temporary files after successful completion
+                foreach (var (tmpFile, _) in tempFiles)
+                {
+                    try
+                    {
+                        DeleteFileWithStatus(dstFileStore, tmpFile);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
+                }
+            }
         }
 
-        return result;
+        return (result, failures);
     }
 
     private static void SafeCopy(
@@ -181,7 +221,7 @@ internal static class SmbHandler
             dstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -230,7 +270,7 @@ internal static class SmbHandler
             dstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -289,7 +329,7 @@ internal static class SmbHandler
             finalDstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN_IF,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -522,5 +562,110 @@ internal static class SmbHandler
         return domainAndUserName.Length != 2
             ? throw new ArgumentException($@"Username field must be of format domain\username was: {username}")
             : new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
+    }
+
+    private static void CopyFileForRollback(
+        ISMBFileStore fileStore,
+        PathString sourceFilePath,
+        PathString targetFilePath,
+        CancellationToken cancellationToken)
+    {
+        var openSourceStatus = fileStore.CreateFile(
+            out var sourceHandle,
+            out _,
+            sourceFilePath,
+            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            FileAttributes.Normal,
+            ShareAccess.Read | ShareAccess.Delete,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (openSourceStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open source file '{sourceFilePath}': {openSourceStatus}");
+
+        try
+        {
+            var openTargetStatus = fileStore.CreateFile(
+                out var targetHandle,
+                out _,
+                targetFilePath,
+                AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE | AccessMask.DELETE,
+                FileAttributes.Normal,
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                CreateDisposition.FILE_SUPERSEDE,
+                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                null);
+
+            if (openTargetStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to create target file '{targetFilePath}': {openTargetStatus}");
+
+            try
+            {
+                long bytesRead = 0;
+                const int bufferSize = 65536;
+
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var readStatus = fileStore.ReadFile(out var data, sourceHandle, bytesRead, bufferSize);
+
+                    if (readStatus != NTStatus.STATUS_SUCCESS && readStatus != NTStatus.STATUS_END_OF_FILE)
+                        throw new Exception($"Failed to read from file '{sourceFilePath}': {readStatus}");
+
+                    if (data == null || data.Length == 0 || readStatus == NTStatus.STATUS_END_OF_FILE)
+                        break;
+
+                    var writeStatus = fileStore.WriteFile(out var bytesWritten, targetHandle, bytesRead, data);
+
+                    if (writeStatus != NTStatus.STATUS_SUCCESS)
+                        throw new Exception($"Failed to write to file '{targetFilePath}': {writeStatus}");
+
+                    if (bytesWritten != data.Length)
+                        throw new Exception($"Partial write detected for '{targetFilePath}': wrote {bytesWritten} of {data.Length} bytes.");
+
+                    bytesRead += data.Length;
+                }
+            }
+            finally
+            {
+                fileStore.CloseFile(targetHandle);
+            }
+        }
+        finally
+        {
+            fileStore.CloseFile(sourceHandle);
+        }
+    }
+
+    private static void DeleteFileWithStatus(ISMBFileStore fileStore, PathString filePath)
+    {
+        var openStatus = fileStore.CreateFile(
+            out var handle,
+            out _,
+            filePath,
+            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            FileAttributes.Normal,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            null);
+
+        if (openStatus != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to open file for deletion '{filePath}': {openStatus}");
+
+        try
+        {
+            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+            var deleteStatus = fileStore.SetFileInformation(handle, deleteInfo);
+
+            if (deleteStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
+        }
+        finally
+        {
+            fileStore.CloseFile(handle);
+        }
     }
 }

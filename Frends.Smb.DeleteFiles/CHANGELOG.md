@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.0] - 2026-05-20
+
+### Added
+
+- Added ContinueOnFailure as a new option — allows the operation to proceed when individual file copies fail, collecting errors in a failures list instead of throwing immediately
+
 ## [2.1.0] - 2026-04-23
 
 ### Fixed

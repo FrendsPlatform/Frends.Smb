@@ -113,47 +113,72 @@ public static class Smb
 
                 var movedFiles = new List<FileItem>();
                 var backups = new List<FileBackup>();
+                var fileFailures = new List<FileFailure>();
 
                 try
                 {
                     foreach (var kvp in fileTransferEntries)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-
                         PathString sourceFilePath = kvp.Key;
                         PathString targetFilePath = kvp.Value;
 
-                        if (options.CreateTargetDirectories)
+                        try
                         {
-                            PathString targetDir = GetDirectoryPath(targetFilePath);
-
-                            if (!string.IsNullOrEmpty(targetDir))
+                            if (options.CreateTargetDirectories)
                             {
-                                EnsureDirectoryExists(fileStore, targetDir);
+                                PathString targetDir = GetDirectoryPath(targetFilePath);
+                                if (!string.IsNullOrEmpty(targetDir))
+                                    EnsureDirectoryExists(fileStore, targetDir);
                             }
-                        }
 
-                        PathString finalTargetPath =
-                            HandleExistingFile(fileStore, targetFilePath, options.IfTargetFileExists);
+                            PathString finalTargetPath =
+                                HandleExistingFile(fileStore, targetFilePath, options.IfTargetFileExists);
 
-                        if (finalTargetPath == targetFilePath && FileExists(fileStore, finalTargetPath))
-                        {
-                            PathString backupPath = finalTargetPath + ".backup_" + Guid.NewGuid().ToString("N");
-                            CopyFile(fileStore, finalTargetPath, backupPath, cancellationToken);
-                            backups.Add(new FileBackup
+                            if (finalTargetPath == targetFilePath && FileExists(fileStore, finalTargetPath))
                             {
-                                OriginalPath = finalTargetPath,
-                                BackupPath = backupPath,
+                                PathString backupPath = finalTargetPath + ".backup_" + Guid.NewGuid().ToString("N");
+                                CopyFile(fileStore, finalTargetPath, backupPath, cancellationToken);
+                                backups.Add(new FileBackup
+                                {
+                                    OriginalPath = finalTargetPath,
+                                    BackupPath = backupPath,
+                                });
+                            }
+
+                            CopyFile(fileStore, sourceFilePath, finalTargetPath, cancellationToken);
+                            movedFiles.Add(new FileItem
+                            {
+                                SourcePath = sourceFilePath,
+                                TargetPath = finalTargetPath,
                             });
                         }
-
-                        CopyFile(fileStore, sourceFilePath, finalTargetPath, cancellationToken);
-
-                        movedFiles.Add(new FileItem
+                        catch (Exception ex) when (options.ContinueOnFailure)
                         {
-                            SourcePath = sourceFilePath,
-                            TargetPath = finalTargetPath,
-                        });
+                            fileFailures.Add(new FileFailure
+                            {
+                                SourcePath = sourceFilePath,
+                                TargetPath = targetFilePath,
+                                Reason = ex.Message,
+                                AdditionalInfo = ex,
+                            });
+
+                            var orphanBackup = backups.FirstOrDefault(b => b.OriginalPath == targetFilePath);
+                            if (orphanBackup != null)
+                            {
+                                try
+                                {
+                                    if (FileExists(fileStore, orphanBackup.OriginalPath))
+                                        DeleteFile(fileStore, orphanBackup.OriginalPath);
+                                    CopyFile(fileStore, orphanBackup.BackupPath, orphanBackup.OriginalPath, cancellationToken);
+                                    DeleteFile(fileStore, orphanBackup.BackupPath);
+                                    backups.Remove(orphanBackup);
+                                }
+                                catch
+                                {
+                                }
+                            }
+                        }
                     }
 
                     DeleteExistingFiles(fileStore, backups.Select(b => b.BackupPath).ToList());
@@ -161,11 +186,13 @@ public static class Smb
                 catch (Exception)
                 {
                     RollbackWithBackups(fileStore, movedFiles, backups, cancellationToken);
-
                     throw;
                 }
 
                 DeleteExistingFiles(fileStore, movedFiles.Select(x => x.SourcePath).ToList());
+
+                if (fileFailures.Count > 0)
+                    return ErrorHandler.HandlePartialSuccess(fileFailures, movedFiles, fileTransferEntries.Count);
 
                 return new Result
                 {

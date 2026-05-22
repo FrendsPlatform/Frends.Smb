@@ -102,55 +102,61 @@ public static class Smb
                 }
 
                 var deletedFiles = new List<FileItem>();
+                var fileFailures = new List<FileFailure>();
 
                 foreach (var filePath in filesToDelete)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    NTStatus openStatus = fileStore.CreateFile(
-                        out object fileHandle,
-                        out _,
-                        filePath,
-                        AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
-                        SMBLibrary.FileAttributes.Normal,
-                        ShareAccess.Delete,
-                        CreateDisposition.FILE_OPEN,
-                        CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
-                        null);
-
-                    if (openStatus != NTStatus.STATUS_SUCCESS)
-                    {
-                        throw new Exception($"Failed to open file '{filePath}' for deletion: {openStatus}");
-                    }
-
                     try
                     {
-                        var deleteInfo = new FileDispositionInformation
-                        {
-                            DeletePending = true,
-                        };
-                        NTStatus deleteStatus = fileStore.SetFileInformation(fileHandle, deleteInfo);
+                        NTStatus openStatus = fileStore.CreateFile(
+                            out object fileHandle,
+                            out _,
+                            filePath,
+                            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+                            SMBLibrary.FileAttributes.Normal,
+                            ShareAccess.Delete,
+                            CreateDisposition.FILE_OPEN,
+                            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                            null);
 
-                        if (deleteStatus == NTStatus.STATUS_SUCCESS)
+                        if (openStatus != NTStatus.STATUS_SUCCESS)
+                            throw new Exception($"Failed to open file '{filePath}' for deletion: {openStatus}");
+
+                        try
                         {
+                            var deleteInfo = new FileDispositionInformation { DeletePending = true };
+                            NTStatus deleteStatus = fileStore.SetFileInformation(fileHandle, deleteInfo);
+
+                            if (deleteStatus != NTStatus.STATUS_SUCCESS)
+                                throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
+
                             PathString normalizedFilePath = filePath.Value.TrimStart(PathString.GetSeparatorChar());
-                            var fileNameOnly = Path.GetFileName(normalizedFilePath);
                             deletedFiles.Add(new FileItem
                             {
-                                Name = fileNameOnly,
+                                Name = Path.GetFileName(normalizedFilePath),
                                 Path = normalizedFilePath,
                             });
                         }
-                        else
+                        finally
                         {
-                            throw new Exception($"Failed to delete file '{filePath}': {deleteStatus}");
+                            fileStore.CloseFile(fileHandle);
                         }
                     }
-                    finally
+                    catch (Exception ex) when (options.ContinueOnFailure)
                     {
-                        fileStore.CloseFile(fileHandle);
+                        fileFailures.Add(new FileFailure
+                        {
+                            SourcePath = filePath,
+                            Reason = ex.Message,
+                            AdditionalInfo = ex,
+                        });
                     }
                 }
+
+                if (fileFailures.Count > 0)
+                    return ErrorHandler.HandlePartialSuccess(fileFailures, deletedFiles, filesToDelete.Count);
 
                 return new Result
                 {

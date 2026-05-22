@@ -657,6 +657,90 @@ public class MoveFilesTests
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "file1.txt")), Is.True);
     }
 
+    [Test]
+    public async Task MoveFiles_ContinueOnFailure_PartialSuccess_ReturnsSuccessWithFailures()
+    {
+        await CreateTestFileAsync("source/file1.txt", "content 1");
+        await CreateTestFileAsync("source/file2.txt", "content 2");
+        await CreateTestFileAsync("source/file3.txt", "content 3");
+        await CreateTestFileAsync("target/file2.txt", "already here");
+
+        input = new Input
+        {
+            SourcePath = "source",
+            TargetPath = "target",
+        };
+
+        options.ThrowErrorOnFailure = false;
+        options.ContinueOnFailure = true;
+        options.IfTargetFileExists = FileExistsAction.Throw;
+
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Files.Count, Is.EqualTo(2));
+        Assert.That(result.Error, Is.Not.Null);
+        Assert.That(result.Error.FileFailures.Count, Is.EqualTo(1));
+        Assert.That(result.Error.FileFailures[0].SourcePath, Does.Contain("file2.txt"));
+        Assert.That(result.Error.FileFailures[0].Reason, Is.Not.Null.And.Not.Empty);
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "file1.txt")), Is.True);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "file3.txt")), Is.True);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "file1.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "file3.txt")), Is.False);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "file2.txt")), Is.True);
+    }
+
+    [Test]
+    public async Task MoveFiles_ContinueOnFailure_AllSucceed_ErrorIsNull()
+    {
+        await CreateTestFileAsync("source/a.txt", "aaa");
+        await CreateTestFileAsync("source/b.txt", "bbb");
+
+        input = new Input
+        {
+            SourcePath = "source",
+            TargetPath = "target",
+        };
+
+        options.ThrowErrorOnFailure = false;
+        options.ContinueOnFailure = true;
+        options.IfTargetFileExists = FileExistsAction.Throw;
+
+        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.Files.Count, Is.EqualTo(2));
+        Assert.That(result.Error, Is.Null);
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "a.txt")), Is.True);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "b.txt")), Is.True);
+    }
+
+    [Test]
+    public async Task MoveFiles_ContinueOnFailure_False_ThrowsOnFirstFailure()
+    {
+        await CreateTestFileAsync("source/x.txt", "xxx");
+        await CreateTestFileAsync("source/y.txt", "yyy");
+        await CreateTestFileAsync("target/x.txt", "already here");
+
+        input = new Input
+        {
+            SourcePath = "source",
+            TargetPath = "target",
+        };
+
+        options.ThrowErrorOnFailure = true;
+        options.ContinueOnFailure = false;
+        options.IfTargetFileExists = FileExistsAction.Throw;
+
+        Assert.Throws<Exception>(() =>
+            Smb.MoveFiles(input, connection, options, CancellationToken.None));
+
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "x.txt")), Is.True);
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "y.txt")), Is.True);
+    }
+
     private async Task CreateTestFileAsync(string relativePath, string content)
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);
