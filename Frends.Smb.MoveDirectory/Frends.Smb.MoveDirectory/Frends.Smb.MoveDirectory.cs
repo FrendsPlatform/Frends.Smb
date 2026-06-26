@@ -385,13 +385,10 @@ public static class Smb
     {
         if (string.IsNullOrWhiteSpace(username))
             return (string.Empty, string.Empty);
-
         var parts = username.Split('\\');
-
         if (parts.Length == 2)
             return (parts[0], parts[1]);
-
-        throw new ArgumentException($@"Username field must be of format domain\username was: {username}");
+        return (string.Empty, username);
     }
 
     private static void EnsureDirectoryExists(ISMBFileStore fileStore, PathString directoryPath)

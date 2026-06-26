@@ -216,11 +216,13 @@ public static class Smb
         return candidate;
     }
 
-    private static Tuple<string, string> GetDomainAndUsername(string username)
+    private static (string domain, string user) GetDomainAndUsername(string username)
     {
+        if (string.IsNullOrWhiteSpace(username))
+            return (string.Empty, string.Empty);
         var parts = username.Split('\\');
-        if (parts.Length != 2)
-            throw new ArgumentException($@"UserName field must be of format domain\username was: {username}");
-        return new Tuple<string, string>(parts[0], parts[1]);
+        if (parts.Length == 2)
+            return (parts[0], parts[1]);
+        return (string.Empty, username);
     }
 }

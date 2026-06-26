@@ -216,14 +216,14 @@ public static class Smb
         }
     }
 
-    private static Tuple<string, string> GetDomainAndUsername(string username)
+    private static (string domain, string user) GetDomainAndUsername(string username)
     {
-        var domainAndUserName = username.Split('\\');
-
-        if (domainAndUserName.Length != 2)
-            throw new ArgumentException($@"UserName field must be of format domain\username was: {username}");
-
-        return new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
+        if (string.IsNullOrWhiteSpace(username))
+            return (string.Empty, string.Empty);
+        var parts = username.Split('\\');
+        if (parts.Length == 2)
+            return (parts[0], parts[1]);
+        return (string.Empty, username);
     }
 
     private static Encoding GetEncoding(FileEncoding fileEncoding, bool enableBom, string encodingInString)
