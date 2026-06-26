@@ -320,5 +320,4 @@ public static class Smb
             return (parts[0], parts[1]);
         return (string.Empty, username);
     }
-
 }
