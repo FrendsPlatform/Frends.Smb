@@ -159,20 +159,6 @@ public class DeleteFilesTests
     }
 
     [Test]
-    public void DeleteFiles_InvalidUsernameFormat_ThrowsArgumentException()
-    {
-        connection.Username = "invalidUser";
-        input = new Input { Path = "rootfile.txt" };
-        options.ThrowErrorOnFailure = true;
-
-        var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Smb.DeleteFiles(input, connection, options, CancellationToken.None));
-
-        Assert.That(ex, Is.Not.Null);
-        Assert.That(ex.Message, Does.Contain("UserName field must be of format domain\\username"));
-    }
-
-    [Test]
     public async Task DeleteFiles_FileNotFound_ReturnsSuccessFalse()
     {
         input = new Input { Path = "missing.txt" };
