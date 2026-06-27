@@ -51,15 +51,10 @@ public static class Smb
 
             var (domain, username) = GetDomainAndUsername(connection.Username);
 
-            if (!IPAddress.TryParse(connection.Server, out var serverAddress))
-            {
-                var hostEntry = Dns.GetHostEntry(connection.Server);
-                serverAddress = hostEntry.AddressList.FirstOrDefault()
-                                ?? throw new Exception($"Could not resolve hostname: {connection.Server}");
-            }
+            bool connected = client.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
+            if (!connected)
+                throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
-            var isConnected = client.Connect(serverAddress, SMBTransportType.DirectTCPTransport);
-            if (!isConnected) throw new Exception("Failed to connect to SMB server");
             NTStatus status = client.Login(domain, username, connection.Password);
             if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"SMB login failed: {status}");
             fileStore = client.TreeConnect(connection.Share, out status);
@@ -135,12 +130,14 @@ public static class Smb
         }
     }
 
-    private static Tuple<string, string> GetDomainAndUsername(string username)
+    private static (string domain, string user) GetDomainAndUsername(string username)
     {
-        var domainAndUserName = username.Split('\\');
-        return domainAndUserName.Length != 2
-            ? throw new ArgumentException($@"UserName field must be of format domain\username was: {username}")
-            : new Tuple<string, string>(domainAndUserName[0], domainAndUserName[1]);
+        if (string.IsNullOrWhiteSpace(username))
+            return (string.Empty, string.Empty);
+        var parts = username.Split('\\');
+        if (parts.Length == 2)
+            return (parts[0], parts[1]);
+        return (string.Empty, username);
     }
 
     private static void EnsureDirectoriesExist(ISMBFileStore fileStore, PathString smbFullPath)

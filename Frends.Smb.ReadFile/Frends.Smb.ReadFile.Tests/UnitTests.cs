@@ -207,19 +207,6 @@ public class UnitTests
     }
 
     [Test]
-    public void ReadFile_InvalidUsernameFormat_ThrowsArgumentException()
-    {
-        connection.UserName = "testuser";
-        input = new Input { Path = @"test-utf8.txt" };
-        options.ThrowErrorOnFailure = true;
-
-        var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
-            await Smb.ReadFile(input, connection, options, CancellationToken.None));
-
-        Assert.That(ex.Message, Does.Contain("UserName field must be of format domain\\username"));
-    }
-
-    [Test]
     public void ReadFile_CustomEncodingInvalid_ThrowsArgumentException()
     {
         input = new Input { Path = @"test-utf8.txt" };

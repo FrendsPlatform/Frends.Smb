@@ -336,16 +336,6 @@ public class UnitTests
         StringAssert.Contains("Path should be relative to the share", result.Error.Message);
     }
 
-    [Test]
-    public void Should_Return_Error_When_Username_Format_Is_Invalid()
-    {
-        connection.Username = "user-only"; // missing domain
-        var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
-        Assert.That(result.Success, Is.False);
-        Assert.That(result.Error, Is.Not.Null);
-        StringAssert.Contains("UserName field must be of format", result.Error.Message);
-    }
-
     private static void AssertAreEqual(FileItem[] expected, FileItem[] actual)
     {
         Assert.That(actual.Length, Is.EqualTo(expected.Length));

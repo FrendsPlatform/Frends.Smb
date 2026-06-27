@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.2.0] - 2026-06-26
+
+### Changed
+
+- Username parsing: now accepts a username without a domain instead of throwing an error.
+
 ## [2.1.0] - 2026-04-23
 
 ### Fixed

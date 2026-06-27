@@ -70,15 +70,4 @@ public class GeneralSmbTests : SmbTestBase
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error?.Message, Does.Contain("Path should be relative to the share"));
     }
-
-    [Test]
-    public void InvalidUsernameFormat_Fails()
-    {
-        Connection.Username = "user";
-
-        var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
-
-        Assert.That(result.Success, Is.False);
-        Assert.That(result.Error?.Message, Does.Contain(@"Username field must be of format domain\username"));
-    }
 }
