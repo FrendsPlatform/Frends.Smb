@@ -329,6 +329,10 @@ internal static class SmbHandler
                 else
                     throw new Exception("Target directory does not exist and Options.CreateTargetDirectories is disabled.");
             }
+            else if (status != NTStatus.STATUS_OBJECT_NAME_NOT_FOUND)
+            {
+                throw new Exception($"Failed to check existing target file '{dstPath}'. NTStatus={status}");
+            }
         }
 
         status = dstStore.CreateFile(
@@ -343,7 +347,7 @@ internal static class SmbHandler
             null);
 
         if (status != NTStatus.STATUS_SUCCESS)
-            throw new Exception("Failed to prepare target file to write into");
+            throw new Exception($"Failed to prepare target file to write into '{finalDstPath}'. NTStatus={status}");
 
         dstStore.CloseFile(prepHandle);
 

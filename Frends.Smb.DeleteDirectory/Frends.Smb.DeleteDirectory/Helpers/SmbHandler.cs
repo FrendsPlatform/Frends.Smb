@@ -101,7 +101,7 @@ internal static class SmbHandler
             path,
             GENERIC_READ,
             FileAttributes.Directory,
-            ShareAccess.Read,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);

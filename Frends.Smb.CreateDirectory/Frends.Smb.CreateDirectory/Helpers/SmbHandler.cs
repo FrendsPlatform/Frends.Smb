@@ -66,7 +66,7 @@ internal static class SmbHandler
                 current,
                 GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Read,
+                ShareAccess.Write,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
@@ -75,7 +75,8 @@ internal static class SmbHandler
                 status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
                 status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
             {
-                fileStore.CloseFile(handle);
+                if (handle != null)
+                    fileStore.CloseFile(handle);
             }
             else
             {

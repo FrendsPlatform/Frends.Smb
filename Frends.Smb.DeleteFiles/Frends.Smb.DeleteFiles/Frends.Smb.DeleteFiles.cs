@@ -205,7 +205,7 @@ public static class Smb
                 basePath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Read,
+                ShareAccess.Read | ShareAccess.Write,
                 CreateDisposition.FILE_OPEN,
                 CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
@@ -250,7 +250,7 @@ public static class Smb
             directoryPath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read,
+            ShareAccess.Read | ShareAccess.Write,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
