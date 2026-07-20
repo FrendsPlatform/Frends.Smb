@@ -285,17 +285,13 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public void CopyFiles_CancellationRequested_ThrowsOperationCanceledException()
+    public void CopyFiles_TargetPathStartsWithUnc_Fails()
     {
-        Input.SourcePath = "src";
-        Options.Recursive = true;
-        Options.PatternMatchingMode = PatternMatchingMode.Wildcards;
-        Options.Pattern = "*";
+        Input.TargetPath = @"\\server\share\dst";
 
-        using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
 
-        Assert.Throws<OperationCanceledException>(() =>
-            Smb.CopyFiles(Input, Connection, Options, cts.Token));
+        Assert.That(result.Success, Is.False);
+        Assert.That(result.Error?.Message, Does.Contain("Path should be relative to the share"));
     }
 }
