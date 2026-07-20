@@ -209,43 +209,51 @@ internal static class SmbHandler
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
-        var dstStatus = dstFileStore.CreateFile(
-            out var dstHandle,
-            out _,
-            dstPath,
-            AccessMask.GENERIC_WRITE,
-            FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-            CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE,
-            null);
 
         if (srcStatus != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to open source file: {srcPath}");
-        if (dstStatus != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to open destination file: {dstPath}");
 
         try
         {
-            long bytesRead = 0;
+            var dstStatus = dstFileStore.CreateFile(
+                out var dstHandle,
+                out _,
+                dstPath,
+                AccessMask.GENERIC_WRITE,
+                FileAttributes.Normal,
+                ShareAccess.Read,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                null);
 
-            while (true)
+            if (dstStatus != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to open destination file: {dstPath}");
+
+            try
             {
-                srcStatus = srcFileStore.ReadFile(out var data, srcHandle, bytesRead, maxChunkSize);
+                long bytesRead = 0;
 
-                if (srcStatus != NTStatus.STATUS_SUCCESS && srcStatus != NTStatus.STATUS_END_OF_FILE)
-                    throw new Exception("Failed to read from source file");
+                while (true)
+                {
+                    srcStatus = srcFileStore.ReadFile(out var data, srcHandle, bytesRead, maxChunkSize);
 
-                if (srcStatus == NTStatus.STATUS_END_OF_FILE || data.Length == 0) break;
-                dstStatus = dstFileStore.WriteFile(out _, dstHandle, bytesRead, data);
-                bytesRead += data.Length;
+                    if (srcStatus != NTStatus.STATUS_SUCCESS && srcStatus != NTStatus.STATUS_END_OF_FILE)
+                        throw new Exception("Failed to read from source file");
 
-                if (dstStatus != NTStatus.STATUS_SUCCESS)
-                    throw new Exception("Failed to write to file");
+                    if (srcStatus == NTStatus.STATUS_END_OF_FILE || data.Length == 0) break;
+                    dstStatus = dstFileStore.WriteFile(out _, dstHandle, bytesRead, data);
+                    bytesRead += data.Length;
+
+                    if (dstStatus != NTStatus.STATUS_SUCCESS)
+                        throw new Exception("Failed to write to file");
+                }
+            }
+            finally
+            {
+                dstFileStore.CloseFile(dstHandle);
             }
         }
         finally
         {
             srcFileStore.CloseFile(srcHandle);
-            dstFileStore.CloseFile(dstHandle);
         }
     }
 
@@ -258,79 +266,88 @@ internal static class SmbHandler
         ref List<Tuple<PathString, PathString>> tempFiles)
     {
         PathString finalDstPath = dstPath;
+
+        AccessMask checkAccess = fileExistsAction == FileExistsAction.Overwrite
+        ? AccessMask.DELETE
+        : AccessMask.GENERIC_READ;
+
         NTStatus status = dstStore.CreateFile(
             out var dstHandle,
             out _,
             dstPath,
-            AccessMask.GENERIC_WRITE,
+            checkAccess,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
         if (status == NTStatus.STATUS_SUCCESS)
         {
-            switch (fileExistsAction)
+            try
             {
-                case FileExistsAction.Overwrite:
-                    PathString dstFileName = Path.GetFileName(dstPath);
-                    PathString tempName = Path.Combine(
-                        Path.GetDirectoryName(dstPath) ?? string.Empty,
-                        $"temp-{Guid.NewGuid().ToString()}-{dstFileName}");
-                    var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = tempName };
-                    status = dstStore.SetFileInformation(dstHandle, rename);
+                switch (fileExistsAction)
+                {
+                    case FileExistsAction.Overwrite:
+                        PathString dstFileName = Path.GetFileName(dstPath);
+                        PathString tempName = Path.Combine(
+                            Path.GetDirectoryName(dstPath) ?? string.Empty,
+                            $"temp-{Guid.NewGuid().ToString()}-{dstFileName}");
+                        var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = tempName };
+                        status = dstStore.SetFileInformation(dstHandle, rename);
 
-                    if (status != NTStatus.STATUS_SUCCESS)
-                    {
-                        throw new Exception(
-                            $"Failed to rename existing file {dstPath} to temporary name {tempName} before overwriting. Status: {status}");
-                    }
+                        if (status != NTStatus.STATUS_SUCCESS)
+                        {
+                            throw new Exception(
+                                $"Failed to rename existing file {dstPath} to temporary name {tempName} before overwriting. Status: {status}");
+                        }
 
-                    dstStore.CloseFile(dstHandle);
-                    tempFiles.Add(new Tuple<PathString, PathString>(tempName, dstPath));
-
-                    break;
-                case FileExistsAction.Rename:
-                    dstStore.CloseFile(dstHandle);
-                    finalDstPath = GenerateUniqueFilePath(dstStore, dstPath);
-                    newlyCreatedFiles.Add(finalDstPath);
-
-                    break;
-                case FileExistsAction.Throw:
-                    dstStore.CloseFile(dstHandle);
-
-                    throw new Exception($"File {dstPath} already exists.");
-                default:
-                    dstStore.CloseFile(dstHandle);
-
-                    throw new ArgumentOutOfRangeException(
-                        nameof(fileExistsAction),
-                        "Unknown IfTargetFileExists value.");
+                        tempFiles.Add(new Tuple<PathString, PathString>(tempName, dstPath));
+                        break;
+                    case FileExistsAction.Rename:
+                        finalDstPath = GenerateUniqueFilePath(dstStore, dstPath);
+                        newlyCreatedFiles.Add(finalDstPath);
+                        break;
+                    case FileExistsAction.Throw:
+                        throw new Exception($"File {dstPath} already exists.");
+                    default:
+                        throw new ArgumentOutOfRangeException(
+                            nameof(fileExistsAction),
+                            "Unknown IfTargetFileExists value.");
+                }
+            }
+            finally
+            {
+                dstStore.CloseFile(dstHandle);
+            }
+        }
+        else
+        {
+            if (status == NTStatus.STATUS_OBJECT_PATH_NOT_FOUND)
+            {
+                if (createTargetDirectories) EnsureDirectoriesExist(dstStore, dstPath);
+                else
+                    throw new Exception("Target directory does not exist and Options.CreateTargetDirectories is disabled.");
             }
         }
 
-        if (status == NTStatus.STATUS_OBJECT_PATH_NOT_FOUND)
-        {
-            if (createTargetDirectories) EnsureDirectoriesExist(dstStore, dstPath);
-            else
-                throw new Exception("Target directory does not exist and Options.CreateTargetDirectories is disabled.");
-        }
-
         status = dstStore.CreateFile(
-            out _,
+            out var prepHandle,
             out _,
             finalDstPath,
             AccessMask.GENERIC_WRITE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN_IF,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
-        return status != NTStatus.STATUS_SUCCESS
-            ? throw new Exception("Failed to prepare target file to write into")
-            : finalDstPath;
+        if (status != NTStatus.STATUS_SUCCESS)
+            throw new Exception("Failed to prepare target file to write into");
+
+        dstStore.CloseFile(prepHandle);
+
+        return finalDstPath;
     }
 
     private static PathString GenerateUniqueFilePath(ISMBFileStore fileStore, PathString path)
@@ -354,7 +371,7 @@ internal static class SmbHandler
                 newPath,
                 AccessMask.GENERIC_READ,
                 FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write,
+                ShareAccess.Read,
                 CreateDisposition.FILE_OPEN,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
@@ -381,6 +398,25 @@ internal static class SmbHandler
 
         if (string.IsNullOrEmpty(directory)) return;
 
+        var status = fileStore.CreateFile(
+            out var dirHandle,
+            out _,
+            directory,
+            AccessMask.SYNCHRONIZE | AccessMask.GENERIC_WRITE,
+            FileAttributes.Directory,
+            ShareAccess.Read,
+            CreateDisposition.FILE_OPEN_IF,
+            CreateOptions.FILE_DIRECTORY_FILE,
+            null);
+
+        if (status == NTStatus.STATUS_SUCCESS ||
+            status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
+            status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
+        {
+            fileStore.CloseFile(dirHandle);
+            return;
+        }
+
         var parts = directory.Value.Split([PathString.GetSeparatorChar()], StringSplitOptions.RemoveEmptyEntries);
 
         PathString current = string.Empty;
@@ -389,13 +425,13 @@ internal static class SmbHandler
         {
             current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
-            var status = fileStore.CreateFile(
-                out _,
+            status = fileStore.CreateFile(
+                out var segmentHandle,
                 out _,
                 current,
                 AccessMask.SYNCHRONIZE | AccessMask.GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Read | ShareAccess.Write,
+                ShareAccess.Read,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
@@ -406,6 +442,8 @@ internal static class SmbHandler
             {
                 throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
             }
+
+            fileStore.CloseFile(segmentHandle);
         }
     }
 
@@ -516,7 +554,7 @@ internal static class SmbHandler
             path,
             AccessMask.GENERIC_READ,
             isDirectory ? FileAttributes.Directory : FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             isDirectory ? CreateOptions.FILE_DIRECTORY_FILE : CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
@@ -569,9 +607,9 @@ internal static class SmbHandler
             out var sourceHandle,
             out _,
             sourceFilePath,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
@@ -585,10 +623,10 @@ internal static class SmbHandler
                 out var targetHandle,
                 out _,
                 targetFilePath,
-                AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE | AccessMask.DELETE,
+                AccessMask.GENERIC_WRITE,
                 FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                CreateDisposition.FILE_SUPERSEDE,
+                ShareAccess.Read,
+                CreateDisposition.FILE_OVERWRITE_IF,
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
 
@@ -642,7 +680,7 @@ internal static class SmbHandler
             filePath,
             AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            ShareAccess.Read | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);
