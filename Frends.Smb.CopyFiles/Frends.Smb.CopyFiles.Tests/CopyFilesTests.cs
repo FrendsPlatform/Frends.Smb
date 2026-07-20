@@ -283,4 +283,19 @@ public class CopyFilesTests : SmbTestBase
         Assert.Throws<Exception>(() =>
             Smb.CopyFiles(Input, Connection, Options, CancellationToken.None));
     }
+
+    [Test]
+    public void CopyFiles_CancellationRequested_ThrowsOperationCanceledException()
+    {
+        Input.SourcePath = "src";
+        Options.Recursive = true;
+        Options.PatternMatchingMode = PatternMatchingMode.Wildcards;
+        Options.Pattern = "*";
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            Smb.CopyFiles(Input, Connection, Options, cts.Token));
+    }
 }
