@@ -125,11 +125,11 @@ public static class Smb
                     out object fileHandle,
                     out _,
                     path,
-                    AccessMask.SYNCHRONIZE | AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE | AccessMask.DELETE,
+                    AccessMask.DELETE,
                     SMBLibrary.FileAttributes.Normal,
-                    ShareAccess.Read | ShareAccess.Write,
+                    ShareAccess.Read,
                     disposition,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                    CreateOptions.FILE_NON_DIRECTORY_FILE,
                     null);
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
@@ -185,7 +185,7 @@ public static class Smb
            path,
            AccessMask.GENERIC_READ,
            SMBLibrary.FileAttributes.Normal,
-           ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+           ShareAccess.Read,
            CreateDisposition.FILE_OPEN,
            CreateOptions.FILE_NON_DIRECTORY_FILE,
            null);

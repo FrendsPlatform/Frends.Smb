@@ -69,11 +69,11 @@ public static class Smb
                 out var fileHandle,
                 out var fileStatus,
                 destinationPath,
-                SYNCHRONIZE | GENERIC_WRITE,
+                GENERIC_WRITE,
                 FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write,
+                ShareAccess.Read,
                 disposition,
-                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
 
             if (status != NTStatus.STATUS_SUCCESS)
@@ -82,23 +82,27 @@ public static class Smb
                     $"Failed while creating a file\nClient status: {status}\n Created file status: {fileStatus}");
             }
 
-            while (localMemoryStream.Position < localMemoryStream.Length)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                byte[] buffer = new byte[client.MaxWriteSize];
-                var bytesRead = localMemoryStream.Read(buffer, 0, buffer.Length);
-                if (bytesRead < client.MaxWriteSize)
+                while (localMemoryStream.Position < localMemoryStream.Length)
                 {
-                    Array.Resize(ref buffer, bytesRead);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    byte[] buffer = new byte[client.MaxWriteSize];
+                    var bytesRead = localMemoryStream.Read(buffer, 0, buffer.Length);
+                    if (bytesRead < client.MaxWriteSize)
+                    {
+                        Array.Resize(ref buffer, bytesRead);
+                    }
+
+                    status = fileStore.WriteFile(out _, fileHandle, writeOffset, buffer);
+                    if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to write to file: {status}");
+                    writeOffset += bytesRead;
                 }
-
-                status = fileStore.WriteFile(out _, fileHandle, writeOffset, buffer);
-                if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to write to file: {status}");
-                writeOffset += bytesRead;
             }
-
-            status = fileStore.CloseFile(fileHandle);
-            if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed while closing a file: {status}");
+            finally
+            {
+                fileStore.CloseFile(fileHandle);
+            }
 
             return new Result
             {
@@ -157,18 +161,23 @@ public static class Smb
             current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
             var status = fileStore.CreateFile(
-                out _,
+                out var handle,
                 out _,
                 current,
-                SYNCHRONIZE | GENERIC_WRITE,
+                GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Write,
+                ShareAccess.Read,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
-            if (status != NTStatus.STATUS_SUCCESS &&
-                status != NTStatus.STATUS_OBJECT_NAME_COLLISION &&
-                status != NTStatus.STATUS_OBJECT_NAME_EXISTS)
+
+            if (status == NTStatus.STATUS_SUCCESS ||
+                status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
+                status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
+            {
+                fileStore.CloseFile(handle);
+            }
+            else
             {
                 throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
             }

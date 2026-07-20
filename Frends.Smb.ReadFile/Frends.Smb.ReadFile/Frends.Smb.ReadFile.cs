@@ -97,11 +97,11 @@ public static class Smb
                     out object fileHandle,
                     out FileStatus fileStatus,
                     path,
-                    AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+                    AccessMask.GENERIC_READ,
                     SMBLibrary.FileAttributes.Normal,
                     ShareAccess.Read,
                     CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                    CreateOptions.FILE_NON_DIRECTORY_FILE,
                     null);
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)

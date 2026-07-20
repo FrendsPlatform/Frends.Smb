@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.0] - 2026-07-20
+
+### Changed
+
+- Optimized SMB file handling: fixed lingering locks and adjusted access permissions to prevent sharing violations.
+
 ## [2.2.0] - 2026-06-26
 
 ### Changed

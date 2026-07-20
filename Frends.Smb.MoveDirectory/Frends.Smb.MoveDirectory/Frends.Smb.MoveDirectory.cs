@@ -149,11 +149,11 @@ public static class Smb
                     out object dirHandle,
                     out _,
                     normalizedSourcePath,
-                    AccessMask.SYNCHRONIZE | AccessMask.GENERIC_READ | AccessMask.GENERIC_WRITE | AccessMask.DELETE,
+                    AccessMask.DELETE,
                     SMBLibrary.FileAttributes.Directory,
-                    ShareAccess.Read | ShareAccess.Write,
+                    ShareAccess.Read,
                     CreateDisposition.FILE_OPEN,
-                    CreateOptions.FILE_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                    CreateOptions.FILE_DIRECTORY_FILE,
                     null);
 
                 if (openStatus != NTStatus.STATUS_SUCCESS)
@@ -211,7 +211,7 @@ public static class Smb
             path,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -275,9 +275,9 @@ public static class Smb
             out object dirHandle,
             out _,
             directoryPath,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -346,11 +346,11 @@ public static class Smb
             out object dirHandle,
             out _,
             directoryPath,
-            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            AccessMask.DELETE,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_DIRECTORY_FILE,
             null);
 
         if (openStatus != NTStatus.STATUS_SUCCESS)
@@ -404,7 +404,7 @@ public static class Smb
             directoryPath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -427,11 +427,11 @@ public static class Smb
             out object dirHandle,
             out _,
             directoryPath,
-            AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_WRITE,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_CREATE,
-            CreateOptions.FILE_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_DIRECTORY_FILE,
             null);
 
         if (createStatus == NTStatus.STATUS_SUCCESS)
@@ -450,11 +450,11 @@ public static class Smb
             out object fileHandle,
             out _,
             filePath,
-            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            AccessMask.DELETE,
             SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
         if (openStatus != NTStatus.STATUS_SUCCESS)
