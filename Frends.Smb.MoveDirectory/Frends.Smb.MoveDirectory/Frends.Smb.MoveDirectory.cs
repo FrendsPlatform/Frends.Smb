@@ -404,7 +404,7 @@ public static class Smb
             directoryPath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read,
+            ShareAccess.Write, // allows parallel tasks to create the same directory concurrently without sharing violations.
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);

@@ -684,7 +684,7 @@ internal static class SmbHandler
             filePath,
             AccessMask.DELETE | AccessMask.SYNCHRONIZE,
             FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Delete,
+            ShareAccess.Read | ShareAccess.Delete,// ShareAccess.Read | ShareAccess.Delete: allows concurrent reads and pending deletes while this handle is open.
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
             null);

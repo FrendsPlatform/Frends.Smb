@@ -753,4 +753,52 @@ public class MoveFilesTests
 
         await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
     }
+
+    [Test]
+    public async Task MoveFiles_ParallelOperationsOnSameFolder_NoSharingViolations()
+    {
+        const int parallelCount = 5;
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            await CreateTestFileAsync($"source/parallel_{i}.txt", $"content {i}");
+        }
+
+        var tasks = new Task<Result>[parallelCount];
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            int index = i;
+            tasks[i] = Task.Run(() =>
+            {
+                var inp = new Input
+                {
+                    SourcePath = $"source/parallel_{index}.txt",
+                    TargetPath = "target",
+                };
+                var opts = new Options
+                {
+                    ThrowErrorOnFailure = false,
+                    CreateTargetDirectories = true,
+                    IfTargetFileExists = FileExistsAction.Throw,
+                    PreserveDirectoryStructure = false,
+                };
+
+                return Smb.MoveFiles(inp, connection, opts, CancellationToken.None);
+            });
+        }
+
+        var results = await Task.WhenAll(tasks);
+
+        foreach (var result in results)
+        {
+            Assert.That(result.Success, Is.True, $"Failed: {result.Error?.Message}");
+        }
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            Assert.That(File.Exists(Path.Combine(testFilesPath, "target", $"parallel_{i}.txt")), Is.True);
+            Assert.That(File.Exists(Path.Combine(testFilesPath, "source", $"parallel_{i}.txt")), Is.False);
+        }
+    }
 }
