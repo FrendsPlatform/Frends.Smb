@@ -741,19 +741,6 @@ public class MoveFilesTests
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "y.txt")), Is.True);
     }
 
-    private async Task CreateTestFileAsync(string relativePath, string content)
-    {
-        string fullPath = Path.Combine(testFilesPath, relativePath);
-
-        string dirPath = Path.GetDirectoryName(fullPath);
-        if (dirPath != null)
-            Directory.CreateDirectory(dirPath);
-
-        await File.WriteAllTextAsync(fullPath, content);
-
-        await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
-    }
-
     [Test]
     public async Task MoveFiles_ParallelOperationsOnSameFolder_NoSharingViolations()
     {
@@ -800,5 +787,54 @@ public class MoveFilesTests
             Assert.That(File.Exists(Path.Combine(testFilesPath, "target", $"parallel_{i}.txt")), Is.True);
             Assert.That(File.Exists(Path.Combine(testFilesPath, "source", $"parallel_{i}.txt")), Is.False);
         }
+    }
+
+    [Test]
+    public async Task MoveFiles_FailureDuringCopy_CleansUpIncompleteTargetFile()
+    {
+        var largeContent = new string('x', 512 * 1024); // 512KB
+        await CreateTestFileAsync("source/large_cancel.txt", largeContent);
+
+        input = new Input
+        {
+            SourcePath = "source/large_cancel.txt",
+            TargetPath = "target",
+        };
+        options.CreateTargetDirectories = true;
+        options.IfTargetFileExists = FileExistsAction.Overwrite;
+        options.ThrowErrorOnFailure = false;
+
+        using var cts = new CancellationTokenSource();
+        // Cancel almost immediately to trigger mid-copy failure
+        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        // Small delay to ensure file is flushed
+        await Task.Delay(100);
+
+        var result = Smb.MoveFiles(input, connection, options, cts.Token);
+
+        // Operation should have failed due to cancellation
+        Assert.That(result.Success, Is.False);
+
+        // The incomplete target file should have been cleaned up
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "large_cancel.txt")), Is.False,
+            "Incomplete target file was not cleaned up after copy failure.");
+
+        // Source file should still exist (move was not completed)
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "large_cancel.txt")), Is.True,
+            "Source file should remain intact after failed move.");
+    }
+
+    private async Task CreateTestFileAsync(string relativePath, string content)
+    {
+        string fullPath = Path.Combine(testFilesPath, relativePath);
+
+        string dirPath = Path.GetDirectoryName(fullPath);
+        if (dirPath != null)
+            Directory.CreateDirectory(dirPath);
+
+        await File.WriteAllTextAsync(fullPath, content);
+
+        await sambaContainer.ExecAsync(["sh", "-c", "chmod -R 0777 /share"]);
     }
 }

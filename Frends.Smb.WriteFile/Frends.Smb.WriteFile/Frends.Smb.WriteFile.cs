@@ -175,7 +175,10 @@ public static class Smb
                 status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
                 status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
             {
-                fileStore.CloseFile(handle);
+                if (handle != null)
+                {
+                    fileStore.CloseFile(handle);
+                }
             }
             else
             {

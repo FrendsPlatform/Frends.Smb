@@ -558,11 +558,17 @@ public static class Smb
             finally
             {
                 fileStore.CloseFile(targetHandle);
-            }
-
-            if (!copySuccess)
-            {
-                DeleteFile(fileStore, targetFilePath);
+                if (!copySuccess)
+                {
+                    try
+                    {
+                        DeleteFile(fileStore, targetFilePath);
+                    }
+                    catch
+                    {
+                        // Swallow to avoid masking the original exception
+                    }
+                }
             }
         }
         finally

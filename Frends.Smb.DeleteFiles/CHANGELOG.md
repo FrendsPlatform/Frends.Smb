@@ -2,7 +2,7 @@
 
 ## [2.4.0] - 2026-07-20
 
-### Changed
+### Fixed
 
 - Optimized SMB file handling: fixed lingering locks and adjusted access permissions to prevent sharing violations.
 
