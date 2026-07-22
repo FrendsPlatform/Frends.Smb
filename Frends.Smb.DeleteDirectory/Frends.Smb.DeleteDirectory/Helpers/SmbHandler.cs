@@ -101,7 +101,7 @@ internal static class SmbHandler
             path,
             GENERIC_READ,
             FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,// ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete: maximally permissive for existence checks to prevent sharing violations from being misinterpreted as "not found".
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete: maximally permissive for existence checks to prevent sharing violations from being misinterpreted as "not found".
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);

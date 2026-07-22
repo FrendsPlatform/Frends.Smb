@@ -805,6 +805,7 @@ public class MoveFilesTests
         options.ThrowErrorOnFailure = false;
 
         using var cts = new CancellationTokenSource();
+
         // Cancel almost immediately to trigger mid-copy failure
         cts.CancelAfter(TimeSpan.FromMilliseconds(50));
 
@@ -817,12 +818,10 @@ public class MoveFilesTests
         Assert.That(result.Success, Is.False);
 
         // The incomplete target file should have been cleaned up
-        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "large_cancel.txt")), Is.False,
-            "Incomplete target file was not cleaned up after copy failure.");
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "large_cancel.txt")), Is.False);
 
         // Source file should still exist (move was not completed)
-        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "large_cancel.txt")), Is.True,
-            "Source file should remain intact after failed move.");
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "large_cancel.txt")), Is.True);
     }
 
     private async Task CreateTestFileAsync(string relativePath, string content)

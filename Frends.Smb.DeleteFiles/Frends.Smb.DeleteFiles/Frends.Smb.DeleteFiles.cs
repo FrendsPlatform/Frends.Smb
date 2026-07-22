@@ -205,7 +205,7 @@ public static class Smb
                 basePath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write,// ShareAccess.Read | ShareAccess.Write: broad sharing for short-lived existence checks to avoid false negatives from sharing violations.
+                ShareAccess.Read | ShareAccess.Write, // ShareAccess.Read | ShareAccess.Write: broad sharing for short-lived existence checks to avoid false negatives from sharing violations.
                 CreateDisposition.FILE_OPEN,
                 CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
@@ -250,7 +250,7 @@ public static class Smb
             directoryPath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,// ShareAccess.Read | ShareAccess.Write: broad sharing for short-lived existence checks to avoid false negatives from sharing violations.
+            ShareAccess.Read | ShareAccess.Write, // ShareAccess.Read | ShareAccess.Write: broad sharing for short-lived existence checks to avoid false negatives from sharing violations.
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
