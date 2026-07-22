@@ -1,13 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Frends.Smb.CopyFiles.Definitions;
 using NUnit.Framework;
-using SMBLibrary;
-using SMBLibrary.Client;
 
 namespace Frends.Smb.CopyFiles.Tests;
 
@@ -305,40 +302,51 @@ public class CopyFilesTests : SmbTestBase
             File.WriteAllText(Path.Combine(TestDirPath, "src", $"parallel_{i}.txt"), $"content {i}");
         }
 
-        var tasks = new Task<Result>[parallelCount];
-
-        for (int i = 0; i < parallelCount; i++)
+        try
         {
-            int index = i;
-            tasks[i] = Task.Run(() =>
+            var tasks = new Task<Result>[parallelCount];
+
+            for (int i = 0; i < parallelCount; i++)
             {
-                var inp = new Input
+                int index = i;
+                tasks[i] = Task.Run(() =>
                 {
-                    SourcePath = $"src/parallel_{index}.txt",
-                    TargetPath = "dst",
-                };
-                var opts = new Options
-                {
-                    ThrowErrorOnFailure = false,
-                    CreateTargetDirectories = true,
-                    IfTargetFileExists = FileExistsAction.Throw,
-                    PreserveDirectoryStructure = false,
-                };
+                    var inp = new Input
+                    {
+                        SourcePath = $"src/parallel_{index}.txt",
+                        TargetPath = "dst",
+                    };
+                    var opts = new Options
+                    {
+                        ThrowErrorOnFailure = false,
+                        CreateTargetDirectories = true,
+                        IfTargetFileExists = FileExistsAction.Throw,
+                        PreserveDirectoryStructure = false,
+                    };
 
-                return Smb.CopyFiles(inp, Connection, opts, CancellationToken.None);
-            });
+                    return Smb.CopyFiles(inp, Connection, opts, CancellationToken.None);
+                });
+            }
+
+            Task.WhenAll(tasks).GetAwaiter().GetResult();
+
+            foreach (var task in tasks)
+            {
+                Assert.That(task.Result.Success, Is.True, $"Failed: {task.Result.Error?.Message}");
+            }
+
+            for (int i = 0; i < parallelCount; i++)
+            {
+                Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", $"parallel_{i}.txt")), Is.True);
+            }
         }
-
-        Task.WhenAll(tasks).GetAwaiter().GetResult();
-
-        foreach (var task in tasks)
+        finally
         {
-            Assert.That(task.Result.Success, Is.True, $"Failed: {task.Result.Error?.Message}");
-        }
-
-        for (int i = 0; i < parallelCount; i++)
-        {
-            Assert.That(File.Exists(Path.Combine(TestDirPath, "dst", $"parallel_{i}.txt")), Is.True);
+            for (int i = 0; i < parallelCount; i++)
+            {
+                var path = Path.Combine(TestDirPath, "src", $"parallel_{i}.txt");
+                if (File.Exists(path)) File.Delete(path);
+            }
         }
     }
 }
