@@ -114,11 +114,11 @@ public static class Smb
                             out object fileHandle,
                             out _,
                             filePath,
-                            AccessMask.GENERIC_WRITE | AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+                            AccessMask.GENERIC_WRITE | AccessMask.DELETE,
                             SMBLibrary.FileAttributes.Normal,
-                            ShareAccess.Delete,
+                            ShareAccess.Delete, // ShareAccess.Delete: intentionally narrow to fail with sharing violation if the file is actively open by another process.
                             CreateDisposition.FILE_OPEN,
-                            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                            CreateOptions.FILE_NON_DIRECTORY_FILE,
                             null);
 
                         if (openStatus != NTStatus.STATUS_SUCCESS)
@@ -205,9 +205,9 @@ public static class Smb
                 basePath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write,
+                ShareAccess.Read | ShareAccess.Write, // ShareAccess.Read | ShareAccess.Write: broad sharing for short-lived existence checks to avoid false negatives from sharing violations.
                 CreateDisposition.FILE_OPEN,
-                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
 
             if (fileCheckStatus == NTStatus.STATUS_SUCCESS)
@@ -248,9 +248,9 @@ public static class Smb
             out object dirHandle,
             out _,
             directoryPath,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write, // ShareAccess.Read | ShareAccess.Write: broad sharing for short-lived existence checks to avoid false negatives from sharing violations.
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);

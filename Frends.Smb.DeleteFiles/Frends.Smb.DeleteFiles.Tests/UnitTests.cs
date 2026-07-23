@@ -311,6 +311,44 @@ public class DeleteFilesTests
         Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", "file1.txt")), Is.True);
     }
 
+    [Test]
+    public async Task DeleteFiles_ParallelOperationsOnSameFolder_NoSharingViolations()
+    {
+        const int parallelCount = 5;
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            await CreateTestFileAsync($"pattern-test/parallel_{i}.txt", $"content {i}");
+        }
+
+        var tasks = new Task<Result>[parallelCount];
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            int index = i;
+            tasks[i] = Task.Run(async () =>
+            {
+                var inp = new Input { Path = $"pattern-test/parallel_{index}.txt" };
+                var opts = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty };
+
+                return await Smb.DeleteFiles(inp, connection, opts, CancellationToken.None);
+            });
+        }
+
+        var results = await Task.WhenAll(tasks);
+
+        foreach (var result in results)
+        {
+            Assert.That(result.Success, Is.True, $"Failed: {result.Error?.Message}");
+            Assert.That(result.TotalFilesDeleted, Is.EqualTo(1));
+        }
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            Assert.That(File.Exists(Path.Combine(testFilesPath, "pattern-test", $"parallel_{i}.txt")), Is.False);
+        }
+    }
+
     private async Task CreateTestFileAsync(string relativePath, string content)
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);

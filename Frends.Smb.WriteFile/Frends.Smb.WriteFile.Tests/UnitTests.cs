@@ -225,4 +225,40 @@ public class UnitTests
         Assert.That(result.Success, Is.False);
         Assert.That(result.Error?.Message, Does.Contain("Path should be relative to the share"));
     }
+
+    [Test]
+    public void WriteFile_ParallelOperationsOnSameFolder_NoSharingViolations()
+    {
+        const int parallelCount = 5;
+
+        var tasks = new Task<Result>[parallelCount];
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            int index = i;
+            tasks[i] = Task.Run(() =>
+            {
+                var inp = new Input
+                {
+                    DestinationPath = $"parallel-dir/parallel_{index}.txt",
+                    Content = Encoding.UTF8.GetBytes($"content {index}"),
+                };
+                var opts = new Options { ThrowErrorOnFailure = false, ErrorMessageOnFailure = string.Empty, Overwrite = true };
+
+                return Smb.WriteFile(inp, connection, opts, CancellationToken.None);
+            });
+        }
+
+        Task.WhenAll(tasks).GetAwaiter().GetResult();
+
+        foreach (var task in tasks)
+        {
+            Assert.That(task.Result.Success, Is.True, $"Failed: {task.Result.Error?.Message}");
+        }
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            Assert.That(File.Exists(Path.Combine(DestinationDirPath, "parallel-dir", $"parallel_{i}.txt")), Is.True);
+        }
+    }
 }

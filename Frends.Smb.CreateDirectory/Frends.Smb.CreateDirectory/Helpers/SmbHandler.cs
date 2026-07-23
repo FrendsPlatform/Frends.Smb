@@ -61,18 +61,24 @@ internal static class SmbHandler
             current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
             var status = fileStore.CreateFile(
-                out _,
+                out var handle,
                 out _,
                 current,
-                SYNCHRONIZE | GENERIC_WRITE,
+                GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Write,
+                ShareAccess.Write, // ShareAccess.Write: allows parallel tasks to create the same directory concurrently without sharing violations.
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
-            if (status != NTStatus.STATUS_SUCCESS &&
-                status != NTStatus.STATUS_OBJECT_NAME_COLLISION &&
-                status != NTStatus.STATUS_OBJECT_NAME_EXISTS)
+
+            if (status == NTStatus.STATUS_SUCCESS ||
+                status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
+                status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
+            {
+                if (handle != null)
+                    fileStore.CloseFile(handle);
+            }
+            else
             {
                 throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
             }

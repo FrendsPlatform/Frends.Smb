@@ -289,7 +289,7 @@ public static class Smb
             directoryPath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -312,11 +312,11 @@ public static class Smb
             out object dirHandle,
             out _,
             directoryPath,
-            AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_WRITE,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_CREATE,
-            CreateOptions.FILE_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_DIRECTORY_FILE,
             null);
 
         if (createStatus == NTStatus.STATUS_SUCCESS)
@@ -340,9 +340,9 @@ public static class Smb
             targetFilePath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
         bool fileExists = checkStatus == NTStatus.STATUS_SUCCESS;
@@ -395,9 +395,9 @@ public static class Smb
                 newPath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write,
+                ShareAccess.Read,
                 CreateDisposition.FILE_OPEN,
-                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
 
             if (checkStatus != NTStatus.STATUS_SUCCESS)
@@ -445,11 +445,11 @@ public static class Smb
             out object fileHandle,
             out _,
             filePath,
-            AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+            AccessMask.DELETE,
             SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
         if (openStatus != NTStatus.STATUS_SUCCESS)
@@ -482,11 +482,11 @@ public static class Smb
             out object sourceHandle,
             out _,
             sourceFilePath,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Normal,
             ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
         if (openSourceStatus != NTStatus.STATUS_SUCCESS)
@@ -498,15 +498,17 @@ public static class Smb
                 out object targetHandle,
                 out _,
                 targetFilePath,
-                AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+                AccessMask.GENERIC_WRITE,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Delete,
+                ShareAccess.Read,
                 CreateDisposition.FILE_OVERWRITE_IF,
-                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
 
             if (openTargetStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to create target file '{targetFilePath}': {openTargetStatus}");
+
+            bool copySuccess = false;
 
             try
             {
@@ -550,16 +552,23 @@ public static class Smb
 
                     bytesRead += data.Length;
                 }
-            }
-            catch
-            {
-                DeleteFile(fileStore, targetFilePath);
 
-                throw;
+                copySuccess = true;
             }
             finally
             {
                 fileStore.CloseFile(targetHandle);
+                if (!copySuccess)
+                {
+                    try
+                    {
+                        DeleteFile(fileStore, targetFilePath);
+                    }
+                    catch
+                    {
+                        // Swallow to avoid masking the original exception
+                    }
+                }
             }
         }
         finally
@@ -584,9 +593,9 @@ public static class Smb
                 basePath,
                 AccessMask.GENERIC_READ,
                 SMBLibrary.FileAttributes.Normal,
-                ShareAccess.Read | ShareAccess.Write,
+                ShareAccess.Read,
                 CreateDisposition.FILE_OPEN,
-                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
                 null);
 
             if (fileCheckStatus == NTStatus.STATUS_SUCCESS)
@@ -627,9 +636,9 @@ public static class Smb
             out object dirHandle,
             out _,
             directoryPath,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -706,9 +715,9 @@ public static class Smb
             filePath,
             AccessMask.GENERIC_READ,
             SMBLibrary.FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
 
         if (checkStatus == NTStatus.STATUS_SUCCESS)

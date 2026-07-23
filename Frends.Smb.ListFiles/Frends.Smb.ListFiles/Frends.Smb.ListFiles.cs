@@ -119,11 +119,11 @@ public static class Smb
             out var dirHandle,
             out var fileStatus,
             currentDir,
-            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ,
             FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
-            CreateOptions.FILE_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+            CreateOptions.FILE_DIRECTORY_FILE,
             null);
 
         if (status != NTStatus.STATUS_SUCCESS)

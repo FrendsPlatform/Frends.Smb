@@ -101,7 +101,7 @@ internal static class SmbHandler
             path,
             GENERIC_READ,
             FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete, // ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete: maximally permissive for existence checks to prevent sharing violations from being misinterpreted as "not found".
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -122,7 +122,7 @@ internal static class SmbHandler
             directory,
             GENERIC_READ,
             FileAttributes.Directory,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -165,7 +165,7 @@ internal static class SmbHandler
             path,
             DELETE,
             fileAttribute,
-            ShareAccess.Read | ShareAccess.Write,
+            ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             0,
             null);
@@ -182,9 +182,6 @@ internal static class SmbHandler
             status = fileStore.SetFileInformation(handle, fileDispositionInformation);
             if (status != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to delete file: {path} NTStatus={status}");
-            status = fileStore.CloseFile(handle);
-            if (status != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"Failed to close file after delete: {path} NTStatus={status}");
         }
         finally
         {
@@ -204,10 +201,12 @@ internal static class SmbHandler
             cancellationToken.ThrowIfCancellationRequested();
             var e = (FileDirectoryInformation)entry;
 
+            if (e.FileName is "." or "..") continue;
+
             if ((e.FileAttributes & FileAttributes.Directory) == 0)
                 return false;
 
-            PathString subDir = $"{directory}/{e.FileName}";
+            PathString subDir = $"{directory}{PathString.GetSeparatorChar()}{e.FileName}";
             if (!IsDirectoryEmptyDeep(fileStore, subDir, cancellationToken))
                 return false;
         }

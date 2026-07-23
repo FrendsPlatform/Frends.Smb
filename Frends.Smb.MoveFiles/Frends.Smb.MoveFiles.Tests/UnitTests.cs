@@ -741,6 +741,89 @@ public class MoveFilesTests
         Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "y.txt")), Is.True);
     }
 
+    [Test]
+    public async Task MoveFiles_ParallelOperationsOnSameFolder_NoSharingViolations()
+    {
+        const int parallelCount = 5;
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            await CreateTestFileAsync($"source/parallel_{i}.txt", $"content {i}");
+        }
+
+        var tasks = new Task<Result>[parallelCount];
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            int index = i;
+            tasks[i] = Task.Run(() =>
+            {
+                var inp = new Input
+                {
+                    SourcePath = $"source/parallel_{index}.txt",
+                    TargetPath = "target",
+                };
+                var opts = new Options
+                {
+                    ThrowErrorOnFailure = false,
+                    CreateTargetDirectories = true,
+                    IfTargetFileExists = FileExistsAction.Throw,
+                    PreserveDirectoryStructure = false,
+                };
+
+                return Smb.MoveFiles(inp, connection, opts, CancellationToken.None);
+            });
+        }
+
+        var results = await Task.WhenAll(tasks);
+
+        foreach (var result in results)
+        {
+            Assert.That(result.Success, Is.True, $"Failed: {result.Error?.Message}");
+        }
+
+        for (int i = 0; i < parallelCount; i++)
+        {
+            Assert.That(File.Exists(Path.Combine(testFilesPath, "target", $"parallel_{i}.txt")), Is.True);
+            Assert.That(File.Exists(Path.Combine(testFilesPath, "source", $"parallel_{i}.txt")), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task MoveFiles_FailureDuringCopy_CleansUpIncompleteTargetFile()
+    {
+        var largeContent = new string('x', 512 * 1024); // 512KB
+        await CreateTestFileAsync("source/large_cancel.txt", largeContent);
+
+        input = new Input
+        {
+            SourcePath = "source/large_cancel.txt",
+            TargetPath = "target",
+        };
+        options.CreateTargetDirectories = true;
+        options.IfTargetFileExists = FileExistsAction.Overwrite;
+        options.ThrowErrorOnFailure = false;
+
+        using var cts = new CancellationTokenSource();
+
+        // Cancel almost immediately to trigger mid-copy failure
+        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        // Small delay to ensure file is flushed
+        await Task.Delay(100);
+
+        var result = Smb.MoveFiles(input, connection, options, cts.Token);
+
+        // Operation should have failed due to cancellation
+        Assert.That(result.Success, Is.False);
+
+        // The incomplete target file should have been cleaned up
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "large_cancel.txt")), Is.False);
+
+        // Source file should still exist (move was not completed)
+        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "large_cancel.txt")), Is.True);
+    }
+
     private async Task CreateTestFileAsync(string relativePath, string content)
     {
         string fullPath = Path.Combine(testFilesPath, relativePath);
