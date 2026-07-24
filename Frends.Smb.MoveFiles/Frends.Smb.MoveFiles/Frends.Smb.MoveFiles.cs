@@ -81,8 +81,17 @@ public static class Smb
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
+            string kerberosServer = string.IsNullOrWhiteSpace(connection.KerberosServerName)
+                 ? connection.Server
+                 : connection.KerberosServerName;
+
             NTStatus status = connection.AuthenticationMode == AuthenticationMode.Kerberos
-                ? client.Login(new KerberosNetAuthenticationClient(domain, user, connection.Password, connection.KerberosServerName))
+                ? client.Login(new KerberosNetAuthenticationClient(
+                    domain,
+                    user,
+                    connection.Password,
+                    kerberosServer,
+                    kdcAddress: kerberosServer))
                 : client.Login(domain, user, connection.Password);
 
             if (status != NTStatus.STATUS_SUCCESS)
