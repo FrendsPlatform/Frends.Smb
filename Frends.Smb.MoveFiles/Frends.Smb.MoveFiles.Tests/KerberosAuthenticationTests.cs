@@ -56,13 +56,8 @@ public class KerberosAuthenticationTests
         await Task.Delay(TimeSpan.FromSeconds(5));
 
         await adDcContainer.ExecAsync(["sh", "-c", "chmod 777 /share"]);
-
         await adDcContainer.ExecAsync(["sh", "-c",
-            "sed -i 's/\\[global\\]/[global]\\n\\tmap to guest = bad user/' /usr/local/samba/etc/smb.conf"]);
-
-        await adDcContainer.ExecAsync(["sh", "-c",
-            "printf '[testshare]\\n        path = /share\\n        read only = No\\n        guest ok = Yes\\n        force user = root\\n' >> /usr/local/samba/etc/smb.conf"]);
-
+            "printf '[testshare]\\n        path = /share\\n        read only = No\\n        valid users = testuser\\n        admin users = testuser\\n        force user = root\\n        create mask = 0777\\n        directory mask = 0777\\n' >> /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", $"samba-tool user create testuser {password}"]);
         await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group addmembers 'Domain Admins' testuser"]);
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
