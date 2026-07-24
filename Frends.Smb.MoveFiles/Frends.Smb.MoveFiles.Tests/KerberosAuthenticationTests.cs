@@ -49,9 +49,9 @@ public class KerberosAuthenticationTests
         await adDcContainer.StartAsync();
 
         var (stdout, stderr) = await adDcContainer.GetLogsAsync();
-        Console.WriteLine("=== CONTAINER LOGS ===");
-        Console.WriteLine(stdout);
-        Console.WriteLine(stderr);
+        TestContext.WriteLine("=== CONTAINER LOGS ===");
+        TestContext.WriteLine(stdout);
+        TestContext.WriteLine(stderr);
 
         await Task.Delay(TimeSpan.FromSeconds(5));
 
@@ -68,16 +68,16 @@ public class KerberosAuthenticationTests
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
 
         var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
-        Console.WriteLine("=== SMB.CONF ===");
-        Console.WriteLine(confResult.Stdout);
+        TestContext.WriteLine("=== SMB.CONF ===");
+        TestContext.WriteLine(confResult.Stdout);
 
         var userResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool user list"]);
-        Console.WriteLine("=== USERS ===");
-        Console.WriteLine(userResult.Stdout);
+        TestContext.WriteLine("=== USERS ===");
+        TestContext.WriteLine(userResult.Stdout);
 
         var groupResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group listmembers 'Domain Admins'"]);
-        Console.WriteLine("=== DOMAIN ADMINS ===");
-        Console.WriteLine(groupResult.Stdout);
+        TestContext.WriteLine("=== DOMAIN ADMINS ===");
+        TestContext.WriteLine(groupResult.Stdout);
     }
 
     [OneTimeTearDown]
@@ -121,6 +121,19 @@ public class KerberosAuthenticationTests
     [Test]
     public async Task MoveFiles_Kerberos_SingleFile_Success()
     {
+        var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
+        TestContext.WriteLine("=== SMB.CONF ===");
+        TestContext.WriteLine(confResult.Stdout);
+
+        var userResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool user list"]);
+        TestContext.WriteLine("=== USERS ===");
+        TestContext.WriteLine(userResult.Stdout);
+
+        var groupResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group listmembers 'Domain Admins'"]);
+        TestContext.WriteLine("=== DOMAIN ADMINS ===");
+        TestContext.WriteLine(groupResult.Stdout);
+
+
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
