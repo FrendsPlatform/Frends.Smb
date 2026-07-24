@@ -123,11 +123,10 @@ public class KerberosAuthenticationTests
         var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
         var (stdout, stderr) = await adDcContainer.GetLogsAsync();
-        TestContext.WriteLine("=== CONTAINER LOGS AFTER MOVE ===");
-        TestContext.WriteLine(stdout);
-        TestContext.WriteLine(stderr);
+        var logPath = Path.Combine(testFilesPath, "samba-logs.txt");
+        await File.WriteAllTextAsync(logPath, stdout + "\n" + stderr);
 
-        Assert.That(result.Success, Is.True, result.Error?.Message);
+        Assert.That(result.Success, Is.True, $"{result.Error?.Message}\n=== SAMBA LOGS ===\n{stdout}\n{stderr}");
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
     }
 }
