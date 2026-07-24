@@ -56,6 +56,7 @@ public class KerberosAuthenticationTests
             "printf '[testshare]\\n        path = /share\\n        writeable = Yes\\n        browseable = Yes\\n        force user = root\\n        create mask = 0777\\n        directory mask = 0777\\n' >> /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", $"samba-tool user create testuser {password} --uid-number=10001 --login-shell=/bin/bash --unix-home=/home/testuser"]);
         await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group addmembers 'Domain Admins' testuser"]);
+        await adDcContainer.ExecAsync(["sh", "-c", "mkdir -p /home/testuser && chmod 755 /home/testuser"]);
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i 's/\\[global\\]/[global]\\n\\tlog level = 3/' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c",
@@ -143,6 +144,11 @@ public class KerberosAuthenticationTests
         {
             caughtException = ex;
         }
+
+        var sambaKerbLog = await adDcContainer.ExecAsync(["sh", "-c",
+        "grep -i 'kerberos\\|krb\\|gss\\|spnego' /usr/local/samba/var/log.smbd 2>/dev/null || echo 'no kerberos log'"]);
+        TestContext.WriteLine("=== KERBEROS LOG ===");
+        TestContext.WriteLine(sambaKerbLog.Stdout);
 
         var (stdout, stderr) = await adDcContainer.GetLogsAsync();
 
