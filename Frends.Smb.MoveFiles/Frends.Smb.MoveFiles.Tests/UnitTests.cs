@@ -9,6 +9,7 @@ using NUnit.Framework;
 
 namespace Frends.Smb.MoveFiles.Tests;
 
+[NonParallelizable]
 [TestFixture]
 public class MoveFilesTests
 {

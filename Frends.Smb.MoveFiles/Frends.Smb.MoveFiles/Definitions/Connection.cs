@@ -44,4 +44,23 @@ public class Connection
     /// <example>Linux</example>
     [DefaultValue(Os.Linux)]
     public Os OperatingSystem { get; set; } = Os.Linux;
+
+    /// <summary>
+    /// Authentication mechanism to use when connecting to the SMB server.
+    /// Kerberos requires network access to a KDC and a registered SPN (cifs/servername)
+    /// for the target server in Active Directory.
+    /// </summary>
+    /// <example>Ntlm</example>
+    [DefaultValue(AuthenticationMode.Ntlm)]
+    public AuthenticationMode AuthenticationMode { get; set; } = AuthenticationMode.Ntlm;
+
+    /// <summary>
+    /// Hostname used to build the Kerberos SPN (cifs/hostname) when AuthenticationMode is Kerberos.
+    /// Falls back to Server when not set. Only needed when the address used for the TCP
+    /// connection differs from the server's registered Kerberos identity - e.g. in tests,
+    /// where you connect via a mapped IP/port but the AD-registered name is something else.
+    /// </summary>
+    /// <example>DC1.test.local</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    public string KerberosServerName { get; set; }
 }

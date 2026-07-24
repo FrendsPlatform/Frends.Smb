@@ -81,10 +81,12 @@ public static class Smb
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
-            NTStatus loginStatus = client.Login(domain, user, connection.Password);
+            NTStatus status = connection.AuthenticationMode == AuthenticationMode.Kerberos
+                ? client.Login(new KerberosNetAuthenticationClient(domain, user, connection.Password, connection.KerberosServerName))
+                : client.Login(domain, user, connection.Password);
 
-            if (loginStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"SMB login failed: {loginStatus}");
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"SMB login failed: {status}");
 
             ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
 
