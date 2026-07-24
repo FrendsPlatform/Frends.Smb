@@ -66,6 +66,18 @@ public class KerberosAuthenticationTests
         await adDcContainer.ExecAsync(["sh", "-c", $"samba-tool user create testuser {password}"]);
         await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group addmembers 'Domain Admins' testuser"]);
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
+
+        var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
+        Console.WriteLine("=== SMB.CONF ===");
+        Console.WriteLine(confResult.Stdout);
+
+        var userResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool user list"]);
+        Console.WriteLine("=== USERS ===");
+        Console.WriteLine(userResult.Stdout);
+
+        var groupResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group listmembers 'Domain Admins'"]);
+        Console.WriteLine("=== DOMAIN ADMINS ===");
+        Console.WriteLine(groupResult.Stdout);
     }
 
     [OneTimeTearDown]
