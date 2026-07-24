@@ -48,11 +48,6 @@ public class KerberosAuthenticationTests
 
         await adDcContainer.StartAsync();
 
-        var (stdout, stderr) = await adDcContainer.GetLogsAsync();
-        TestContext.WriteLine("=== CONTAINER LOGS ===");
-        TestContext.WriteLine(stdout);
-        TestContext.WriteLine(stderr);
-
         await Task.Delay(TimeSpan.FromSeconds(5));
 
         await adDcContainer.ExecAsync(["sh", "-c", "chmod 777 /share"]);
@@ -122,34 +117,15 @@ public class KerberosAuthenticationTests
     [Test]
     public async Task MoveFiles_Kerberos_SingleFile_Success()
     {
-        var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
-        TestContext.WriteLine("=== SMB.CONF ===");
-        TestContext.WriteLine(confResult.Stdout);
-
-        var userResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool user list"]);
-        TestContext.WriteLine("=== USERS ===");
-        TestContext.WriteLine(userResult.Stdout);
-
-        var groupResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group listmembers 'Domain Admins'"]);
-        TestContext.WriteLine("=== DOMAIN ADMINS ===");
-        TestContext.WriteLine(groupResult.Stdout);
-
-        var findLog = await adDcContainer.ExecAsync(["sh", "-c", "find /usr/local/samba/var -name '*.log' 2>/dev/null"]);
-        TestContext.WriteLine("=== LOG FILES ===");
-        TestContext.WriteLine(findLog.Stdout);
-
-        var findLog2 = await adDcContainer.ExecAsync(["sh", "-c", "find /var/log/samba -name '*.log' 2>/dev/null"]);
-        TestContext.WriteLine("=== LOG FILES 2 ===");
-        TestContext.WriteLine(findLog2.Stdout);
-
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
         var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 
-        var logResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/var/log.smbd"]);
-        TestContext.WriteLine("=== SAMBA LOG ===");
-        TestContext.WriteLine(logResult.Stdout);
+        var (stdout, stderr) = await adDcContainer.GetLogsAsync();
+        TestContext.WriteLine("=== CONTAINER LOGS AFTER MOVE ===");
+        TestContext.WriteLine(stdout);
+        TestContext.WriteLine(stderr);
 
         Assert.That(result.Success, Is.True, result.Error?.Message);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
