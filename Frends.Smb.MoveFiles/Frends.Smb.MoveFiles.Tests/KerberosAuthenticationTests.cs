@@ -63,10 +63,21 @@ public class KerberosAuthenticationTests
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i '/interfaces = lo eth0/d' /usr/local/samba/etc/smb.conf"]);
 
-        await File.AppendAllTextAsync("/etc/hosts", $"\n127.0.0.1 DC1.test.local DC1\n");
-        var hostsContent = await File.ReadAllTextAsync("/etc/hosts");
-        TestContext.WriteLine("=== HOSTS (runner) ===");
-        TestContext.WriteLine(hostsContent);
+        var process = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "sudo",
+                Arguments = "bash -c \"echo '127.0.0.1 DC1.test.local DC1' >> /etc/hosts\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            },
+        };
+        process.Start();
+        await process.WaitForExitAsync();
+        TestContext.WriteLine($"hosts update exit code: {process.ExitCode}");
+        TestContext.WriteLine(await process.StandardError.ReadToEndAsync());
 
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
     }
