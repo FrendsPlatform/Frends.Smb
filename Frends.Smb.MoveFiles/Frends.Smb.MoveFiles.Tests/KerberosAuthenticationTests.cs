@@ -110,13 +110,14 @@ public class KerberosAuthenticationTests
         var portResult = await adDcContainer.ExecAsync(["sh", "-c", "ss -tlnp | grep -E '445|88'"]);
         var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
         var userResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool user list"]);
+        var smbclientResult = await adDcContainer.ExecAsync(["sh", "-c",
+        $"smbclient //localhost/testshare -U testuser%{password} -c 'ls'"]);
 
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
         Exception caughtException = null;
         Result result = null;
-
         try
         {
             result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
@@ -127,11 +128,11 @@ public class KerberosAuthenticationTests
         }
 
         var (stdout, stderr) = await adDcContainer.GetLogsAsync();
-
         string diagnostics = $"\n=== PROCESSES ===\n{psResult.Stdout}" +
                              $"\n=== PORTS ===\n{portResult.Stdout}" +
                              $"\n=== SMB.CONF ===\n{confResult.Stdout}" +
                              $"\n=== USERS ===\n{userResult.Stdout}" +
+                             $"\n=== SMBCLIENT TEST ===\n{smbclientResult.Stdout}\n{smbclientResult.Stderr}" +
                              $"\n=== CONTAINER LOGS ===\n{stdout}\n{stderr}";
 
         if (caughtException != null)
