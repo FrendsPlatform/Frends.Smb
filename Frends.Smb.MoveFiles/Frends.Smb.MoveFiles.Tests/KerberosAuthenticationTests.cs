@@ -134,6 +134,14 @@ public class KerberosAuthenticationTests
         TestContext.WriteLine("=== DOMAIN ADMINS ===");
         TestContext.WriteLine(groupResult.Stdout);
 
+        var findLog = await adDcContainer.ExecAsync(["sh", "-c", "find /usr/local/samba/var -name '*.log' 2>/dev/null"]);
+        TestContext.WriteLine("=== LOG FILES ===");
+        TestContext.WriteLine(findLog.Stdout);
+
+        var findLog2 = await adDcContainer.ExecAsync(["sh", "-c", "find /var/log/samba -name '*.log' 2>/dev/null"]);
+        TestContext.WriteLine("=== LOG FILES 2 ===");
+        TestContext.WriteLine(findLog2.Stdout);
+
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
