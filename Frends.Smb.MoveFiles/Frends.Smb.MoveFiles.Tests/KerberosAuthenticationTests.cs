@@ -64,6 +64,8 @@ public class KerberosAuthenticationTests
             "sed -i '/bind interfaces only/d' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i '/interfaces = lo eth0/d' /usr/local/samba/etc/smb.conf"]);
+        await adDcContainer.ExecAsync(["sh", "-c",
+            "sed -i '/\\[global\\]/a\\        server signing = auto\\n        server smb encrypt = off' /usr/local/samba/etc/smb.conf"]);
 
         var process = new System.Diagnostics.Process
         {
