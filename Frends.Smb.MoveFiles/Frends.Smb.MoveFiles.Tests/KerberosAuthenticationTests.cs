@@ -43,12 +43,13 @@ public class KerberosAuthenticationTests
             .WithBindMount(testFilesPath, "/share")
             .WithCreateParameterModifier(p => p.HostConfig.NetworkMode = "host")
             .WithWaitStrategy(Wait.ForUnixContainer()
-            .UntilCommandIsCompleted("samba-tool user list"))
+                .UntilCommandIsCompleted("samba-tool user list")
+                .UntilCommandIsCompleted("smbclient -L localhost -U% -N"))
             .Build();
 
         await adDcContainer.StartAsync();
 
-        await Task.Delay(TimeSpan.FromSeconds(5));
+        await Task.Delay(TimeSpan.FromSeconds(15));
 
         await adDcContainer.ExecAsync(["sh", "-c", "chmod 777 /share"]);
         await adDcContainer.ExecAsync(["sh", "-c",
