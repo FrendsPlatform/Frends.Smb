@@ -62,6 +62,12 @@ public class KerberosAuthenticationTests
             "sed -i '/bind interfaces only/d' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i '/interfaces = lo eth0/d' /usr/local/samba/etc/smb.conf"]);
+
+        await File.AppendAllTextAsync("/etc/hosts", $"\n127.0.0.1 DC1.test.local DC1\n");
+        var hostsContent = await File.ReadAllTextAsync("/etc/hosts");
+        TestContext.WriteLine("=== HOSTS (runner) ===");
+        TestContext.WriteLine(hostsContent);
+
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
     }
 
@@ -79,7 +85,7 @@ public class KerberosAuthenticationTests
     {
         connection = new Connection
         {
-            Server = "127.0.0.1",
+            Server = "DC1.test.local",
             KerberosServerName = "DC1.test.local",
             Share = shareName,
             Username = user,
