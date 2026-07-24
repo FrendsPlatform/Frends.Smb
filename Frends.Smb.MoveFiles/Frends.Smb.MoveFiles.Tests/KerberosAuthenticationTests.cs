@@ -57,9 +57,11 @@ public class KerberosAuthenticationTests
 
         await adDcContainer.ExecAsync(["sh", "-c", "chmod 777 /share"]);
         await adDcContainer.ExecAsync(["sh", "-c",
-            "printf '[testshare]\\n        path = /share\\n        read only = No\\n        valid users = testuser\\n        admin users = testuser\\n        force user = root\\n        create mask = 0777\\n        directory mask = 0777\\n' >> /usr/local/samba/etc/smb.conf"]);
+            "printf '[testshare]\\n        path = /share\\n        writeable = Yes\\n        browseable = Yes\\n        force user = root\\n        create mask = 0777\\n        directory mask = 0777\\n' >> /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", $"samba-tool user create testuser {password}"]);
         await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group addmembers 'Domain Admins' testuser"]);
+        await adDcContainer.ExecAsync(["sh", "-c",
+            "sed -i 's/\\[global\\]/[global]\\n\\tlog level = 3/' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
 
         var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
@@ -73,6 +75,10 @@ public class KerberosAuthenticationTests
         var groupResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group listmembers 'Domain Admins'"]);
         TestContext.WriteLine("=== DOMAIN ADMINS ===");
         TestContext.WriteLine(groupResult.Stdout);
+
+        var spnResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool spn list DC1$"]);
+        TestContext.WriteLine("=== SPN ===");
+        TestContext.WriteLine(spnResult.Stdout);
     }
 
     [OneTimeTearDown]
@@ -132,6 +138,10 @@ public class KerberosAuthenticationTests
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
         var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+
+        var logResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/var/log.smbd"]);
+        TestContext.WriteLine("=== SAMBA LOG ===");
+        TestContext.WriteLine(logResult.Stdout);
 
         Assert.That(result.Success, Is.True, result.Error?.Message);
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
