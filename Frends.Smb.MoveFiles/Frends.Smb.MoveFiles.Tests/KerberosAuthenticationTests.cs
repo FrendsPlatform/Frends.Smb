@@ -40,6 +40,7 @@ public class KerberosAuthenticationTests
             .WithEnvironment("DOMAIN", "TEST")
             .WithEnvironment("ADMIN_PASS", password)
             .WithEnvironment("DNS_FORWARDER", "8.8.8.8")
+            .WithBindMount(testFilesPath, "/share")
             .WithCreateParameterModifier(p => p.HostConfig.NetworkMode = "host")
             .WithWaitStrategy(Wait.ForUnixContainer()
                 .UntilCommandIsCompleted("samba-tool user list"))
@@ -54,9 +55,9 @@ public class KerberosAuthenticationTests
 
         await Task.Delay(TimeSpan.FromSeconds(5));
 
-        await adDcContainer.ExecAsync(["sh", "-c", "mkdir -p /share && chmod 777 /share"]);
+        await adDcContainer.ExecAsync(["sh", "-c", "chmod 777 /share"]);
         await adDcContainer.ExecAsync(["sh", "-c",
-    "printf '[testshare]\\n        path = /share\\n        read only = No\\n        valid users = testuser\\n' >> /usr/local/samba/etc/smb.conf"]);
+            "printf '[testshare]\\n        path = /share\\n        read only = No\\n        valid users = testuser\\n' >> /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
         await adDcContainer.ExecAsync(["sh", "-c", $"samba-tool user create testuser {password}"]);
     }
