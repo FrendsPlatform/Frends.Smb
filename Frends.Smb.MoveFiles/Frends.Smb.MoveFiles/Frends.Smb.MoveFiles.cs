@@ -86,13 +86,13 @@ public static class Smb
                  : connection.KerberosServerName;
 
             NTStatus status = connection.AuthenticationMode == AuthenticationMode.Kerberos
-               ? client.Login(new KerberosNetAuthenticationClient(
-                   domain,
-                   user,
-                   connection.Password,
-                   kerberosServer,
-                   kdcAddress: connection.Server))
-               : client.Login(domain, user, connection.Password);
+                ? client.Login(new KerberosNetAuthenticationClient(
+                    domain,
+                    user,
+                    connection.Password,
+                    kerberosServer,
+                    kdcAddress: connection.KdcAddress))
+                : client.Login(domain, user, connection.Password);
 
             if (status != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"SMB login failed: {status}");

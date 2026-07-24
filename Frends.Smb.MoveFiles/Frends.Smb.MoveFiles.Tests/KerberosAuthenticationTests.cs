@@ -100,8 +100,9 @@ public class KerberosAuthenticationTests
     {
         connection = new Connection
         {
-            Server = "DC1.test.local",
+            Server = "127.0.0.1",
             KerberosServerName = "DC1.test.local",
+            KdcAddress = "127.0.0.1:88",  // jawnie wskazuje KDC
             Share = shareName,
             Username = user,
             Password = password,
@@ -141,7 +142,7 @@ public class KerberosAuthenticationTests
         Result result = null;
 
         using (var authClient = new KerberosNetAuthenticationClient(
-            "TEST.LOCAL", "testuser", password, "DC1.test.local"))
+            "TEST.LOCAL", "testuser", password, "DC1.test.local", kdcAddress: "127.0.0.1:88"))
         {
             byte[] token = authClient.InitializeSecurityContext(null);
             TestContext.WriteLine($"Token length: {token.Length}, first bytes: {BitConverter.ToString(token, 0, Math.Min(20, token.Length))}");

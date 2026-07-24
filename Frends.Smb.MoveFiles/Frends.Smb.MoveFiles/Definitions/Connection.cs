@@ -63,4 +63,14 @@ public class Connection
     /// <example>DC1.test.local</example>
     [DisplayFormat(DataFormatString = "Text")]
     public string KerberosServerName { get; set; }
+
+    /// <summary>
+    /// Optional explicit KDC address (host or host:port) for Kerberos authentication.
+    /// Use when DNS SRV discovery is unavailable.
+    /// If empty, KDC will be discovered via DNS SRV records for the realm.
+    /// </summary>
+    /// <example>kdc.company.com:88</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos)]
+    public string KdcAddress { get; set; }
 }
