@@ -43,7 +43,7 @@ public class KerberosAuthenticationTests
             .WithBindMount(testFilesPath, "/share")
             .WithCreateParameterModifier(p => p.HostConfig.NetworkMode = "host")
             .WithWaitStrategy(Wait.ForUnixContainer()
-                .UntilCommandIsCompleted("samba-tool user list"))
+            .UntilCommandIsCompleted("samba-tool user list"))
             .Build();
 
         await adDcContainer.StartAsync();
@@ -56,10 +56,14 @@ public class KerberosAuthenticationTests
         await Task.Delay(TimeSpan.FromSeconds(5));
 
         await adDcContainer.ExecAsync(["sh", "-c", "chmod 777 /share"]);
+
         await adDcContainer.ExecAsync(["sh", "-c",
-            "printf '[testshare]\\n        path = /share\\n        read only = No\\n        valid users = testuser\\n' >> /usr/local/samba/etc/smb.conf"]);
-        await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
+            "printf '[testshare]\\n        path = /share\\n        read only = No\\n        guest ok = Yes\\n' >> /usr/local/samba/etc/smb.conf"]);
+
         await adDcContainer.ExecAsync(["sh", "-c", $"samba-tool user create testuser {password}"]);
+        await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group addmembers 'Domain Admins' testuser"]);
+
+        await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
     }
 
     [OneTimeTearDown]
