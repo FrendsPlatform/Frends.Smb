@@ -58,6 +58,10 @@ public class KerberosAuthenticationTests
         await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group addmembers 'Domain Admins' testuser"]);
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i 's/\\[global\\]/[global]\\n\\tlog level = 3/' /usr/local/samba/etc/smb.conf"]);
+        await adDcContainer.ExecAsync(["sh", "-c",
+            "sed -i '/bind interfaces only/d' /usr/local/samba/etc/smb.conf"]);
+        await adDcContainer.ExecAsync(["sh", "-c",
+            "sed -i '/interfaces = lo eth0/d' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
     }
 
