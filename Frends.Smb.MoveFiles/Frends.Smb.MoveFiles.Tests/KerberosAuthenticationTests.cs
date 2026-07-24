@@ -49,7 +49,7 @@ public class KerberosAuthenticationTests
 
         await adDcContainer.StartAsync();
 
-        await Task.Delay(TimeSpan.FromSeconds(15));
+        await Task.Delay(TimeSpan.FromSeconds(30));
 
         await adDcContainer.ExecAsync(["sh", "-c", "chmod 777 /share"]);
         await adDcContainer.ExecAsync(["sh", "-c",
@@ -59,22 +59,6 @@ public class KerberosAuthenticationTests
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i 's/\\[global\\]/[global]\\n\\tlog level = 3/' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
-
-        var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
-        TestContext.WriteLine("=== SMB.CONF ===");
-        TestContext.WriteLine(confResult.Stdout);
-
-        var userResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool user list"]);
-        TestContext.WriteLine("=== USERS ===");
-        TestContext.WriteLine(userResult.Stdout);
-
-        var groupResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool group listmembers 'Domain Admins'"]);
-        TestContext.WriteLine("=== DOMAIN ADMINS ===");
-        TestContext.WriteLine(groupResult.Stdout);
-
-        var spnResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool spn list DC1$"]);
-        TestContext.WriteLine("=== SPN ===");
-        TestContext.WriteLine(spnResult.Stdout);
     }
 
     [OneTimeTearDown]
@@ -118,6 +102,11 @@ public class KerberosAuthenticationTests
     [Test]
     public async Task MoveFiles_Kerberos_SingleFile_Success()
     {
+        var psResult = await adDcContainer.ExecAsync(["sh", "-c", "ps aux | grep samba"]);
+        var portResult = await adDcContainer.ExecAsync(["sh", "-c", "ss -tlnp | grep -E '445|88'"]);
+        var confResult = await adDcContainer.ExecAsync(["sh", "-c", "cat /usr/local/samba/etc/smb.conf"]);
+        var userResult = await adDcContainer.ExecAsync(["sh", "-c", "samba-tool user list"]);
+
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
@@ -134,12 +123,17 @@ public class KerberosAuthenticationTests
         }
 
         var (stdout, stderr) = await adDcContainer.GetLogsAsync();
-        var sambaLogs = $"\n=== SAMBA LOGS ===\n{stdout}\n{stderr}";
+
+        string diagnostics = $"\n=== PROCESSES ===\n{psResult.Stdout}" +
+                             $"\n=== PORTS ===\n{portResult.Stdout}" +
+                             $"\n=== SMB.CONF ===\n{confResult.Stdout}" +
+                             $"\n=== USERS ===\n{userResult.Stdout}" +
+                             $"\n=== CONTAINER LOGS ===\n{stdout}\n{stderr}";
 
         if (caughtException != null)
-            Assert.Fail($"MoveFiles threw exception: {caughtException.Message}{sambaLogs}");
+            Assert.Fail($"MoveFiles threw: {caughtException.Message}{diagnostics}");
 
-        Assert.That(result.Success, Is.True, $"{result?.Error?.Message}{sambaLogs}");
+        Assert.That(result.Success, Is.True, $"{result?.Error?.Message}{diagnostics}");
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
     }
 }
