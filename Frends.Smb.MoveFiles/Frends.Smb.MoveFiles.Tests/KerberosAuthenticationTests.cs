@@ -145,11 +145,22 @@ public class KerberosAuthenticationTests
         }
 
         var (stdout, stderr) = await adDcContainer.GetLogsAsync();
+
+        var sambaLogResult = await adDcContainer.ExecAsync(["sh", "-c",
+            "grep -i 'access\\|denied\\|testuser\\|kerberos\\|auth' /usr/local/samba/var/log.smbd 2>/dev/null || " +
+            "grep -i 'access\\|denied\\|testuser\\|kerberos\\|auth' /usr/local/samba/var/log/log.smbd 2>/dev/null || " +
+            "echo 'no log file found'"]);
+
+        var winbindResult = await adDcContainer.ExecAsync(["sh", "-c",
+            "wbinfo -u 2>/dev/null || echo 'winbind not running'"]);
+
         string diagnostics = $"\n=== PROCESSES ===\n{psResult.Stdout}" +
                              $"\n=== PORTS ===\n{portResult.Stdout}" +
                              $"\n=== SMB.CONF ===\n{confResult.Stdout}" +
                              $"\n=== USERS ===\n{userResult.Stdout}" +
                              $"\n=== SMBCLIENT TEST ===\n{smbclientResult.Stdout}\n{smbclientResult.Stderr}" +
+                             $"\n=== SAMBA AUTH LOG ===\n{sambaLogResult.Stdout}" +
+                             $"\n=== WINBIND USERS ===\n{winbindResult.Stdout}" +
                              $"\n=== CONTAINER LOGS ===\n{stdout}\n{stderr}";
 
         if (caughtException != null)
