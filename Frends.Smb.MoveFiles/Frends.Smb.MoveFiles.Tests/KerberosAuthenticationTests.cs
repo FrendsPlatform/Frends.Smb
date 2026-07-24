@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DotNet.Testcontainers.Builders;
 using Frends.Smb.MoveFiles.Definitions;
+using Frends.Smb.MoveFiles.Helpers;
 using NUnit.Framework;
 
 namespace Frends.Smb.MoveFiles.Tests;
@@ -80,6 +81,8 @@ public class KerberosAuthenticationTests
         TestContext.WriteLine($"hosts update exit code: {process.ExitCode}");
         TestContext.WriteLine(await process.StandardError.ReadToEndAsync());
 
+        await adDcContainer.ExecAsync(["sh", "-c",
+            "sed -i 's/log level = 3/log level = 3 auth:10 auth_audit:10/' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
     }
 
@@ -136,6 +139,14 @@ public class KerberosAuthenticationTests
 
         Exception caughtException = null;
         Result result = null;
+
+        using (var authClient = new KerberosNetAuthenticationClient(
+            "TEST.LOCAL", "testuser", password, "DC1.test.local"))
+        {
+            byte[] token = authClient.InitializeSecurityContext(null);
+            TestContext.WriteLine($"Token length: {token.Length}, first bytes: {BitConverter.ToString(token, 0, Math.Min(20, token.Length))}");
+        }
+
         try
         {
             result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
