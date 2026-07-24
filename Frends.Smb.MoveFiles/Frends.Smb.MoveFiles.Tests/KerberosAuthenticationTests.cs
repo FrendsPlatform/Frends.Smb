@@ -133,7 +133,6 @@ public class KerberosAuthenticationTests
         TestContext.WriteLine("=== DOMAIN ADMINS ===");
         TestContext.WriteLine(groupResult.Stdout);
 
-
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
