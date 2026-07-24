@@ -120,13 +120,25 @@ public class KerberosAuthenticationTests
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
 
-        var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        Exception caughtException = null;
+        Result result = null;
+
+        try
+        {
+            result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            caughtException = ex;
+        }
 
         var (stdout, stderr) = await adDcContainer.GetLogsAsync();
-        var logPath = Path.Combine(testFilesPath, "samba-logs.txt");
-        await File.WriteAllTextAsync(logPath, stdout + "\n" + stderr);
+        var sambaLogs = $"\n=== SAMBA LOGS ===\n{stdout}\n{stderr}";
 
-        Assert.That(result.Success, Is.True, $"{result.Error?.Message}\n=== SAMBA LOGS ===\n{stdout}\n{stderr}");
+        if (caughtException != null)
+            Assert.Fail($"MoveFiles threw exception: {caughtException.Message}{sambaLogs}");
+
+        Assert.That(result.Success, Is.True, $"{result?.Error?.Message}{sambaLogs}");
         Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
     }
 }
