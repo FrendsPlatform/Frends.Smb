@@ -31,9 +31,9 @@ internal static class SmbHandler
     }
 
     internal static void PrepareSmbConnection(
-        out SMB2Client client,
-        out ISMBFileStore fileStore,
-        Connection connection)
+    out SMB2Client client,
+    out ISMBFileStore fileStore,
+    Connection connection)
     {
         client = new SMB2Client();
         var (domain, username) = GetDomainAndUsername(connection.Username);
@@ -42,12 +42,25 @@ internal static class SmbHandler
         if (!connected)
             throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
-        var status = client.Login(domain, username, connection.Password);
+        string kerberosServer = string.IsNullOrWhiteSpace(connection.KerberosServerName)
+            ? connection.Server
+            : connection.KerberosServerName;
 
-        if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"SMB login failed: {status}");
+        NTStatus status = connection.AuthenticationMode == AuthenticationMode.Kerberos
+            ? client.Login(new KerberosNetAuthenticationClient(
+                domain,
+                username,
+                connection.Password,
+                kerberosServer,
+                kdcAddress: connection.KdcAddress))
+            : client.Login(domain, username, connection.Password);
+
+        if (status != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"SMB login failed: {status}");
+
         fileStore = client.TreeConnect(connection.Share, out status);
-
-        if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
+        if (status != NTStatus.STATUS_SUCCESS)
+            throw new Exception($"Failed to connect to share: {status}");
     }
 
     internal static (List<FileItem> copied, List<FileFailure> failures) CopyFiles(
