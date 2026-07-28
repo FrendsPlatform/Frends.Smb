@@ -69,7 +69,7 @@ public class KerberosAuthenticationTests
             FileName = "sudo",
             Arguments = "bash -c \"echo '127.0.0.1 DC1.test.local DC1' >> /etc/hosts\"",
             UseShellExecute = false,
-        }) !.WaitForExitAsync();
+        })!.WaitForExitAsync();
 
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
     }
