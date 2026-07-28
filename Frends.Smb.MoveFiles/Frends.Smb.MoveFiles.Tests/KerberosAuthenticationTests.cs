@@ -64,12 +64,13 @@ public class KerberosAuthenticationTests
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i '/\\[global\\]/a\\        server signing = auto\\n        server smb encrypt = off' /usr/local/samba/etc/smb.conf"]);
 
-        await System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        var hostsProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = "sudo",
             Arguments = "bash -c \"echo '127.0.0.1 DC1.test.local DC1' >> /etc/hosts\"",
             UseShellExecute = false,
-        })!.WaitForExitAsync();
+        });
+        await hostsProcess!.WaitForExitAsync();
 
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
     }
@@ -129,6 +130,8 @@ public class KerberosAuthenticationTests
     public void MoveFiles_Kerberos_WrongPassword_Fails()
     {
         connection.Password = "WrongPassword123!";
+        input = new Input { SourcePath = "source/missing.txt", TargetPath = "target" };
+        options.ThrowErrorOnFailure = false;
 
         var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 

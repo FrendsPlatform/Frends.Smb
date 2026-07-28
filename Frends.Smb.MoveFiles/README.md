@@ -36,8 +36,10 @@ To execute the tests, you can either:
 After that you can start up Docker run tests with: `dotnet test`.
 The tests will automatically start a temporary Samba container and mount test files for reading.
 
-The Kerberos tests (`KerberosAuthenticationTests`) require `--network=host` Docker support and will only run correctly on a native Linux machine or GitHub Actions (`ubuntu-latest`).
-They will fail on Windows and WSL2 due to Docker Desktop not supporting `--network=host`.
+The Kerberos tests (`KerberosAuthenticationTests`) require the following to run correctly:
+
+- Native Linux machine or GitHub Actions (`ubuntu-latest`)
+- Docker with host networking enabled
 
 ### Create a NuGet package
 
