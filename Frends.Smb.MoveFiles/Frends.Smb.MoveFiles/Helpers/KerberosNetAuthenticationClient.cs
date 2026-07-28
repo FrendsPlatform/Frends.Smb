@@ -12,6 +12,7 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
     private readonly KerberosPasswordCredential credential;
     private readonly string spn;
     private byte[] sessionKey;
+    private bool authenticated;
 
     internal KerberosNetAuthenticationClient(
         string domain,
@@ -36,7 +37,11 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
     /// <returns>The initial token to be sent to the server.</returns>
     public byte[] InitializeSecurityContext(byte[] inputToken)
     {
-        kerberosClient.Authenticate(credential).Wait();
+        if (!authenticated)
+        {
+            kerberosClient.Authenticate(credential).Wait();
+            authenticated = true;
+        }
 
         KrbApReq ticket = kerberosClient.GetServiceTicket(spn).GetAwaiter().GetResult();
         var cachedItem = (KerberosClientCacheEntry)kerberosClient.Cache.GetCacheItem(spn);

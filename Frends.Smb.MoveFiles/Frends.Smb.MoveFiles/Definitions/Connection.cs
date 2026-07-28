@@ -57,11 +57,12 @@ public class Connection
     /// <summary>
     /// Hostname used to build the Kerberos SPN (cifs/hostname) when AuthenticationMode is Kerberos.
     /// Falls back to Server when not set. Only needed when the address used for the TCP
-    /// connection differs from the server's registered Kerberos identity - e.g. in tests,
+    /// connection differs from the server's registered Kerberos identity - e.g.
     /// where you connect via a mapped IP/port but the AD-registered name is something else.
     /// </summary>
     /// <example>DC1.test.local</example>
     [DisplayFormat(DataFormatString = "Text")]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos)]
     public string KerberosServerName { get; set; }
 
     /// <summary>
