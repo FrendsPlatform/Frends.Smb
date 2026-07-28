@@ -1,11 +1,10 @@
-﻿using DotNet.Testcontainers.Builders;
-using Frends.Smb.CreateDirectory.Definitions;
-using NUnit.Framework;
-using Org.BouncyCastle.Asn1.Ocsp;
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using DotNet.Testcontainers.Builders;
+using Frends.Smb.CreateDirectory.Definitions;
+using NUnit.Framework;
 
 namespace Frends.Smb.CreateDirectory.Tests;
 
@@ -109,7 +108,8 @@ public class KerberosAuthenticationTests
     public void Cleanup()
     {
         if (!Directory.Exists(testFilesPath)) return;
-        Directory.Delete(testFilesPath);
+        foreach (var entry in Directory.GetFileSystemEntries(testFilesPath))
+            Directory.Delete(entry, true);
     }
 
     [Test]

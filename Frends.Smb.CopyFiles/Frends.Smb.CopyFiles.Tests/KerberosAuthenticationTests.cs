@@ -128,10 +128,11 @@ public class KerberosAuthenticationTests
     }
 
     [Test]
-    public void CopyFiles_Kerberos_WrongPassword_Fails()
+    public async Task CopyFiles_Kerberos_WrongPassword_Fails()
     {
+        await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos working?");
         connection.Password = "WrongPassword123!";
-        input = new Input { SourcePath = "source/missing.txt", TargetPath = "target" };
+        input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
         options.ThrowErrorOnFailure = false;
 
         var result = Smb.CopyFiles(input, connection, options, CancellationToken.None);

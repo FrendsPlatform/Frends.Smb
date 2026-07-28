@@ -21,6 +21,10 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
         string server,
         string kdcAddress = null)
     {
+        if (string.IsNullOrWhiteSpace(domain))
+            throw new ArgumentException("Kerberos authentication requires the username in 'DOMAIN\\user' form (realm cannot be empty).", nameof(domain));
+        if (string.IsNullOrWhiteSpace(server))
+            throw new ArgumentException("Kerberos authentication requires a server name for the CIFS SPN.", nameof(server));
         kerberosClient = new KerberosClient();
 
         if (!string.IsNullOrEmpty(kdcAddress))
