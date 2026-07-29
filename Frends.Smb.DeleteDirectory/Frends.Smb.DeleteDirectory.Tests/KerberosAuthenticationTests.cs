@@ -119,14 +119,15 @@ public class KerberosAuthenticationTests
         var result = Smb.DeleteDirectory(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.True, result.Error?.Message);
-        Assert.That(File.Exists(Path.Combine(testFilesPath, "target", "single.txt")), Is.True);
-        Assert.That(File.Exists(Path.Combine(testFilesPath, "source", "single.txt")), Is.True);
+        Assert.That(Directory.Exists(Path.Combine(testFilesPath, dirPath)), Is.False);
     }
 
     [Test]
     public void DeleteDirector_Kerberos_WrongPassword_Fails()
     {
         var dirPath = Path.Combine("oldDir", "subDir");
+        Directory.CreateDirectory(Path.Combine(testFilesPath, dirPath));
+
         input = new Input { DirectoryPath = dirPath };
         connection.Password = "WrongPassword123!";
         options.ThrowErrorOnFailure = false;
