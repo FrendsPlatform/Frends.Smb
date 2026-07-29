@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <LangVersion>latest</LangVersion>
-        <Version>2.3.0</Version>
+        <Version>2.4.0</Version>
         <Authors>Frends</Authors>
         <Copyright>Copyright (c) 2025 Frends EiPaaS</Copyright>
         <Company>Frends</Company>
@@ -17,7 +17,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="SMBLibrary" Version="1.5.4.1"/>
+        <PackageReference Include="Kerberos.NET" Version="4.6.146" />
+        <PackageReference Include="SMBLibrary" Version="1.5.4.1" />
         <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
