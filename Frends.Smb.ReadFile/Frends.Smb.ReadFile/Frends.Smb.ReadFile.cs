@@ -66,7 +66,7 @@ public static class Smb
 
         Encoding encoding = GetEncoding(options.FileEncoding, options.EnableBom, options.EncodingInString);
 
-        var (domain, user) = GetDomainAndUsername(connection.UserName);
+        var (domain, username) = GetDomainAndUsername(connection.UserName);
 
         SMB2Client client = new();
 
@@ -79,10 +79,27 @@ public static class Smb
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            NTStatus loginStatus = client.Login(domain, user, connection.Password);
+            string kerberosServer = string.IsNullOrWhiteSpace(connection.KerberosServerName)
+            ? connection.Server
+            : connection.KerberosServerName;
+            NTStatus status;
+            if (connection.AuthenticationMode == AuthenticationMode.Kerberos)
+            {
+                using var authenticationClient = new KerberosNetAuthenticationClient(
+                    domain,
+                    username,
+                    connection.Password,
+                    kerberosServer,
+                    kdcAddress: connection.KdcAddress);
+                status = client.Login(authenticationClient);
+            }
+            else
+            {
+                status = client.Login(domain, username, connection.Password);
+            }
 
-            if (loginStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"SMB login failed: {loginStatus}");
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"SMB login failed: {status}");
 
             ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
 

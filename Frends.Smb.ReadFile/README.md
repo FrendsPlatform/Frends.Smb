@@ -36,6 +36,11 @@ To execute the tests, you can either:
 After that you can start up Docker run tests with: `dotnet test`.
 The tests will automatically start a temporary Samba container and mount test files for reading.
 
+The Kerberos tests (`KerberosAuthenticationTests`) require the following to run correctly:
+ 
+- Native Linux machine or GitHub Actions (`ubuntu-latest`)
+- Docker with host networking enabled
+
 ### Create a NuGet package
 
 `dotnet pack --configuration Release`
