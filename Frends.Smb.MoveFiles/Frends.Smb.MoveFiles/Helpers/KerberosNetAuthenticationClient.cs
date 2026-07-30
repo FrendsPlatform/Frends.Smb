@@ -21,6 +21,11 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
         string server,
         string kdcAddress = null)
     {
+        if (string.IsNullOrWhiteSpace(domain))
+            throw new ArgumentException("Kerberos authentication requires the username in 'DOMAIN\\user' form (realm cannot be empty).", nameof(domain));
+        if (string.IsNullOrWhiteSpace(server))
+            throw new ArgumentException("Kerberos authentication requires a server name for the CIFS SPN.", nameof(server));
+
         kerberosClient = new KerberosClient();
 
         if (!string.IsNullOrEmpty(kdcAddress))
@@ -39,12 +44,17 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
     {
         if (!authenticated)
         {
-            kerberosClient.Authenticate(credential).Wait();
+            kerberosClient.Authenticate(credential).GetAwaiter().GetResult();
             authenticated = true;
         }
 
         KrbApReq ticket = kerberosClient.GetServiceTicket(spn).GetAwaiter().GetResult();
-        var cachedItem = (KerberosClientCacheEntry)kerberosClient.Cache.GetCacheItem(spn);
+
+        if (kerberosClient.Cache.GetCacheItem(spn) is not KerberosClientCacheEntry cachedItem)
+        {
+            throw new InvalidOperationException($"Cache entry for SPN '{spn}' was not found or the entry is of an invalid type.");
+        }
+
         sessionKey = cachedItem.SessionKey.KeyValue.ToArray();
         return ticket.EncodeGssApi().ToArray();
     }
