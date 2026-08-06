@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.4.0] - 2026-07-27
+
+### Added
+
+- Added Kerberos authentication support for SMB connections
+  - New `Connection.AuthenticationMode` property with `Ntlm` (default) and `Kerberos` options
+  - New `Connection.KerberosServerName` property for specifying the Kerberos SPN hostname when it differs from the TCP connection address
+  - New `Connection.KdcAddress` property for explicit KDC address when DNS SRV discovery is unavailable
+  - `KerberosNetAuthenticationClient` internally handles TGT acquisition, service ticket retrieval, and GSS-API token generation using the Kerberos.NET library
+
 ## [2.3.0] - 2026-07-20
 
 ### Fixed

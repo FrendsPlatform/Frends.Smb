@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -72,24 +71,40 @@ public static class Smb
         if (targetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
 
-        var (domain, user) = GetDomainAndUsername(connection.Username);
+        var (domain, username) = GetDomainAndUsername(connection.Username);
 
         SMB2Client client = new();
+        ISMBFileStore fileStore = null;
 
         try
         {
             bool connected = client.Connect(connection.Server, SMBTransportType.DirectTCPTransport);
-
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
-            NTStatus loginStatus = client.Login(domain, user, connection.Password);
+            string kerberosServer = string.IsNullOrWhiteSpace(connection.KerberosServerName)
+             ? connection.Server
+             : connection.KerberosServerName;
+            NTStatus status;
+            if (connection.AuthenticationMode == AuthenticationMode.Kerberos)
+            {
+                using var authenticationClient = new KerberosNetAuthenticationClient(
+                    domain,
+                    username,
+                    connection.Password,
+                    kerberosServer,
+                    kdcAddress: connection.KdcAddress);
+                status = client.Login(authenticationClient);
+            }
+            else
+            {
+                status = client.Login(domain, username, connection.Password);
+            }
 
-            if (loginStatus != NTStatus.STATUS_SUCCESS)
-                throw new Exception($"SMB login failed: {loginStatus}");
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"SMB login failed: {status}");
 
-            ISMBFileStore fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
-
+            fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
             if (treeStatus != NTStatus.STATUS_SUCCESS)
                 throw new Exception($"Failed to connect to share '{connection.Share}': {treeStatus}");
 

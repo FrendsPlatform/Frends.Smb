@@ -55,10 +55,32 @@ public static class Smb
             if (!connected)
                 throw new Exception($"Failed to connect to SMB server: {connection.Server}");
 
-            NTStatus status = client.Login(domain, username, connection.Password);
-            if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"SMB login failed: {status}");
-            fileStore = client.TreeConnect(connection.Share, out status);
-            if (status != NTStatus.STATUS_SUCCESS) throw new Exception($"Failed to connect to share: {status}");
+            string kerberosServer = string.IsNullOrWhiteSpace(connection.KerberosServerName)
+            ? connection.Server
+            : connection.KerberosServerName;
+            NTStatus status;
+            if (connection.AuthenticationMode == AuthenticationMode.Kerberos)
+            {
+                using var authenticationClient = new KerberosNetAuthenticationClient(
+                    domain,
+                    username,
+                    connection.Password,
+                    kerberosServer,
+                    kdcAddress: connection.KdcAddress);
+                status = client.Login(authenticationClient);
+            }
+            else
+            {
+                status = client.Login(domain, username, connection.Password);
+            }
+
+            if (status != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"SMB login failed: {status}");
+
+            fileStore = client.TreeConnect(connection.Share, out NTStatus treeStatus);
+
+            if (treeStatus != NTStatus.STATUS_SUCCESS)
+                throw new Exception($"Failed to connect to share '{connection.Share}': {treeStatus}");
 
             var localMemoryStream = new MemoryStream(input.Content);
             long writeOffset = 0;
