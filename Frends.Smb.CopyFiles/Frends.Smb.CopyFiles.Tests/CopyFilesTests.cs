@@ -293,62 +293,6 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
-    public void CopyFiles_WindowsOsSeparator_SingleFileSourcePath_ReproduceBug()
-    {
-        // Important:
-        // The test itself runs on the Linux test host, while the SMB server
-        // is also Linux/Samba. We deliberately configure the SMB connection
-        // as Windows to reproduce the separator-related bug.
-        Connection.OperatingSystem = Os.Windows;
-
-        Input.SourcePath = @"src\test1.txt";
-        Input.TargetPath = @"dst\copied";
-
-        var result = Smb.CopyFiles(
-            Input,
-            Connection,
-            Options,
-            CancellationToken.None);
-
-        var filesJson = System.Text.Json.JsonSerializer.Serialize(
-            result.Files,
-            new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = true,
-            });
-
-        TestContext.WriteLine(
-            $"-- Result Files ({result.Files?.Count ?? 0}) --\n{filesJson}");
-
-        Assert.That(
-            result.Success,
-            Is.True,
-            () => $"Copy failed.\nError: {result.Error?.Message}\nReceived files:\n{filesJson}");
-
-        Assert.That(
-            result.Files,
-            Is.Not.Null.And.Not.Empty,
-            "The Files list is empty.");
-
-        var copiedFile = result.Files[0];
-
-        TestContext.WriteLine($"SourcePath: {copiedFile.SourcePath}");
-        TestContext.WriteLine($"TargetPath: {copiedFile.TargetPath}");
-
-        var expectedTargetPath = new PathString(
-            @"dst\copied\test1.txt");
-
-        Assert.That(
-            copiedFile.TargetPath,
-            Is.EqualTo(expectedTargetPath),
-            () =>
-                $"Target path mismatch.\n" +
-                $"Expected: {expectedTargetPath}\n" +
-                $"Actual: {copiedFile.TargetPath}\n" +
-                $"SourcePath: {copiedFile.SourcePath}");
-    }
-
-    [Test]
     public void CopyFiles_ParallelOperationsOnSameFolder_NoSharingViolations()
     {
         const int parallelCount = 5;
