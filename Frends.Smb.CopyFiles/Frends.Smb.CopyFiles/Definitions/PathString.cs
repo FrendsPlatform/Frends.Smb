@@ -152,8 +152,7 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     {
         if (string.IsNullOrEmpty(path)) return string.Empty;
         int index = path.Value.LastIndexOf(GetSeparatorChar());
-        return index < 0 ? path.Value : path.Value[(index + 1)
-            ..];
+        return index < 0 ? path.Value : path.Value[(index + 1) ..];
     }
 
     /// <summary>
