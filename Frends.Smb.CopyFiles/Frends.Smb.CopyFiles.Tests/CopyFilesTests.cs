@@ -293,6 +293,27 @@ public class CopyFilesTests : SmbTestBase
     }
 
     [Test]
+    public void CopyFiles_WindowsOsSeparator_SingleFileSourcePath_ReproduceBug()
+    {
+        Connection.OperatingSystem = Os.Windows;
+
+        Input.SourcePath = @"src\test1.txt";
+        Input.TargetPath = @"dst\copied";
+
+        var result = Smb.CopyFiles(Input, Connection, Options, CancellationToken.None);
+
+        var filesJson = System.Text.Json.JsonSerializer.Serialize(result.Files, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        TestContext.WriteLine($"-- Result Files ({result.Files?.Count ?? 0}) --\n{filesJson}");
+
+        Assert.That(result.Success, Is.True, () => $"Error: {result.Error?.Message}\nReceived files:\n{filesJson}");
+
+        var expectedTargetPath = new PathString(@"dst\copied\test1.txt");
+
+        Assert.That(result.Files, Is.Not.Null.And.Not.Empty, "The Files list is empty.");
+        Assert.That(result.Files[0].TargetPath, Is.EqualTo(expectedTargetPath), () => $"Target path mismatch.\nSourcePath: {result.Files[0].SourcePath}\nTargetPath: {result.Files[0].TargetPath}");
+    }
+
+    [Test]
     public void CopyFiles_ParallelOperationsOnSameFolder_NoSharingViolations()
     {
         const int parallelCount = 5;
