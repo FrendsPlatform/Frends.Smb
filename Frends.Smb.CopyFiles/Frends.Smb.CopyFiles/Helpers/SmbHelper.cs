@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
@@ -309,9 +308,9 @@ internal static class SmbHandler
                 switch (fileExistsAction)
                 {
                     case FileExistsAction.Overwrite:
-                        PathString dstFileName = Path.GetFileName(dstPath);
-                        PathString tempName = Path.Combine(
-                            Path.GetDirectoryName(dstPath) ?? string.Empty,
+                        PathString dstFileName = PathString.GetFileName(dstPath);
+                        PathString tempName = PathString.Combine(
+                            PathString.GetDirectoryName(dstPath) ?? string.Empty,
                             $"temp-{Guid.NewGuid().ToString()}-{dstFileName}");
                         var rename = new FileRenameInformationType2 { ReplaceIfExists = false, FileName = tempName };
                         status = dstStore.SetFileInformation(dstHandle, rename);
@@ -376,9 +375,9 @@ internal static class SmbHandler
 
     private static PathString GenerateUniqueFilePath(ISMBFileStore fileStore, PathString path)
     {
-        PathString directory = Path.GetDirectoryName(path);
-        PathString baseFileName = Path.GetFileNameWithoutExtension(path);
-        PathString extension = Path.GetExtension(path);
+        PathString directory = PathString.GetDirectoryName(path);
+        PathString baseFileName = PathString.GetFileNameWithoutExtension(path);
+        PathString extension = PathString.GetExtension(path);
 
         int counter = 1;
 
@@ -418,7 +417,7 @@ internal static class SmbHandler
 
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
-        PathString directory = Path.GetDirectoryName(smbFullPath);
+        PathString directory = PathString.GetDirectoryName(smbFullPath);
 
         if (string.IsNullOrEmpty(directory)) return;
 
@@ -478,9 +477,9 @@ internal static class SmbHandler
     {
         PathString pathSuffix = preserveStructure
             ? sourceFile.RelativeFilePath.Value
-            : Path.GetFileName(sourceFile.FilePath);
+            : PathString.GetFileName(sourceFile.FilePath);
 
-        return Path.Combine(destinationRoot, pathSuffix);
+        return PathString.Combine(destinationRoot, pathSuffix);
     }
 
     private static List<SourceFileInfo> GetSourceFiles(
@@ -497,7 +496,7 @@ internal static class SmbHandler
         if (TryOpenFileToRead(fileStore, sourcePath, out object fileHandle))
         {
             fileStore.CloseFile(fileHandle);
-            if (MatchesPattern(Path.GetFileName(sourcePath), pattern, patternMatchingMode))
+            if (MatchesPattern(PathString.GetFileName(sourcePath), pattern, patternMatchingMode))
                 result.Add(new SourceFileInfo(sourcePath, sourcePath));
 
             return result;
@@ -552,7 +551,7 @@ internal static class SmbHandler
                 if (name == "." || name == "..")
                     continue;
 
-                PathString fullPath = Path.Combine(directoryPath, name);
+                PathString fullPath = PathString.Combine(directoryPath, name);
 
                 if (IsDirectory(e) && recursive)
                     CollectFiles(fileStore, fullPath, true, pattern, mode, output, initialSourcePath, token);

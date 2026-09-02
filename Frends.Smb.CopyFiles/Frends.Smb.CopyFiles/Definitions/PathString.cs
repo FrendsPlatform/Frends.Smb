@@ -141,6 +141,61 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     internal static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
 
     /// <summary>
+    /// Returns the file name portion of the given path using the separator configured
+    /// via <see cref="Setup"/>, instead of relying on System.IO.Path (whose separator
+    /// recognition depends on the OS the process is running on, not on the configured
+    /// SMB server OS).
+    /// </summary>
+    internal static string GetFileName(PathString path)
+    {
+        if (string.IsNullOrEmpty(path)) return string.Empty;
+        int index = path.Value.LastIndexOf(GetSeparatorChar());
+        return index < 0 ? path.Value : path.Value[(index + 1)..];
+    }
+
+    /// <summary>
+    /// Returns the directory portion of the given path using the configured separator.
+    /// </summary>
+    internal static string GetDirectoryName(PathString path)
+    {
+        if (string.IsNullOrEmpty(path)) return string.Empty;
+        int index = path.Value.LastIndexOf(GetSeparatorChar());
+        return index < 0 ? string.Empty : path.Value[..index];
+    }
+
+    /// <summary>
+    /// Returns the file name without its extension, using the configured separator.
+    /// </summary>
+    internal static string GetFileNameWithoutExtension(PathString path)
+    {
+        string fileName = GetFileName(path);
+        int dotIndex = fileName.LastIndexOf('.');
+        return dotIndex <= 0 ? fileName : fileName[..dotIndex];
+    }
+
+    /// <summary>
+    /// Returns the extension (including the leading dot) of the given path.
+    /// </summary>
+    internal static string GetExtension(PathString path)
+    {
+        string fileName = GetFileName(path);
+        int dotIndex = fileName.LastIndexOf('.');
+        return dotIndex <= 0 ? string.Empty : fileName[dotIndex..];
+    }
+
+    /// <summary>
+    /// Combines two path segments using the configured separator.
+    /// </summary>
+    internal static string Combine(PathString path1, PathString path2)
+    {
+        string left = path1?.Value ?? string.Empty;
+        string right = path2?.Value ?? string.Empty;
+        if (string.IsNullOrEmpty(left)) return right;
+        if (string.IsNullOrEmpty(right)) return left;
+        return $"{left.TrimEnd(GetSeparatorChar())}{GetSeparatorChar()}{right.TrimStart(GetSeparatorChar())}";
+    }
+
+    /// <summary>
     /// Normalizes path separators in the input string.
     /// </summary>
     /// <param name="input">The path string to normalize.</param>

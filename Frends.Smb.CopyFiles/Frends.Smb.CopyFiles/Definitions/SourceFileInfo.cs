@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 
 namespace Frends.Smb.CopyFiles.Definitions;
 
@@ -32,7 +31,7 @@ internal class SourceFileInfo
         // Input.SourcePath is a file
         if (InitialPath == FilePath)
         {
-            return Path.GetFileName(FilePath);
+            return PathString.GetFileName(FilePath);
         }
 
         // Input.SourcePath == "" (root)
@@ -41,7 +40,7 @@ internal class SourceFileInfo
         // General case
         if (!FilePath.Value.StartsWith(InitialPath))
             throw new Exception($"File '{FilePath}' is not under source path '{InitialPath}'");
-        PathString lastDir = Path.GetFileName(InitialPath);
+        PathString lastDir = PathString.GetFileName(InitialPath);
         PathString leftover = FilePath.Value[InitialPath.Value.Length..];
         return $"{lastDir}{PathString.GetSeparatorChar()}{leftover.Value.Trim(PathString.GetSeparatorChar())}";
     }

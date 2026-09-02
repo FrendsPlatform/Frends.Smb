@@ -295,6 +295,8 @@ public class CopyFilesTests : SmbTestBase
     [Test]
     public void CopyFiles_WindowsOsSeparator_SingleFileSourcePath_ReproduceBug()
     {
+        Connection.OperatingSystem = Os.Windows;
+
         Input.SourcePath = @"src\test1.txt";
         Input.TargetPath = @"dst\copied";
 
