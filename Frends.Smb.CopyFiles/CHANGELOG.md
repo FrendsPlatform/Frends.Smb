@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.6.0] - 2026-09-03
+
+### Fixed
+
+- Fixed SMB path handling to use the configured OperatingSystem.
+
 ## [2.5.0] - 2026-07-27
 
 ### Added
