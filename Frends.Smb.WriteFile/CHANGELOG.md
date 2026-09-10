@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.5.0] - 2026-09-09
+
+### Fixed
+
+- Adjusted access permissions to prevent sharing violations for directories and added synchronous I/O flags to file creation.
+
 ## [2.4.0] - 2026-07-27
 
 ### Added

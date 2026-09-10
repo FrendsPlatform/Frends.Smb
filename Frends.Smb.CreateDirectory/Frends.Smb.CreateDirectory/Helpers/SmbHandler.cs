@@ -88,7 +88,7 @@ internal static class SmbHandler
                 current,
                 GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Write, // ShareAccess.Write: allows parallel tasks to create the same directory concurrently without sharing violations.
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
