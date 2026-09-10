@@ -578,7 +578,7 @@ internal static class SmbHandler
             path,
             AccessMask.GENERIC_READ,
             isDirectory ? FileAttributes.Directory : FileAttributes.Normal,
-            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            isDirectory ? ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete : ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             isDirectory ? CreateOptions.FILE_DIRECTORY_FILE : CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);

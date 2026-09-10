@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Adjusted access permissions to prevent sharing violations for directories andd added null check on directory handles.
+- Adjusted access permissions to prevent sharing violations for directories and added null check on directory handles.
 
 ## [2.5.0] - 2026-07-27
 
