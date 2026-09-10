@@ -1,14 +1,12 @@
-﻿using Frends.Smb.CopyFiles.Definitions;
-using SMBLibrary;
-using SMBLibrary.Client;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Reflection.Metadata;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Frends.Smb.CopyFiles.Definitions;
+using SMBLibrary;
+using SMBLibrary.Client;
 using FileAttributes = SMBLibrary.FileAttributes;
 
 namespace Frends.Smb.CopyFiles.Helpers;
