@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.6.0] - 2026-09-09
+
+### Fixed
+
+- Adjusted access permissions to prevent sharing violations for directories and added null check on directory handles.
+
 ## [2.5.0] - 2026-07-27
 
 ### Added
