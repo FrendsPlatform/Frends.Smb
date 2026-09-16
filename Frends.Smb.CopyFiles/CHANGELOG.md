@@ -1,10 +1,16 @@
 # Changelog
 
-## [2.6.0] - 2026-09-03
+## [2.7.0] - 2026-09-16
 
 ### Fixed
 
-- Fixed SMB path handling to use the configured OperatingSystem.
+- Use the configured SeparatorCharacter when resolving SMB paths.
+
+## [2.6.0] - 2026-09-09
+
+### Fixed
+
+- Adjusted access permissions to prevent sharing violations for directories and added null check on directory handles.
 
 ## [2.5.0] - 2026-07-27
 

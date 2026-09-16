@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Frends.Smb.CopyFiles.Definitions;
@@ -427,7 +426,7 @@ internal static class SmbHandler
             directory,
             AccessMask.SYNCHRONIZE | AccessMask.GENERIC_WRITE,
             FileAttributes.Directory,
-            ShareAccess.Read,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
             CreateDisposition.FILE_OPEN_IF,
             CreateOptions.FILE_DIRECTORY_FILE,
             null);
@@ -454,7 +453,7 @@ internal static class SmbHandler
                 current,
                 AccessMask.SYNCHRONIZE | AccessMask.GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Read,
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
@@ -466,7 +465,8 @@ internal static class SmbHandler
                 throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
             }
 
-            fileStore.CloseFile(segmentHandle);
+            if (segmentHandle != null)
+                fileStore.CloseFile(segmentHandle);
         }
     }
 
@@ -577,7 +577,7 @@ internal static class SmbHandler
             path,
             AccessMask.GENERIC_READ,
             isDirectory ? FileAttributes.Directory : FileAttributes.Normal,
-            ShareAccess.Read,
+            isDirectory ? ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete : ShareAccess.Read,
             CreateDisposition.FILE_OPEN,
             isDirectory ? CreateOptions.FILE_DIRECTORY_FILE : CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);

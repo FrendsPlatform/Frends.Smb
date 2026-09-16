@@ -91,11 +91,11 @@ public static class Smb
                 out var fileHandle,
                 out var fileStatus,
                 destinationPath,
-                GENERIC_WRITE,
+                SYNCHRONIZE | GENERIC_WRITE,
                 FileAttributes.Normal,
                 ShareAccess.Read,
                 disposition,
-                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
 
             if (status != NTStatus.STATUS_SUCCESS)
@@ -188,7 +188,7 @@ public static class Smb
                 current,
                 GENERIC_WRITE,
                 FileAttributes.Directory,
-                ShareAccess.Write, // ShareAccess.Write: allows parallel tasks to create the same directory concurrently without sharing violations.
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
                 CreateDisposition.FILE_OPEN_IF,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
