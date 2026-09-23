@@ -74,4 +74,14 @@ public class Connection
     [DisplayFormat(DataFormatString = "Text")]
     [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos)]
     public string KdcAddress { get; set; }
+
+    /// <summary>
+    /// Path to a Kerberos ticket cache (ccache) file to use for authentication when
+    /// AuthenticationMode is KerberosTicketCache. The file must already contain a valid
+    /// ticket-granting ticket (e.g. created via kinit).
+    /// </summary>
+    /// <example>/tmp/krb5cc_testuser</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.KerberosTicketCache)]
+    public string KerberosCacheFile { get; set; }
 }

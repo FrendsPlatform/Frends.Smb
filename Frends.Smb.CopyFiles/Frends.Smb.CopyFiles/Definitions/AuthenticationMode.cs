@@ -14,4 +14,9 @@ public enum AuthenticationMode
     /// Kerberos authentication protocol.
     /// </summary>
     Kerberos,
+
+    /// <summary>
+    /// Kerberos authentication protocol using a pre-existing ticket cache (ccache) file.
+    /// </summary>
+    KerberosTicketCache,
 }
