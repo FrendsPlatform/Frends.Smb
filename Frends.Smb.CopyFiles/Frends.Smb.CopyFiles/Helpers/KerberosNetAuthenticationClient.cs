@@ -63,7 +63,9 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
     /// Gets the session key for the Kerberos authentication.
     /// </summary>
     /// <returns>The session key as a byte array.</returns>
-    public byte[] GetSessionKey() => sessionKey;
+    public byte[] GetSessionKey() => sessionKey.Length > 16
+    ? sessionKey[..16]
+    : sessionKey;
 
     /// <summary>
     /// Disposes the Kerberos client and releases any resources.
