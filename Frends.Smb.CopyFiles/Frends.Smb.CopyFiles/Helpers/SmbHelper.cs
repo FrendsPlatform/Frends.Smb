@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -56,6 +57,12 @@ internal static class SmbHandler
         }
         else if (connection.AuthenticationMode == AuthenticationMode.KerberosTicketCache)
         {
+            Console.Error.WriteLine($"krbCacheFile: {connection.KerberosCacheFile}");
+            Console.Error.WriteLine($"krbDomain: {domain}");
+            Console.Error.WriteLine($"kerberosServer: {kerberosServer}");
+            Console.Error.WriteLine($"kdcAddress: {connection.KdcAddress}");
+            Console.Error.WriteLine($"ccache exists: {File.Exists(connection.KerberosCacheFile)}");
+
             using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
                 connection.KerberosCacheFile,
                 domain,
