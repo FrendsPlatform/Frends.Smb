@@ -23,6 +23,7 @@ public class KerberosAuthenticationTests
     private Options options;
     private DotNet.Testcontainers.Containers.IContainer adDcContainer;
     private string testFilesPath;
+    private string kerberosCacheDirectory;
     private string kerberosCacheHostPath;
 
     [OneTimeSetUp]
@@ -33,7 +34,9 @@ public class KerberosAuthenticationTests
         Directory.CreateDirectory(Path.Combine(testFilesPath, "source"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "target"));
 
-        var kerberosCacheDirectory = Path.Combine(testFilesPath, "kcache");
+        // Kept outside testFilesPath so the per-test Cleanup() (which recursively deletes
+        // everything under testFilesPath) does not remove the ccache file between tests.
+        kerberosCacheDirectory = Path.Combine(TestContext.CurrentContext.TestDirectory, $"kcache-kerberos-{Guid.NewGuid()}");
         Directory.CreateDirectory(kerberosCacheDirectory);
         kerberosCacheHostPath = Path.Combine(kerberosCacheDirectory, "krb5cc_testuser");
 
@@ -101,6 +104,9 @@ public class KerberosAuthenticationTests
             await adDcContainer.DisposeAsync();
 
         Directory.Delete(testFilesPath, true);
+
+        if (Directory.Exists(kerberosCacheDirectory))
+            Directory.Delete(kerberosCacheDirectory, true);
     }
 
     [SetUp]
@@ -167,7 +173,7 @@ public class KerberosAuthenticationTests
         await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "single.txt"), "is Kerberos ticket cache working?");
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
-        connection.KerberosCacheFile = Path.Combine(testFilesPath, "kcache", "nonexistent_krb5cc");
+        connection.KerberosCacheFile = Path.Combine(kerberosCacheDirectory, "nonexistent_krb5cc");
         options.ThrowErrorOnFailure = false;
 
         var result = Smb.CopyFiles(input, connection, options, CancellationToken.None);
