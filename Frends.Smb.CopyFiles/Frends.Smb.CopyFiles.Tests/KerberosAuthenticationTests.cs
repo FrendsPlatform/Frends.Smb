@@ -94,12 +94,20 @@ public class KerberosAuthenticationTests
 
         Environment.SetEnvironmentVariable("KRB5_CONFIG", krb5ConfPath);
 
+        var kinitResult = await adDcContainer.ExecAsync(["sh", "-c",
+    $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && klist -c /kcache/krb5cc_testuser"]);
+
+        Console.Error.WriteLine($"kinit stdout: {kinitResult.Stdout}");
+        Console.Error.WriteLine($"kinit stderr: {kinitResult.Stderr}");
+        Console.Error.WriteLine($"ccache exists on host: {File.Exists(kerberosCacheHostPath)}");
+        Console.Error.WriteLine($"ccache size on host: {new FileInfo(kerberosCacheHostPath).Length} bytes");
+
         var confContent = await File.ReadAllTextAsync(krb5ConfPath);
-        TestContext.WriteLine($"krb5.conf:\n{confContent}");
-        TestContext.WriteLine($"ccache exists: {File.Exists(kerberosCacheHostPath)}");
-        TestContext.WriteLine($"ccache size: {new FileInfo(kerberosCacheHostPath).Length} bytes");
-        TestContext.WriteLine($"KRB5_CONFIG: {Environment.GetEnvironmentVariable("KRB5_CONFIG")}");
-        TestContext.WriteLine($"KRB5CCNAME: {Environment.GetEnvironmentVariable("KRB5CCNAME")}");
+        Console.Error.WriteLine($"krb5.conf:\n{confContent}");
+        Console.Error.WriteLine($"ccache exists: {File.Exists(kerberosCacheHostPath)}");
+        Console.Error.WriteLine($"ccache size: {new FileInfo(kerberosCacheHostPath).Length} bytes");
+        Console.Error.WriteLine($"KRB5_CONFIG: {Environment.GetEnvironmentVariable("KRB5_CONFIG")}");
+        Console.Error.WriteLine($"KRB5CCNAME: {Environment.GetEnvironmentVariable("KRB5CCNAME")}");
     }
 
     [OneTimeTearDown]
@@ -211,7 +219,7 @@ public class KerberosAuthenticationTests
 
         authClient.InitializeSecurityContext(null);
 
-        TestContext.WriteLine($"Session key length: {authClient.SessionKeyLength} bytes");
+        Console.Error.WriteLine($"Session key length: {authClient.SessionKeyLength} bytes");
         Assert.Pass($"Session key length: {authClient.SessionKeyLength} bytes");
     }
 }
