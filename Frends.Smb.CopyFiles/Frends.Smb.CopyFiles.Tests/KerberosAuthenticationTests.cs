@@ -34,8 +34,6 @@ public class KerberosAuthenticationTests
         Directory.CreateDirectory(Path.Combine(testFilesPath, "source"));
         Directory.CreateDirectory(Path.Combine(testFilesPath, "target"));
 
-        // Kept outside testFilesPath so the per-test Cleanup() (which recursively deletes
-        // everything under testFilesPath) does not remove the ccache file between tests.
         kerberosCacheDirectory = Path.Combine(TestContext.CurrentContext.TestDirectory, $"kcache-kerberos-{Guid.NewGuid()}");
         Directory.CreateDirectory(kerberosCacheDirectory);
         kerberosCacheHostPath = Path.Combine(kerberosCacheDirectory, "krb5cc_testuser");
@@ -84,17 +82,8 @@ public class KerberosAuthenticationTests
 
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
 
-        var kinitResult = await adDcContainer.ExecAsync(["sh", "-c",
+        await adDcContainer.ExecAsync(["sh", "-c",
             $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && chmod 666 /kcache/krb5cc_testuser && klist -c /kcache/krb5cc_testuser"]);
-
-        if (kinitResult.ExitCode != 0)
-        {
-            throw new Exception(
-                $"kinit failed with exit code {kinitResult.ExitCode}.{Environment.NewLine}" +
-                $"Stdout: {kinitResult.Stdout}{Environment.NewLine}Stderr: {kinitResult.Stderr}");
-        }
-
-        Console.Error.WriteLine($"kinit succeeded. Stdout: {kinitResult.Stdout}");
     }
 
     [OneTimeTearDown]
@@ -192,25 +181,5 @@ public class KerberosAuthenticationTests
         var result = Smb.CopyFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
-    }
-
-    [Test]
-    public async Task Debug_SessionKeyLength()
-    {
-        await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "debug.txt"), "debug");
-        input = new Input { SourcePath = "source/debug.txt", TargetPath = "target" };
-
-        using var authClient = new KerberosNetAuthenticationClient(
-            domain: "TEST.LOCAL",
-            username: "testuser",
-            password: "Passw0rd123!",
-            server: "DC1.test.local",
-            kdcAddress: "127.0.0.1:88");
-
-        authClient.InitializeSecurityContext(null);
-
-        Console.Error.WriteLine($"Session key length (raw): {authClient.SessionKeyLength} bytes");
-        Console.Error.WriteLine($"Signing key length (after truncation): {authClient.SigningKeyLength} bytes");
-        Assert.Pass($"Raw: {authClient.SessionKeyLength}, Signing: {authClient.SigningKeyLength}");
     }
 }

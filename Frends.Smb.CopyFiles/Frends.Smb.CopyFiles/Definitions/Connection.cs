@@ -47,8 +47,8 @@ public class Connection
 
     /// <summary>
     /// Authentication mechanism to use when connecting to the SMB server.
-    /// Kerberos requires network access to a KDC and a registered SPN (cifs/servername)
-    /// for the target server in Active Directory.
+    /// Kerberos and KerberosTicketCache require network access to a KDC and a registered
+    /// SPN (cifs/servername) for the target server in Active Directory.
     /// </summary>
     /// <example>Ntlm</example>
     [DefaultValue(AuthenticationMode.Ntlm)]
@@ -62,7 +62,7 @@ public class Connection
     /// </summary>
     /// <example>DC1.test.local</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos)]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos, AuthenticationMode.KerberosTicketCache)]
     public string KerberosServerName { get; set; }
 
     /// <summary>
@@ -72,7 +72,7 @@ public class Connection
     /// </summary>
     /// <example>kdc.company.com:88</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos)]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos, AuthenticationMode.KerberosTicketCache)]
     public string KdcAddress { get; set; }
 
     /// <summary>
