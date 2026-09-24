@@ -1,10 +1,11 @@
-﻿using System;
+﻿using DotNet.Testcontainers.Builders;
+using Frends.Smb.CopyFiles.Definitions;
+using Frends.Smb.CopyFiles.Helpers;
+using NUnit.Framework;
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using DotNet.Testcontainers.Builders;
-using Frends.Smb.CopyFiles.Definitions;
-using NUnit.Framework;
 
 namespace Frends.Smb.CopyFiles.Tests;
 
@@ -176,5 +177,24 @@ public class KerberosAuthenticationTests
         var result = Smb.CopyFiles(input, connection, options, CancellationToken.None);
 
         Assert.That(result.Success, Is.False);
+    }
+
+    [Test]
+    public async Task Debug_SessionKeyLength()
+    {
+        await File.WriteAllTextAsync(Path.Combine(testFilesPath, "source", "debug.txt"), "debug");
+        input = new Input { SourcePath = "source/debug.txt", TargetPath = "target" };
+
+        using var authClient = new KerberosNetAuthenticationClient(
+            domain: "TEST.LOCAL",
+            username: "TEST.LOCAL\\testuser",
+            password: "Passw0rd123!",
+            server: "DC1.test.local",
+            kdcAddress: "127.0.0.1");
+
+        authClient.InitializeSecurityContext(null);
+
+        TestContext.WriteLine($"Session key length: {authClient.SessionKeyLength} bytes");
+        Assert.Pass($"Session key length: {authClient.SessionKeyLength} bytes");
     }
 }
