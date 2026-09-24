@@ -37,6 +37,8 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
 
     internal int SessionKeyLength => sessionKey?.Length ?? 0;
 
+    internal int SigningKeyLength => GetSessionKey().Length;
+
     /// <summary>
     /// Initializes the security context for Kerberos authentication and returns the initial token to be sent to the server.
     /// </summary>

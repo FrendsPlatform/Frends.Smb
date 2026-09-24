@@ -83,21 +83,6 @@ public class KerberosAuthenticationTests
 
         await adDcContainer.ExecAsync(["sh", "-c",
             $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && chmod 666 /kcache/krb5cc_testuser"]);
-
-        Environment.SetEnvironmentVariable("KRB5CCNAME", kerberosCacheHostPath);
-
-        var krb5ConfPath = Path.Combine(testFilesPath, "krb5.conf");
-        await File.WriteAllTextAsync(
-            krb5ConfPath,
-            $"[libdefaults]\n    default_realm = {Realm}\n    dns_lookup_kdc = false\n    dns_lookup_realm = false\n\n[realms]\n    {Realm} = {{\n        kdc = 127.0.0.1:88\n        admin_server = 127.0.0.1\n    }}\n\n[domain_realm]\n    .test.local = {Realm}\n    test.local = {Realm}\n");
-
-        var copyConfProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "sudo",
-            Arguments = $"cp {krb5ConfPath} /etc/krb5.conf",
-            UseShellExecute = false,
-        });
-        await copyConfProcess!.WaitForExitAsync();
     }
 
     [OneTimeTearDown]
@@ -209,7 +194,8 @@ public class KerberosAuthenticationTests
 
         authClient.InitializeSecurityContext(null);
 
-        Console.Error.WriteLine($"Session key length: {authClient.SessionKeyLength} bytes");
-        Assert.Pass($"Session key length: {authClient.SessionKeyLength} bytes");
+        Console.Error.WriteLine($"Session key length (raw): {authClient.SessionKeyLength} bytes");
+        Console.Error.WriteLine($"Signing key length (after truncation): {authClient.SigningKeyLength} bytes");
+        Assert.Pass($"Raw: {authClient.SessionKeyLength}, Signing: {authClient.SigningKeyLength}");
     }
 }
