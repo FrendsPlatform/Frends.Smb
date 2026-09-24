@@ -91,7 +91,7 @@ public class KerberosAuthenticationTests
                 $"Stdout: {kinitResult.Stdout}{Environment.NewLine}Stderr: {kinitResult.Stderr}");
         }
 
-        TestContext.Progress.WriteLine($"kinit succeeded. Stdout: {kinitResult.Stdout}");
+        Console.Error.WriteLine($"kinit succeeded. Stdout: {kinitResult.Stdout}");
     }
 
     [OneTimeTearDown]
