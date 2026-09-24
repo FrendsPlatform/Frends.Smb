@@ -81,8 +81,17 @@ public class KerberosAuthenticationTests
 
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
 
-        await adDcContainer.ExecAsync(["sh", "-c",
-            $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && chmod 666 /kcache/krb5cc_testuser"]);
+        var kinitResult = await adDcContainer.ExecAsync(["sh", "-c",
+            $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && chmod 666 /kcache/krb5cc_testuser && klist -c /kcache/krb5cc_testuser"]);
+
+        if (kinitResult.ExitCode != 0)
+        {
+            throw new Exception(
+                $"kinit failed with exit code {kinitResult.ExitCode}.{Environment.NewLine}" +
+                $"Stdout: {kinitResult.Stdout}{Environment.NewLine}Stderr: {kinitResult.Stderr}");
+        }
+
+        TestContext.Progress.WriteLine($"kinit succeeded. Stdout: {kinitResult.Stdout}");
     }
 
     [OneTimeTearDown]
