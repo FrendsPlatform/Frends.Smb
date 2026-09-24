@@ -14,8 +14,6 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
     private byte[] sessionKey;
     private bool authenticated;
 
-    internal int SessionKeyLength => sessionKey?.Length ?? 0;
-
     internal KerberosNetAuthenticationClient(
         string domain,
         string username,
@@ -36,6 +34,8 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
         credential = new KerberosPasswordCredential(username, password, domain);
         spn = $"cifs/{server}";
     }
+
+    internal int SessionKeyLength => sessionKey?.Length ?? 0;
 
     /// <summary>
     /// Initializes the security context for Kerberos authentication and returns the initial token to be sent to the server.

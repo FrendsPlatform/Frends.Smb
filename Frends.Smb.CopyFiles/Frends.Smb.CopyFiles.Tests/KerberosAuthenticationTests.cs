@@ -1,11 +1,11 @@
-﻿using DotNet.Testcontainers.Builders;
-using Frends.Smb.CopyFiles.Definitions;
-using Frends.Smb.CopyFiles.Helpers;
-using NUnit.Framework;
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using DotNet.Testcontainers.Builders;
+using Frends.Smb.CopyFiles.Definitions;
+using Frends.Smb.CopyFiles.Helpers;
+using NUnit.Framework;
 
 namespace Frends.Smb.CopyFiles.Tests;
 
@@ -83,6 +83,16 @@ public class KerberosAuthenticationTests
 
         await adDcContainer.ExecAsync(["sh", "-c",
             $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && chmod 666 /kcache/krb5cc_testuser"]);
+
+        Environment.SetEnvironmentVariable("KRB5CCNAME", kerberosCacheHostPath);
+
+        var krb5ConfPath = Path.Combine(testFilesPath, "krb5.conf");
+
+        await File.WriteAllTextAsync(
+            krb5ConfPath,
+            $"[libdefaults]\n    default_realm = {Realm}\n    dns_lookup_kdc = false\n    dns_lookup_realm = false\n\n[realms]\n    {Realm} = {{\n        kdc = 127.0.0.1:88\n        admin_server = 127.0.0.1\n    }}\n\n[domain_realm]\n    .test.local = {Realm}\n    test.local = {Realm}\n");
+
+        Environment.SetEnvironmentVariable("KRB5_CONFIG", krb5ConfPath);
     }
 
     [OneTimeTearDown]
