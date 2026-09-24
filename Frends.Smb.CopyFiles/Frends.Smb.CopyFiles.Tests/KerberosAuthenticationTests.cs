@@ -87,27 +87,17 @@ public class KerberosAuthenticationTests
         Environment.SetEnvironmentVariable("KRB5CCNAME", kerberosCacheHostPath);
 
         var krb5ConfPath = Path.Combine(testFilesPath, "krb5.conf");
-
         await File.WriteAllTextAsync(
             krb5ConfPath,
             $"[libdefaults]\n    default_realm = {Realm}\n    dns_lookup_kdc = false\n    dns_lookup_realm = false\n\n[realms]\n    {Realm} = {{\n        kdc = 127.0.0.1:88\n        admin_server = 127.0.0.1\n    }}\n\n[domain_realm]\n    .test.local = {Realm}\n    test.local = {Realm}\n");
 
-        Environment.SetEnvironmentVariable("KRB5_CONFIG", krb5ConfPath);
-
-        var kinitResult = await adDcContainer.ExecAsync(["sh", "-c",
-    $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && klist -c /kcache/krb5cc_testuser"]);
-
-        Console.Error.WriteLine($"kinit stdout: {kinitResult.Stdout}");
-        Console.Error.WriteLine($"kinit stderr: {kinitResult.Stderr}");
-        Console.Error.WriteLine($"ccache exists on host: {File.Exists(kerberosCacheHostPath)}");
-        Console.Error.WriteLine($"ccache size on host: {new FileInfo(kerberosCacheHostPath).Length} bytes");
-
-        var confContent = await File.ReadAllTextAsync(krb5ConfPath);
-        Console.Error.WriteLine($"krb5.conf:\n{confContent}");
-        Console.Error.WriteLine($"ccache exists: {File.Exists(kerberosCacheHostPath)}");
-        Console.Error.WriteLine($"ccache size: {new FileInfo(kerberosCacheHostPath).Length} bytes");
-        Console.Error.WriteLine($"KRB5_CONFIG: {Environment.GetEnvironmentVariable("KRB5_CONFIG")}");
-        Console.Error.WriteLine($"KRB5CCNAME: {Environment.GetEnvironmentVariable("KRB5CCNAME")}");
+        var copyConfProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "sudo",
+            Arguments = $"cp {krb5ConfPath} /etc/krb5.conf",
+            UseShellExecute = false,
+        });
+        await copyConfProcess!.WaitForExitAsync();
     }
 
     [OneTimeTearDown]
@@ -212,7 +202,7 @@ public class KerberosAuthenticationTests
 
         using var authClient = new KerberosNetAuthenticationClient(
             domain: "TEST.LOCAL",
-            username: "TEST.LOCAL\\testuser",
+            username: "testuser",
             password: "Passw0rd123!",
             server: "DC1.test.local",
             kdcAddress: "127.0.0.1:88");
