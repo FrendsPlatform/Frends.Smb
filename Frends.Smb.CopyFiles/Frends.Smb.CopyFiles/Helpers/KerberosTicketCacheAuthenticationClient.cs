@@ -1,7 +1,5 @@
 using System;
 using Kerberos.NET.Client;
-using Kerberos.NET.Credentials;
-using Kerberos.NET.Entities;
 using SMBLibrary.Client.Authentication;
 
 namespace Frends.Smb.CopyFiles.Helpers;

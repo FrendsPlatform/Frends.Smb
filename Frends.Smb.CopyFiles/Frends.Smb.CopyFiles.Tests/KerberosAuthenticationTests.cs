@@ -93,6 +93,13 @@ public class KerberosAuthenticationTests
             $"[libdefaults]\n    default_realm = {Realm}\n    dns_lookup_kdc = false\n    dns_lookup_realm = false\n\n[realms]\n    {Realm} = {{\n        kdc = 127.0.0.1:88\n        admin_server = 127.0.0.1\n    }}\n\n[domain_realm]\n    .test.local = {Realm}\n    test.local = {Realm}\n");
 
         Environment.SetEnvironmentVariable("KRB5_CONFIG", krb5ConfPath);
+
+        var confContent = await File.ReadAllTextAsync(krb5ConfPath);
+        TestContext.WriteLine($"krb5.conf:\n{confContent}");
+        TestContext.WriteLine($"ccache exists: {File.Exists(kerberosCacheHostPath)}");
+        TestContext.WriteLine($"ccache size: {new FileInfo(kerberosCacheHostPath).Length} bytes");
+        TestContext.WriteLine($"KRB5_CONFIG: {Environment.GetEnvironmentVariable("KRB5_CONFIG")}");
+        TestContext.WriteLine($"KRB5CCNAME: {Environment.GetEnvironmentVariable("KRB5CCNAME")}");
     }
 
     [OneTimeTearDown]
@@ -200,7 +207,7 @@ public class KerberosAuthenticationTests
             username: "TEST.LOCAL\\testuser",
             password: "Passw0rd123!",
             server: "DC1.test.local",
-            kdcAddress: "127.0.0.1");
+            kdcAddress: "127.0.0.1:88");
 
         authClient.InitializeSecurityContext(null);
 
