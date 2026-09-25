@@ -1,37 +1,30 @@
 ﻿using System;
 using Kerberos.NET.Client;
-using Kerberos.NET.Credentials;
-using Kerberos.NET.Entities;
 using SMBLibrary.Client.Authentication;
 
-namespace Frends.Smb.RenameFile.Helpers;
+namespace Frends.Smb.CreateDirectory.Helpers;
 
-internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, IDisposable
+internal sealed class KerberosTicketCacheAuthenticationClient : IAuthenticationClient, IDisposable
 {
     private readonly KerberosClient kerberosClient;
-    private readonly KerberosPasswordCredential credential;
     private readonly string spn;
     private byte[] sessionKey = Array.Empty<byte>();
-    private bool authenticated;
 
-    internal KerberosNetAuthenticationClient(
-        string domain,
-        string username,
-        string password,
+    internal KerberosTicketCacheAuthenticationClient(
+        string krbCacheFile,
+        string krbDomain,
         string server,
-        string kdcAddress = "")
+        string kdcAddress = null)
     {
-        if (string.IsNullOrWhiteSpace(domain))
-            throw new ArgumentException("Kerberos authentication requires the username in 'DOMAIN\\user' form (realm cannot be empty).", nameof(domain));
-        if (string.IsNullOrWhiteSpace(server))
-            throw new ArgumentException("Kerberos authentication requires a server name for the CIFS SPN.", nameof(server));
+        kerberosClient = new KerberosClient
+        {
+            Cache = new Krb5TicketCache(krbCacheFile),
+            CacheInMemory = false,
+        };
 
-        kerberosClient = new KerberosClient();
+        if (!string.IsNullOrEmpty(krbDomain))
+            kerberosClient.PinKdc(krbDomain, kdcAddress ?? krbDomain);
 
-        if (!string.IsNullOrEmpty(kdcAddress))
-            kerberosClient.PinKdc(domain, kdcAddress);
-
-        credential = new KerberosPasswordCredential(username, password, domain);
         spn = $"cifs/{server}";
     }
 
@@ -42,17 +35,11 @@ internal sealed class KerberosNetAuthenticationClient : IAuthenticationClient, I
     /// <returns>The initial token to be sent to the server.</returns>
     public byte[] InitializeSecurityContext(byte[] inputToken)
     {
-        if (!authenticated)
-        {
-            kerberosClient.Authenticate(credential).GetAwaiter().GetResult();
-            authenticated = true;
-        }
-
-        KrbApReq ticket = kerberosClient.GetServiceTicket(spn).GetAwaiter().GetResult();
-
+        var ticket = kerberosClient.GetServiceTicket(spn).GetAwaiter().GetResult();
         if (kerberosClient.Cache.GetCacheItem(spn) is not KerberosClientCacheEntry cachedItem)
         {
-            throw new InvalidOperationException($"Cache entry for SPN '{spn}' was not found or the entry is of an invalid type.");
+            throw new InvalidOperationException(
+                $"Cache entry for SPN '{spn}' was not found or the entry is of an invalid type.");
         }
 
         sessionKey = cachedItem.SessionKey.KeyValue.ToArray();

@@ -53,6 +53,15 @@ internal static class SmbHandler
                 kdcAddress: connection.KdcAddress);
             status = client.Login(authenticationClient);
         }
+        else if (connection.AuthenticationMode == AuthenticationMode.KerberosTicketCache)
+        {
+            using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
+                connection.KerberosCacheFile,
+                domain,
+                kerberosServer,
+                kdcAddress: connection.KdcAddress);
+            status = client.Login(authenticationClient);
+        }
         else
         {
             status = client.Login(domain, username, connection.Password);

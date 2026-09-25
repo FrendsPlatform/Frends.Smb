@@ -25,12 +25,18 @@ public class KerberosAuthenticationTests
     private Options options;
     private DotNet.Testcontainers.Containers.IContainer adDcContainer;
     private string testFilesPath;
+    private string kerberosCacheDirectory;
+    private string kerberosCacheHostPath;
 
     [OneTimeSetUp]
     public async Task GlobalSetup()
     {
         testFilesPath = Path.Combine(TestContext.CurrentContext.TestDirectory, $"test-files-kerberos-{Guid.NewGuid()}");
         Directory.CreateDirectory(testFilesPath);
+
+        kerberosCacheDirectory = Path.Combine(TestContext.CurrentContext.TestDirectory, $"kcache-kerberos-{Guid.NewGuid()}");
+        Directory.CreateDirectory(kerberosCacheDirectory);
+        kerberosCacheHostPath = Path.Combine(kerberosCacheDirectory, "krb5cc_testuser");
 
         adDcContainer = new ContainerBuilder()
             .WithImage("diegogslomp/samba-ad-dc:latest")
@@ -42,6 +48,7 @@ public class KerberosAuthenticationTests
             .WithEnvironment("ADMIN_PASS", password)
             .WithEnvironment("DNS_FORWARDER", "8.8.8.8")
             .WithBindMount(testFilesPath, "/share")
+            .WithBindMount(kerberosCacheDirectory, "/kcache")
             .WithCreateParameterModifier(p => p.HostConfig.NetworkMode = "host")
             .WithWaitStrategy(Wait.ForUnixContainer()
                 .UntilCommandIsCompleted("samba-tool user list")
@@ -63,7 +70,7 @@ public class KerberosAuthenticationTests
         await adDcContainer.ExecAsync(["sh", "-c",
             "sed -i '/interfaces = lo eth0/d' /usr/local/samba/etc/smb.conf"]);
         await adDcContainer.ExecAsync(["sh", "-c",
-            "sed -i '/\\[global\\]/a\\        server signing = auto\\n        server smb encrypt = off' /usr/local/samba/etc/smb.conf"]);
+            "sed -i '/\\[global\\]/a\\        server signing = mandatory\\n        server smb encrypt = off' /usr/local/samba/etc/smb.conf"]);
 
         var hostsProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
@@ -74,6 +81,9 @@ public class KerberosAuthenticationTests
         await hostsProcess!.WaitForExitAsync();
 
         await adDcContainer.ExecAsync(["sh", "-c", "smbcontrol all reload-config"]);
+
+        await adDcContainer.ExecAsync(["sh", "-c",
+            $"echo '{password}' | KRB5CCNAME=/kcache/krb5cc_testuser kinit testuser@{Realm} && chmod 666 /kcache/krb5cc_testuser && klist -c /kcache/krb5cc_testuser"]);
     }
 
     [OneTimeTearDown]
@@ -84,6 +94,9 @@ public class KerberosAuthenticationTests
 
         if (Directory.Exists(testFilesPath))
             Directory.Delete(testFilesPath, true);
+
+        if (Directory.Exists(kerberosCacheDirectory))
+            Directory.Delete(kerberosCacheDirectory, true);
     }
 
     [TearDown]
@@ -137,6 +150,30 @@ public class KerberosAuthenticationTests
         Assert.That(result.Success, Is.True);
         var bytes = File.ReadAllBytes(Path.Combine(testFilesPath, TestFile));
         Assert.That(bytes, Is.EquivalentTo(SimpleContent));
+    }
+
+    [Test]
+    public void WriteFile_KerberosTicketCache_Success()
+    {
+        connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
+        connection.KerberosCacheFile = kerberosCacheHostPath;
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        var bytes = File.ReadAllBytes(Path.Combine(testFilesPath, TestFile));
+        Assert.That(bytes, Is.EquivalentTo(SimpleContent));
+    }
+
+    [Test]
+    public void WriteFile_KerberosTicketCache_MissingCacheFile_Fails()
+    {
+        connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
+        connection.KerberosCacheFile = Path.Combine(kerberosCacheDirectory, "nonexistent_krb5cc");
+
+        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.False);
     }
 
     [Test]

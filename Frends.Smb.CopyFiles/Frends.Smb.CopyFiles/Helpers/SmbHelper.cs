@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -52,6 +53,15 @@ internal static class SmbHandler
                 connection.Password,
                 kerberosServer,
                 kdcAddress: connection.KdcAddress);
+            status = client.Login(authenticationClient);
+        }
+        else if (connection.AuthenticationMode == AuthenticationMode.KerberosTicketCache)
+        {
+            using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
+                connection.KerberosCacheFile,
+                domain,
+                kerberosServer,
+                connection.KdcAddress);
             status = client.Login(authenticationClient);
         }
         else
