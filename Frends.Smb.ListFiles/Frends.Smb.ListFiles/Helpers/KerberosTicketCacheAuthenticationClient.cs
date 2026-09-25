@@ -14,7 +14,7 @@ internal sealed class KerberosTicketCacheAuthenticationClient : IAuthenticationC
         string krbCacheFile,
         string krbDomain,
         string server,
-        string kdcAddress = null)
+        string? kdcAddress = null)
     {
         kerberosClient = new KerberosClient
         {

@@ -91,13 +91,7 @@ public class KerberosAuthenticationTests
         if (adDcContainer != null)
             await adDcContainer.DisposeAsync();
 
-        if (Directory.Exists(testFilesPath))
-        {
-            Directory.Delete(testFilesPath, true);
-    
-        if (Directory.Exists(kerberosCacheDirectory))
-            Directory.Delete(kerberosCacheDirectory, true);
-    }
+        Directory.Delete(testFilesPath, true);
 
         if (Directory.Exists(kerberosCacheDirectory))
             Directory.Delete(kerberosCacheDirectory, true);

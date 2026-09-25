@@ -83,5 +83,5 @@ public class Connection
     /// <example>/tmp/krb5cc_testuser</example>
     [DisplayFormat(DataFormatString = "Text")]
     [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.KerberosTicketCache)]
-    public string KerberosCacheFile { get; set; }
+    public string KerberosCacheFile { get; set; } = string.Empty;
 }
