@@ -11,7 +11,9 @@ public enum AuthenticationMode
     Ntlm,
 
     /// <summary>
-    /// Kerberos authentication protocol.
+    /// Kerberos authentication protocol using username and password.
+    /// Requires network access to a KDC and a registered SPN (cifs/servername)
+    /// for the target server in Active Directory.
     /// </summary>
     Kerberos,
 

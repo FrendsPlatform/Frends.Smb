@@ -12,7 +12,6 @@ public enum AuthenticationMode
 
     /// <summary>
     /// Kerberos authentication protocol using username and password.
-    /// Kerberos.NET handles the full authentication flow internally.
     /// Requires network access to a KDC and a registered SPN (cifs/servername)
     /// for the target server in Active Directory.
     /// </summary>
