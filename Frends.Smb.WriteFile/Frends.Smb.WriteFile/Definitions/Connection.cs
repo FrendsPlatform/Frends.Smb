@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace Frends.Smb.WriteFile.Definitions;
@@ -47,8 +47,8 @@ public class Connection
 
     /// <summary>
     /// Authentication mechanism to use when connecting to the SMB server.
-    /// Kerberos requires network access to a KDC and a registered SPN (cifs/servername)
-    /// for the target server in Active Directory.
+    /// Kerberos and KerberosTicketCache require network access to a KDC and a registered
+    /// SPN (cifs/servername) for the target server in Active Directory.
     /// </summary>
     /// <example>Ntlm</example>
     [DefaultValue(AuthenticationMode.Ntlm)]
@@ -62,7 +62,7 @@ public class Connection
     /// </summary>
     /// <example>DC1.test.local</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos)]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos, AuthenticationMode.KerberosTicketCache)]
     public string KerberosServerName { get; set; } = string.Empty;
 
     /// <summary>
@@ -72,6 +72,16 @@ public class Connection
     /// </summary>
     /// <example>kdc.company.com:88</example>
     [DisplayFormat(DataFormatString = "Text")]
-    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos)]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.Kerberos, AuthenticationMode.KerberosTicketCache)]
     public string KdcAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Path to a Kerberos ticket cache (ccache) file to use for authentication when
+    /// AuthenticationMode is KerberosTicketCache. The file must already contain a valid
+    /// ticket-granting ticket (e.g. created via kinit).
+    /// </summary>
+    /// <example>/tmp/krb5cc_testuser</example>
+    [DisplayFormat(DataFormatString = "Text")]
+    [UIHint(nameof(AuthenticationMode), "", AuthenticationMode.KerberosTicketCache)]
+    public string KerberosCacheFile { get; set; }
 }

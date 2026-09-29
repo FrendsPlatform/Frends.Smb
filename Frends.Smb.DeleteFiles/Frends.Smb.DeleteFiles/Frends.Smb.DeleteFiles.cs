@@ -90,6 +90,15 @@ public static class Smb
                     kdcAddress: connection.KdcAddress);
                 loginStatus = client.Login(authClient);
             }
+            else if (connection.AuthenticationMode == AuthenticationMode.KerberosTicketCache)
+            {
+                using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
+                    connection.KerberosCacheFile,
+                    domain,
+                    kerberosServer,
+                    kdcAddress: connection.KdcAddress);
+                loginStatus = client.Login(authenticationClient);
+            }
             else
             {
                 loginStatus = client.Login(domain, username, connection.Password);

@@ -1,4 +1,12 @@
-# Changelog
+﻿# Changelog
+
+## [2.6.0] - 2026-09-25
+
+### Added
+- Added new `KerberosTicketCache` authentication mode supporting Kerberos authentication using a pre-existing ticket cache (ccache) file.
+
+### Fixed
+- Kerberos authentication now correctly truncates the session key to 16 bytes as required by the SMB specification.
 
 ## [2.5.0] - 2026-09-09
 
