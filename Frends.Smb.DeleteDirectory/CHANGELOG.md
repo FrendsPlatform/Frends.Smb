@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## [2.6.0] - 2026-09-29
+
+### Fixed
+- Updated the task's copyright metadata to meet the required attribution format.
+
 ## [2.5.0] - 2026-09-25
 
 ### Added
