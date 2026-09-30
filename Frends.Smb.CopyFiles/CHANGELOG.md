@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.9.0] - 2026-09-30
+
+### Changed
+- Updated package copyright metadata.
+
 ## [2.8.0] - 2026-09-24
 
 ### Added
