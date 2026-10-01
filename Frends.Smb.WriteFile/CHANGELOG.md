@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## [2.7.0] - 2026-09-30
+
+### Changed
+- Updated package copyright metadata to meet Frends compliance requirements.
+
 ## [2.6.0] - 2026-09-25
 
 ### Added
