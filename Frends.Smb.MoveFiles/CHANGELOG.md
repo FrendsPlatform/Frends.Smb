@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.6.0] - 2026-09-30
+
+### Fixed
+- Corrected task copyright metadata.
+
 ## [2.5.0] - 2026-09-25
 
 ### Added
