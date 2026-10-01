@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## [2.6.0] - 2026-09-30
+
+### Changed
+- Updated the package copyright metadata to identify Frends as the copyright holder.
+
 ## [2.5.0] - 2026-09-25
 
 ### Added
