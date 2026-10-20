@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## [2.7.0] - 2026-10-20
+
+### Fixed
+- Use the configured SeparatorCharacter when resolving SMB paths.
+
 ## [2.6.0] - 2026-09-30
 
 ### Changed

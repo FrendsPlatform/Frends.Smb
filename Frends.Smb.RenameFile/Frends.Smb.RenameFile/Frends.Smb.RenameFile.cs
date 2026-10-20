@@ -116,7 +116,7 @@ public static class Smb
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                PathString directory = Path.GetDirectoryName(path)?.TrimStart(PathString.GetSeparatorChar()) ?? string.Empty;
+                PathString directory = PathString.GetDirectoryName(path)?.TrimStart(PathString.GetSeparatorChar()) ?? string.Empty;
 
                 PathString newFilePath = $"{directory}{PathString.GetSeparatorChar()}{newFileName}".TrimStart(PathString.GetSeparatorChar());
 
@@ -231,14 +231,14 @@ public static class Smb
     {
         PathString candidate = destPath;
         int count = 1;
-        PathString dir = Path.GetDirectoryName(destPath) ?? string.Empty;
-        PathString baseName = Path.GetFileNameWithoutExtension(destPath);
-        PathString ext = Path.GetExtension(destPath);
+        PathString dir = PathString.GetDirectoryName(destPath) ?? string.Empty;
+        PathString baseName = PathString.GetFileNameWithoutExtension(destPath);
+        PathString ext = PathString.GetExtension(destPath);
 
         while (FileExists(fileStore, candidate))
         {
             PathString newFileName = $"{baseName}({count++}){ext}";
-            candidate = Path.Combine(dir, newFileName);
+            candidate = PathString.Combine(dir, newFileName);
         }
 
         return candidate;
