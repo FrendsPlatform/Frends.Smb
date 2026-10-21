@@ -25,7 +25,8 @@ internal static class SmbHandler
             throw new ArgumentException("SourcePath should be relative to the share, not a full UNC path.");
         if (targetPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("TargetPath should be relative to the share, not a full UNC path.");
-        if (string.IsNullOrWhiteSpace(connection.Username))
+        if (connection.AuthenticationMode != AuthenticationMode.KerberosTicketCache
+            && string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));
     }
 
