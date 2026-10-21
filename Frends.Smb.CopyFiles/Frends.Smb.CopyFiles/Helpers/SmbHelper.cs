@@ -59,7 +59,6 @@ internal static class SmbHandler
         {
             using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
                 connection.KerberosCacheFile,
-                domain,
                 kerberosServer,
                 connection.KdcAddress);
             status = client.Login(authenticationClient);
