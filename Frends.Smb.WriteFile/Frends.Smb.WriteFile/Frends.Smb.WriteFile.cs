@@ -179,7 +179,7 @@ public static class Smb
         ArgumentNullException.ThrowIfNull(fileStore);
         if (string.IsNullOrWhiteSpace(smbFullPath)) return;
 
-        PathString directory = Path.GetDirectoryName(smbFullPath);
+        PathString directory = PathString.GetDirectoryName(smbFullPath);
         if (string.IsNullOrEmpty(directory)) return;
 
         var parts = directory.Value.Split([PathString.GetSeparatorChar()], StringSplitOptions.RemoveEmptyEntries);
