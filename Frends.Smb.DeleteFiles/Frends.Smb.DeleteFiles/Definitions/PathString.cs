@@ -141,6 +141,28 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     internal static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
 
     /// <summary>
+    /// Returns the file name portion of the given path using the separator configured
+    /// via <see cref="Setup"/>, instead of relying on System.IO.Path (whose separator
+    /// recognition depends on the OS the process is running on, not on the configured
+    /// SMB server OS).
+    /// </summary>
+    /// <param name="path">Path string wrapper.</param>
+    /// <returns>The file name portion of the path.</returns>
+    internal static string GetFileName(PathString path)
+    {
+        if (string.IsNullOrEmpty(path)) return string.Empty;
+        int index = path.Value.LastIndexOf(GetSeparatorChar());
+        if (index < 0)
+        {
+            return path.Value;
+        }
+        else
+        {
+            return path.Value.Substring(index + 1);
+        }
+    }
+
+    /// <summary>
     /// Normalizes path separators in the input string.
     /// </summary>
     /// <param name="input">The path string to normalize.</param>
