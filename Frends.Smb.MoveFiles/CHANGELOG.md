@@ -4,6 +4,7 @@
 
 ### Fixed
 - Kerberos ticket cache authentication no longer requires Username input; realm is read automatically from the ccache file.
+- Use the configured SeparatorCharacter when resolving SMB paths.
 
 ## [2.6.0] - 2026-09-30
 
