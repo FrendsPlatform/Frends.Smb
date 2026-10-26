@@ -23,7 +23,8 @@ internal static class SmbHandler
             throw new ArgumentException("Destination Path cannot be empty.", nameof(directoryPath));
         if (directoryPath.Value.StartsWith($"{PathString.GetSeparatorChar()}{PathString.GetSeparatorChar()}"))
             throw new ArgumentException("Path should be relative to the share, not a full UNC path.");
-        if (string.IsNullOrWhiteSpace(connection.Username))
+        if (connection.AuthenticationMode != AuthenticationMode.KerberosTicketCache
+            && string.IsNullOrWhiteSpace(connection.Username))
             throw new ArgumentException("Username cannot be empty.", nameof(connection));
     }
 
@@ -57,7 +58,6 @@ internal static class SmbHandler
         {
             using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
                 connection.KerberosCacheFile,
-                domain,
                 kerberosServer,
                 kdcAddress: connection.KdcAddress);
             status = client.Login(authenticationClient);

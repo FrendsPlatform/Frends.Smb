@@ -150,6 +150,8 @@ public class KerberosAuthenticationTests
         };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.UserName = null;
+        connection.Password = null;
 
         options.UseEncoding = true;
 

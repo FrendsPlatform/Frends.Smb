@@ -151,6 +151,8 @@ public class KerberosAuthenticationTests
         };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
 

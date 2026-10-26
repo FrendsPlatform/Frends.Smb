@@ -142,6 +142,8 @@ public class KerberosAuthenticationTests
         input = new Input { DirectoryPath = "newDir" };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = Smb.CreateDirectory(input, connection, options, CancellationToken.None);
 

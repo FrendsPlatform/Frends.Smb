@@ -144,6 +144,8 @@ public class KerberosAuthenticationTests
         input = new Input { Path = "single-target.txt" };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = await Smb.DeleteFiles(input, connection, options, CancellationToken.None);
 

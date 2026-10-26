@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.7.0] - 2026-10-26
+
+### Fixed
+- Kerberos ticket cache authentication no longer requires Username input; realm is read automatically from the ccache file.
+
 ## [2.6.0] - 2026-09-30
 
 ### Fixed
@@ -33,7 +38,7 @@
 
 ### Added
 
-- Added ContinueOnFailure as a new option — allows the operation to proceed when individual file copies fail, collecting errors in a failures list instead of throwing immediately
+- Added ContinueOnFailure as a new option ï¿½ allows the operation to proceed when individual file copies fail, collecting errors in a failures list instead of throwing immediately
 
 ## [2.1.0] - 2026-04-23
 

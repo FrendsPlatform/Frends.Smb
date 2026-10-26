@@ -149,6 +149,8 @@ public class KerberosAuthenticationTests
         input = new Input { SourcePath = "source/test-dir", TargetPath = "target/moved-dir" };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = Smb.MoveDirectory(input, connection, options, CancellationToken.None);
 

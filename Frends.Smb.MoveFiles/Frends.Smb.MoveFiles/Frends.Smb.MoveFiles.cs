@@ -99,7 +99,6 @@ public static class Smb
             {
                 using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
                     connection.KerberosCacheFile,
-                    domain,
                     kerberosServer,
                     kdcAddress: connection.KdcAddress);
                 status = client.Login(authenticationClient);
