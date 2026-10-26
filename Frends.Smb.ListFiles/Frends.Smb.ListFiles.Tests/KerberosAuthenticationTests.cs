@@ -139,6 +139,8 @@ public class KerberosAuthenticationTests
         input = new Input { Directory = "/" };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = Smb.ListFiles(input, connection, options, CancellationToken.None);
 

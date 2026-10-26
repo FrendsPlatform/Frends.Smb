@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## [2.8.0] - 2026-10-26
+
+### Fixed
+- Kerberos ticket cache authentication no longer requires Username input; realm is read automatically from the ccache file.
+
 ## [2.7.0] - 2026-10-20
 
 ### Fixed

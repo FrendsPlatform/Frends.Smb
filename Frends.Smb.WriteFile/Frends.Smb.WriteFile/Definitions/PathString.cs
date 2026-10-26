@@ -141,6 +141,18 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     internal static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
 
     /// <summary>
+    /// Returns the directory portion of the given path using the configured separator.
+    /// </summary>
+    /// <param name="path">Path string wrapper.</param>
+    /// <returns>The directory portion of the path.</returns>
+    internal static string GetDirectoryName(PathString path)
+    {
+        if (string.IsNullOrEmpty(path)) return string.Empty;
+        int index = path.Value.LastIndexOf(GetSeparatorChar());
+        return index < 0 ? string.Empty : path.Value[..index];
+    }
+
+    /// <summary>
     /// Normalizes path separators in the input string.
     /// </summary>
     /// <param name="input">The path string to normalize.</param>

@@ -94,7 +94,6 @@ public static class Smb
             {
                 using var authenticationClient = new KerberosTicketCacheAuthenticationClient(
                     connection.KerberosCacheFile,
-                    domain,
                     kerberosServer,
                     kdcAddress: connection.KdcAddress);
                 loginStatus = client.Login(authenticationClient);
@@ -160,7 +159,7 @@ public static class Smb
                             PathString normalizedFilePath = filePath.Value.TrimStart(PathString.GetSeparatorChar());
                             deletedFiles.Add(new FileItem
                             {
-                                Name = Path.GetFileName(normalizedFilePath),
+                                Name = PathString.GetFileName(normalizedFilePath),
                                 Path = normalizedFilePath,
                             });
                         }

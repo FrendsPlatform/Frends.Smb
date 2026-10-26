@@ -12,18 +12,20 @@ internal sealed class KerberosTicketCacheAuthenticationClient : IAuthenticationC
 
     internal KerberosTicketCacheAuthenticationClient(
         string krbCacheFile,
-        string krbDomain,
         string server,
         string? kdcAddress = null)
     {
+        var ticketCache = new Krb5TicketCache(krbCacheFile);
+        var realm = ticketCache.DefaultDomain;
+
         kerberosClient = new KerberosClient
         {
-            Cache = new Krb5TicketCache(krbCacheFile),
+            Cache = ticketCache,
             CacheInMemory = false,
         };
 
-        if (!string.IsNullOrEmpty(krbDomain))
-            kerberosClient.PinKdc(krbDomain, kdcAddress ?? krbDomain);
+        if (!string.IsNullOrEmpty(kdcAddress) && !string.IsNullOrEmpty(realm))
+            kerberosClient.PinKdc(realm, kdcAddress);
 
         spn = $"cifs/{server}";
     }

@@ -157,6 +157,8 @@ public class KerberosAuthenticationTests
     {
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 

@@ -145,6 +145,8 @@ public class KerberosAuthenticationTests
         input = new Input { DirectoryPath = dirPath };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = Smb.DeleteDirectory(input, connection, options, CancellationToken.None);
 

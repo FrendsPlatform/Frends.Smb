@@ -146,6 +146,8 @@ public class KerberosAuthenticationTests
         input = new Input { SourcePath = "source/single.txt", TargetPath = "target" };
         connection.AuthenticationMode = AuthenticationMode.KerberosTicketCache;
         connection.KerberosCacheFile = kerberosCacheHostPath;
+        connection.Username = null;
+        connection.Password = null;
 
         var result = Smb.MoveFiles(input, connection, options, CancellationToken.None);
 

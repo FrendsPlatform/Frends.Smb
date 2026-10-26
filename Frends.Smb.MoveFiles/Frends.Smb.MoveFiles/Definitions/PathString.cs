@@ -141,6 +141,41 @@ public class PathString : IEquatable<string>, IEquatable<PathString>
     internal static char GetSeparatorChar() => PathSeparator == Separator.Slash ? '/' : '\\';
 
     /// <summary>
+    /// Combines two path segments using the configured separator.
+    /// </summary>
+    /// <param name="path1">The first path segment.</param>
+    /// <param name="path2">The second path segment.</param>
+    /// <returns>The combined path.</returns>
+    internal static string Combine(PathString path1, PathString path2)
+    {
+        string left = path1?.Value ?? string.Empty;
+        string right = path2?.Value ?? string.Empty;
+        if (string.IsNullOrEmpty(left)) return right;
+        if (string.IsNullOrEmpty(right)) return left;
+        return $"{left.TrimEnd(GetSeparatorChar())}{GetSeparatorChar()}{right.TrimStart(GetSeparatorChar())}";
+    }
+
+    /// <summary>
+    /// Joins two path segments into a single path, ensuring proper separator usage.
+    /// </summary>
+    /// <param name="path1">The first path segment.</param>
+    /// <param name="path2">The second path segment.</param>
+    /// <returns>The joined path.</returns>
+    internal static string Join(PathString path1, PathString path2)
+    {
+        string left = path1?.Value ?? string.Empty;
+        string right = path2?.Value ?? string.Empty;
+
+        if (string.IsNullOrEmpty(left))
+            return right;
+
+        if (string.IsNullOrEmpty(right))
+            return left;
+
+        return $"{left.TrimEnd(GetSeparatorChar())}{GetSeparatorChar()}{right.TrimStart(GetSeparatorChar())}";
+    }
+
+    /// <summary>
     /// Normalizes path separators in the input string.
     /// </summary>
     /// <param name="input">The path string to normalize.</param>
