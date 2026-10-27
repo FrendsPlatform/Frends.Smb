@@ -226,7 +226,7 @@ public class RenameFileTests
     }
 
     [Test]
-    public void RenameFile_NewFileNameContainsRelativePath_ShouldNotDuplicateDirectorySegments()
+    public async Task RenameFile_NewFileNameContainsRelativePath_ShouldNotDuplicateDirectorySegments()
     {
         var relativeDirectory = $"test1/test2/test3/copied-{Guid.NewGuid():N}";
         var sourceRelativePath = $"{relativeDirectory}/text_copy.txt";
@@ -234,6 +234,8 @@ public class RenameFileTests
 
         Directory.CreateDirectory(LocalPath(relativeDirectory));
         File.WriteAllText(LocalPath(sourceRelativePath), "rename me");
+        await sambaContainer.ExecAsync(["chmod", "-R", "777", $"/share/{relativeDirectory}"]);
+        await Task.Delay(100);
 
         input = new Input
         {
