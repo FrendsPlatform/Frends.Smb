@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Threading;
@@ -116,8 +116,14 @@ public static class Smb
                 cancellationToken.ThrowIfCancellationRequested();
 
                 PathString directory = PathString.GetDirectoryName(path)?.TrimStart(PathString.GetSeparatorChar()) ?? string.Empty;
+                PathString normalizedNewFileName = PathString.GetFileName(newFileName);
 
-                PathString newFilePath = $"{directory}{PathString.GetSeparatorChar()}{newFileName}".TrimStart(PathString.GetSeparatorChar());
+                if (string.IsNullOrWhiteSpace(normalizedNewFileName))
+                    throw new ArgumentException("NewFileName must contain a valid file name.", nameof(newFileName));
+
+                PathString newFilePath = string.IsNullOrEmpty(directory)
+                    ? normalizedNewFileName
+                    : PathString.Combine(directory, normalizedNewFileName);
 
                 bool targetExists = FileExists(fileStore, newFilePath);
 

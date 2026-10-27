@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -191,29 +191,54 @@ public static class Smb
             current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
             var status = fileStore.CreateFile(
-                out var handle,
+                out var openHandle,
                 out _,
                 current,
-                GENERIC_WRITE,
+                (AccessMask)0,
                 FileAttributes.Directory,
                 ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
-                CreateDisposition.FILE_OPEN_IF,
+                CreateDisposition.FILE_OPEN,
                 CreateOptions.FILE_DIRECTORY_FILE,
                 null);
 
-            if (status == NTStatus.STATUS_SUCCESS ||
-                status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
-                status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
+            if (status == NTStatus.STATUS_SUCCESS)
             {
-                if (handle != null)
-                {
-                    fileStore.CloseFile(handle);
-                }
+                if (openHandle != null)
+                    fileStore.CloseFile(openHandle);
+
+                continue;
             }
-            else
+
+            if (status == NTStatus.STATUS_OBJECT_NAME_NOT_FOUND ||
+                status == NTStatus.STATUS_OBJECT_PATH_NOT_FOUND)
             {
+                status = fileStore.CreateFile(
+                    out var handle,
+                    out _,
+                    current,
+                    GENERIC_WRITE,
+                    FileAttributes.Directory,
+                    ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                    CreateDisposition.FILE_OPEN_IF,
+                    CreateOptions.FILE_DIRECTORY_FILE,
+                    null);
+
+                if (status == NTStatus.STATUS_SUCCESS ||
+                    status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
+                    status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
+                {
+                    if (handle != null)
+                    {
+                        fileStore.CloseFile(handle);
+                    }
+
+                    continue;
+                }
+
                 throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
             }
+
+            throw new Exception($"Failed to access SMB directory '{current}'. NTStatus={status}");
         }
     }
 }
