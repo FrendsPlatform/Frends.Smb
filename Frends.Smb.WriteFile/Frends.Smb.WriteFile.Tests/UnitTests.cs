@@ -271,19 +271,26 @@ public class UnitTests
 
         Directory.CreateDirectory(LocalPath(nested));
 
-        await sambaContainer.ExecAsync(["chmod", "555", $"/share/{topLevel}"]);
-        await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2"]);
-        await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2/test3"]);
-        await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2/test3/copied"]);
+        try
+        {
+            await sambaContainer.ExecAsync(["chmod", "555", $"/share/{topLevel}"]);
+            await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2"]);
+            await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2/test3"]);
+            await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2/test3/copied"]);
 
-        input.DestinationPath = destination;
-        input.Content = Encoding.UTF8.GetBytes("content");
-        options.Overwrite = true;
+            input.DestinationPath = destination;
+            input.Content = Encoding.UTF8.GetBytes("content");
+            options.Overwrite = true;
 
-        var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+            var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
 
-        Assert.That(result.Success, Is.True, result.Error?.Message);
-        Assert.That(File.Exists(LocalPath(destination)), Is.True);
+            Assert.That(result.Success, Is.True, result.Error?.Message);
+            Assert.That(File.Exists(LocalPath(destination)), Is.True);
+        }
+        finally
+        {
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", $"/share/{topLevel}"]);
+        }
     }
 
     private static string LocalPath(string relative) => Path.Combine(DestinationDirPath, relative.Replace('/', Path.DirectorySeparatorChar));
