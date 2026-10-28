@@ -1,4 +1,9 @@
-﻿# Changelog
+# Changelog
+
+## [2.9.0] - 2026-10-28
+
+### Fixed
+- Fixed STATUS_ACCESS_DENIED when writing to existing nested folders without write access to parent directories
 
 ## [2.8.0] - 2026-10-26
 

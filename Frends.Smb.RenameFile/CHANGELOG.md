@@ -1,4 +1,9 @@
-﻿# Changelog
+# Changelog
+
+## [2.9.0] - 2026-10-28
+
+### Fixed
+- Fixed path duplication
 
 ## [2.8.0] - 2026-10-26
 
