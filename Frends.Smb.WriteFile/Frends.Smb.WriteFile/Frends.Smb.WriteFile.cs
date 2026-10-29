@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -94,7 +94,6 @@ public static class Smb
             long writeOffset = 0;
             var disposition = options.Overwrite ? CreateDisposition.FILE_OVERWRITE_IF : CreateDisposition.FILE_CREATE;
 
-            EnsureDirectoriesExist(fileStore, destinationPath);
             status = fileStore.CreateFile(
                 out var fileHandle,
                 out var fileStatus,
@@ -106,10 +105,27 @@ public static class Smb
                 CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
                 null);
 
+            if (status == NTStatus.STATUS_OBJECT_PATH_NOT_FOUND ||
+                status == NTStatus.STATUS_OBJECT_NAME_NOT_FOUND)
+            {
+                EnsureDirectoriesExist(fileStore, destinationPath);
+
+                status = fileStore.CreateFile(
+                    out fileHandle,
+                    out fileStatus,
+                    destinationPath,
+                    SYNCHRONIZE | GENERIC_WRITE,
+                    FileAttributes.Normal,
+                    ShareAccess.Read,
+                    disposition,
+                    CreateOptions.FILE_NON_DIRECTORY_FILE | CreateOptions.FILE_SYNCHRONOUS_IO_ALERT,
+                    null);
+            }
+
             if (status != NTStatus.STATUS_SUCCESS)
             {
                 throw new Exception(
-                    $"Failed while creating a file\nClient status: {status}\n Created file status: {fileStatus}");
+                    $"Failed while creating a file '{destinationPath}'\nClient status: {status}\nCreated file status: {fileStatus}");
             }
 
             try
@@ -191,6 +207,32 @@ public static class Smb
             current = string.IsNullOrEmpty(current) ? part : $"{current}{PathString.GetSeparatorChar()}{part}";
 
             var status = fileStore.CreateFile(
+                out var openHandle,
+                out _,
+                current,
+                SYNCHRONIZE | (AccessMask)FileAccessMask.FILE_READ_ATTRIBUTES,
+                FileAttributes.Directory,
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_DIRECTORY_FILE,
+                null);
+
+            if (status == NTStatus.STATUS_SUCCESS)
+            {
+                if (openHandle != null) fileStore.CloseFile(openHandle);
+                continue;
+            }
+
+            if (status == NTStatus.STATUS_ACCESS_DENIED)
+                continue;
+
+            if (status != NTStatus.STATUS_OBJECT_NAME_NOT_FOUND &&
+                status != NTStatus.STATUS_OBJECT_PATH_NOT_FOUND)
+            {
+                throw new Exception($"Failed to access SMB directory '{current}'. NTStatus={status}");
+            }
+
+            status = fileStore.CreateFile(
                 out var handle,
                 out _,
                 current,
@@ -205,15 +247,11 @@ public static class Smb
                 status == NTStatus.STATUS_OBJECT_NAME_COLLISION ||
                 status == NTStatus.STATUS_OBJECT_NAME_EXISTS)
             {
-                if (handle != null)
-                {
-                    fileStore.CloseFile(handle);
-                }
+                if (handle != null) fileStore.CloseFile(handle);
+                continue;
             }
-            else
-            {
-                throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
-            }
+
+            throw new Exception($"Failed to create SMB directory '{current}'. NTStatus={status}");
         }
     }
 }

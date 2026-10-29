@@ -261,4 +261,65 @@ public class UnitTests
             Assert.That(File.Exists(Path.Combine(DestinationDirPath, "parallel-dir", $"parallel_{i}.txt")), Is.True);
         }
     }
+
+    [Test]
+    public async Task WriteFile_ExistingParentDirectoryWithoutWritePermission_ShouldStillWriteToExistingChildDirectory()
+    {
+        var topLevel = "test1";
+        var nested = "test1/test2/test3/copied";
+        var destination = $"{nested}/text_copyz.txt";
+
+        Directory.CreateDirectory(LocalPath(nested));
+
+        try
+        {
+            await sambaContainer.ExecAsync(["chmod", "555", $"/share/{topLevel}"]);
+            await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2"]);
+            await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2/test3"]);
+            await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2/test3/copied"]);
+
+            input.DestinationPath = destination;
+            input.Content = Encoding.UTF8.GetBytes("content");
+            options.Overwrite = true;
+
+            var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+            Assert.That(result.Success, Is.True, result.Error?.Message);
+            Assert.That(File.Exists(LocalPath(destination)), Is.True);
+        }
+        finally
+        {
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", $"/share/{topLevel}"]);
+        }
+    }
+
+    [Test]
+    public async Task WriteFile_ReadOnlyParentAndMissingChild_ShouldCreateMissingDirectories()
+    {
+        var nested = "test1/test2/test3/copied";
+        var destination = $"{nested}/text_copyz.txt";
+
+        Directory.CreateDirectory(LocalPath("test1/test2"));
+
+        try
+        {
+            await sambaContainer.ExecAsync(["chmod", "555", "/share/test1"]);
+            await sambaContainer.ExecAsync(["chmod", "777", "/share/test1/test2"]);
+
+            input.DestinationPath = destination;
+            input.Content = Encoding.UTF8.GetBytes("content");
+            options.Overwrite = true;
+
+            var result = Smb.WriteFile(input, connection, options, CancellationToken.None);
+
+            Assert.That(result.Success, Is.True, result.Error?.Message);
+            Assert.That(File.Exists(LocalPath(destination)), Is.True);
+        }
+        finally
+        {
+            await sambaContainer.ExecAsync(["chmod", "-R", "777", "/share/test1"]);
+        }
+    }
+
+    private static string LocalPath(string relative) => Path.Combine(DestinationDirPath, relative.Replace('/', Path.DirectorySeparatorChar));
 }

@@ -225,5 +225,34 @@ public class RenameFileTests
         Assert.That(File.Exists(LocalPath("file1-final.txt")), Is.True);
     }
 
+    [Test]
+    public async Task RenameFile_NewFileNameContainsRelativePath_ShouldNotDuplicateDirectorySegments()
+    {
+        var relativeDirectory = $"test1/test2/test3/copied-{Guid.NewGuid():N}";
+        var sourceRelativePath = $"{relativeDirectory}/text_copy.txt";
+        var targetRelativePath = $"{relativeDirectory}/text_copyz.txt";
+
+        Directory.CreateDirectory(LocalPath(relativeDirectory));
+        File.WriteAllText(LocalPath(sourceRelativePath), "rename me");
+        await sambaContainer.ExecAsync(["chmod", "-R", "777", $"/share/{relativeDirectory}"]);
+        await Task.Delay(100);
+
+        input = new Input
+        {
+            Path = sourceRelativePath,
+            NewFileName = targetRelativePath,
+        };
+
+        options.RenameBehaviour = RenameBehaviour.Overwrite;
+
+        var result = Smb.RenameFile(input, connection, options, CancellationToken.None);
+
+        Assert.That(result.Success, Is.True);
+        Assert.That(result.NewFilePath.Value, Is.EqualTo(targetRelativePath));
+        Assert.That(result.NewFilePath.Value, Does.Not.Contain($"{relativeDirectory}/{relativeDirectory}"));
+        Assert.That(File.Exists(LocalPath(sourceRelativePath)), Is.False);
+        Assert.That(File.Exists(LocalPath(targetRelativePath)), Is.True);
+    }
+
     private string LocalPath(string relative) => Path.Combine(testFilesPath, relative);
 }
